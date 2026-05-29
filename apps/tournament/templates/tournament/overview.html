@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+
+{% block title %}Logistica del torneo{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Operacion</p>
+    <h1>Fases del torneo</h1>
+    <p class="lead">
+        Este modulo servira para administrar llaves, grupos, horarios y resultados sin cerrar el formato
+        desde el primer dia.
+    </p>
+</section>
+
+{% if edition %}
+    <section class="card">
+        <h2>{{ edition.name }}</h2>
+        <p>{{ edition.description|default:"Aun no hay descripcion operativa publicada." }}</p>
+    </section>
+{% endif %}
+
+<section class="grid">
+    {% for phase in phases %}
+        <article class="card">
+            <h2>{{ phase.name }}</h2>
+            <p><strong>Tipo:</strong> {{ phase.get_phase_type_display }}</p>
+            <p><strong>Orden:</strong> {{ phase.order }}</p>
+            <p><strong>Visible al publico:</strong> {{ phase.is_public|yesno:"Si,No" }}</p>
+        </article>
+    {% empty %}
+        <article class="card">
+            <h2>Fases pendientes</h2>
+            <p>
+                Cuando definamos el formato oficial del campeonato, estas fases se podran crear
+                desde el panel administrativo sin reestructurar el modelo.
+            </p>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

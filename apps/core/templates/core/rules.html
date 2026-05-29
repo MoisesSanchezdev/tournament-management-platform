@@ -1,0 +1,85 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Reglas | Torneo Robot Explota Globos{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Reglamento oficial</p>
+    <h1>Reglas del torneo</h1>
+    <p class="lead">
+        Consulta aqui el reglamento oficial del evento.
+    </p>
+</section>
+
+<section class="rule-banner">
+    <div class="rule-banner-copy">
+        <p class="eyebrow">Ingenieria Electronica UTP</p>
+        <h2>La competencia se vive dentro y fuera del aula</h2>
+        <p>
+            El reglamento es la base para que cada robot llegue preparado a una experiencia competitiva organizada.
+        </p>
+    </div>
+    <img
+        src="https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2598-1024x788.jpg"
+        alt="Actividad del programa de Ingenieria Electronica UTP">
+</section>
+
+<section class="grid two">
+    <article class="card">
+        <p class="eyebrow">Consulta rapida</p>
+        <h2>Antes de registrarte</h2>
+        <ul class="clean-list">
+            <li>Revisa el PDF oficial.</li>
+            <li>Verifica que el robot cumpla las condiciones.</li>
+            <li>Ten listos los datos del responsable y del equipo.</li>
+        </ul>
+    </article>
+    {% if edition %}
+        <article class="card accent-card">
+            <p class="eyebrow">Edicion activa</p>
+            <h2>{{ edition.name }}</h2>
+            <p>{{ edition.description|default:"Reglamento e inscripciones disponibles para participantes." }}</p>
+        </article>
+    {% endif %}
+</section>
+
+<section class="card">
+    <div class="pdf-header">
+        <div>
+            <h2>Reglamento oficial en PDF</h2>
+            <p>
+                El documento completo esta disponible dentro de esta misma pagina.
+            </p>
+        </div>
+        <a class="button secondary" href="{% static 'docs/ExplotaGlobos.pdf' %}" target="_blank" rel="noopener">
+            Abrir PDF completo
+        </a>
+    </div>
+    <div class="pdf-frame">
+        <iframe
+            src="{% static 'docs/ExplotaGlobos.pdf' %}"
+            title="Reglamento del torneo"
+            loading="lazy">
+        </iframe>
+    </div>
+</section>
+
+<section class="grid">
+    {% for rule in rules %}
+        <article class="card rule-detail-card">
+            <h2>{{ rule.title }}</h2>
+            <p>{{ rule.summary }}</p>
+            <div class="rich-text">{{ rule.body|linebreaks }}</div>
+        </article>
+    {% empty %}
+        <article class="card">
+            <h2>Reglamento pendiente</h2>
+            <p>
+                Aun no se han cargado reglas. Desde el admin podremos publicar secciones oficiales
+                sin tocar el codigo.
+            </p>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

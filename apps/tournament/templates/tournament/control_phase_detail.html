@@ -1,0 +1,46 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Detalle de fase{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Fase interna</p>
+    <h1>{{ phase.name }}</h1>
+    <p class="lead">
+        Vista demo de seguimiento para una fase concreta del torneo.
+    </p>
+</section>
+
+<section class="grid two">
+    <article class="card">
+        <h2>Informacion base</h2>
+        <p><strong>Edicion:</strong> {{ edition.name }}</p>
+        <p><strong>Tipo:</strong> {{ phase.get_phase_type_display }}</p>
+        <p><strong>Orden:</strong> {{ phase.order }}</p>
+        <p><strong>Visible al publico:</strong> {{ phase.is_public|yesno:"Si,No" }}</p>
+    </article>
+    <article class="card">
+        <h2>Configuracion</h2>
+        <pre class="config-box">{{ phase.configuration }}</pre>
+    </article>
+</section>
+
+<section class="card">
+    <h2>Enfrentamientos</h2>
+    <div class="phase-list">
+        {% for match in matches %}
+            <article class="phase-row">
+                <div>
+                    <h3>{{ match.team_a }} vs {{ match.team_b }}</h3>
+                    <p>Estado: {{ match.get_status_display }}</p>
+                </div>
+                <div class="phase-meta">
+                    <p>Marcador: {{ match.score_a }} - {{ match.score_b }}</p>
+                </div>
+            </article>
+        {% empty %}
+            <p>Esta fase aun no tiene enfrentamientos cargados.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

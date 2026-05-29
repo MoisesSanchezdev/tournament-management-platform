@@ -1,0 +1,145 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Inicio | Torneo Robot Explota Globos{% endblock %}
+
+{% block content %}
+<section class="hero-shell">
+    <div class="hero-copy">
+        <p class="eyebrow">Universidad Tecnologica de Pereira</p>
+        <h1>Torneo Robot Explota Globos</h1>
+        <p class="lead">
+            Consulta el reglamento oficial y registra tu robot para participar.
+        </p>
+        <p class="hero-support">
+            Una iniciativa impulsada desde el programa de Ingenieria Electronica para reunir creatividad,
+            diseno y competencia alrededor de la robotica.
+        </p>
+        <div class="actions">
+            <a class="button primary" href="{% url 'participants:team_register' %}">Registrar un robot</a>
+            <a class="button secondary" href="{% url 'core:rules' %}">Consultar reglamento</a>
+        </div>
+    </div>
+    <aside class="hero-rail">
+        <div class="hero-orbit"></div>
+        <div class="visual-stack">
+            <div class="card highlight-card">
+                <p class="eyebrow">Estado del evento</p>
+                {% if edition %}
+                    <h2>{{ edition.name }}</h2>
+                    <p>{{ edition.description|default:"Edicion activa lista para recibir y organizar las inscripciones." }}</p>
+                    <div class="mini-stats">
+                        <div>
+                            <strong>{{ school_total }}</strong>
+                            <span>Colegios</span>
+                        </div>
+                        <div>
+                            <strong>{{ university_total }}</strong>
+                            <span>Universidades</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <h2>Configuracion en curso</h2>
+                    <p>La edicion activa aun no ha sido publicada, pero la plataforma ya esta lista para estructurarla.</p>
+                {% endif %}
+            </div>
+            <div class="card support-card">
+                <p class="eyebrow">Ingenieria Electronica UTP</p>
+                <h2>Diseno y desarrollo del proyecto</h2>
+                <p>
+                    Este espacio muestra el trabajo del programa y abre una vitrina inicial para el torneo y su comunidad.
+                </p>
+            </div>
+        </div>
+    </aside>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <p class="eyebrow">Reglamento</p>
+            <h2>Reglas destacadas</h2>
+        </div>
+        <a class="button secondary" href="{% url 'core:rules' %}">Abrir pagina de reglas</a>
+    </div>
+    {% if rules %}
+        <div class="rule-grid">
+            {% for rule in rules %}
+                <article class="rule-card">
+                    <p class="eyebrow">Regla {{ forloop.counter }}</p>
+                    <h3>{{ rule.title }}</h3>
+                    <p>{{ rule.summary }}</p>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Aun no se han cargado reglas en la base de datos.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <p class="eyebrow">Ambiente del torneo</p>
+            <h2>Ingenieria Electronica y cultura de competencia</h2>
+        </div>
+    </div>
+    <div class="showcase-grid">
+        {% for image in showcase_images %}
+            <article class="showcase-card">
+                <img src="{{ image.url }}" alt="{{ image.title }}">
+                <div class="showcase-copy">
+                    <h3>{{ image.title }}</h3>
+                    <p>{{ image.caption }}</p>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <p class="eyebrow">Patrocinadores</p>
+            <h2>Aliados que impulsan el torneo</h2>
+        </div>
+        <a class="button secondary" href="{% url 'core:sponsors' %}">Ver los {{ sponsors_total }} patrocinadores</a>
+    </div>
+    <div class="sponsor-grid sponsor-grid-preview">
+        {% for sponsor in sponsors_preview %}
+            {% if sponsor.link_ready %}
+                <a
+                    class="sponsor-card"
+                    href="{{ sponsor.url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};"
+                >
+                    <div class="sponsor-logo-frame">
+                        <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="{{ sponsor.name }}">
+                    </div>
+                    <div class="sponsor-details">
+                        <strong>{{ sponsor.name }}</strong>
+                        <span>{{ sponsor.tagline }}</span>
+                        <small>Ir al sitio oficial</small>
+                    </div>
+                </a>
+            {% else %}
+                <article
+                    class="sponsor-card sponsor-card-disabled"
+                    style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};"
+                >
+                    <div class="sponsor-logo-frame">
+                        <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="{{ sponsor.name }}">
+                    </div>
+                    <div class="sponsor-details">
+                        <strong>{{ sponsor.name }}</strong>
+                        <span>{{ sponsor.tagline }}</span>
+                        <small>Enlace oficial en confirmacion</small>
+                    </div>
+                </article>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

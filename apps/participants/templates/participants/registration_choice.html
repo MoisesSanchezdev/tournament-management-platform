@@ -1,0 +1,73 @@
+{% extends "core/base.html" %}
+
+{% block title %}Inscripciones{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Inscripciones</p>
+    <h1>Inscribe tu robot en la categoria correcta</h1>
+    <p class="lead">
+        Selecciona la categoria correspondiente para continuar con el formulario.
+    </p>
+</section>
+
+<section class="spotlight-card visual-spotlight">
+    <img
+        src="https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2608-1-1024x788.jpg"
+        alt="Comunidad de Ingenieria Electronica UTP">
+    <div>
+        <p class="eyebrow">Comunidad UTP</p>
+        <h2>Robotica, creatividad y competencia</h2>
+        <p>
+            El torneo busca reunir equipos de colegios y universidades alrededor de una experiencia tecnica y llamativa.
+        </p>
+    </div>
+</section>
+
+<section class="card spotlight-card">
+    <div>
+        <p class="eyebrow">Importante</p>
+        <h2>Una inscripcion equivale a un robot</h2>
+        <p>
+            Si una institucion lleva varios robots, debe registrar cada uno por separado.
+        </p>
+    </div>
+    <div class="spotlight-steps">
+        <span>Colegio o universidad</span>
+        <span>Hasta 3 integrantes</span>
+        <span>Responsable obligatorio</span>
+    </div>
+</section>
+
+<section class="grid two">
+    <article class="card choice-card">
+        <p class="eyebrow">Categoria escolar</p>
+        <h2>Registro para colegios</h2>
+        <p>
+            Usa esta opcion si el equipo representa un colegio, institucion educativa o categoria escolar.
+        </p>
+        <a class="button primary" href="{% url 'participants:school_register' %}">Ir al formulario de colegios</a>
+    </article>
+    <article class="card choice-card">
+        <p class="eyebrow">Categoria universitaria</p>
+        <h2>Registro para universidades</h2>
+        <p>
+            Usa esta opcion si el equipo representa una universidad, facultad o programa academico.
+        </p>
+        <a class="button primary" href="{% url 'participants:university_register' %}">Ir al formulario universitario</a>
+    </article>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <p class="eyebrow">Preparacion previa</p>
+            <h2>Antes de registrarte</h2>
+        </div>
+        <a class="button secondary" href="{% url 'core:rules' %}">Consultar reglas oficiales</a>
+    </div>
+    <p>
+        Revisa el reglamento oficial antes de enviar la inscripcion.
+    </p>
+</section>
+{% endblock %}

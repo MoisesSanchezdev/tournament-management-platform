@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Panel interno{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260504-1">
+</head>
+<body class="control-body">
+    <header class="site-header control-header">
+        <div class="container nav">
+            <a class="brand" href="{% url 'tournament:control_dashboard' %}">Panel de organizacion</a>
+            <nav>
+                <a href="{% url 'tournament:control_dashboard' %}">Resumen</a>
+                <a href="{% url 'tournament:overview' %}">Vista publica</a>
+                <form method="post" action="{% url 'tournament:control_logout' %}">
+                    {% csrf_token %}
+                    <button class="nav-button" type="submit">Cerrar sesion</button>
+                </form>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container control-main" data-control-main>
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <div class="participant-modal-shell" data-participant-modal hidden>
+        <div class="participant-modal-backdrop" data-modal-close></div>
+        <section class="participant-modal" role="dialog" aria-modal="true" aria-labelledby="participant-modal-title">
+            <button class="modal-close" type="button" data-modal-close aria-label="Cerrar">×</button>
+            <div class="participant-modal-content">
+                <div class="participant-modal-loading">Cargando participante...</div>
+            </div>
+        </section>
+    </div>
+    <script src="{% static 'js/control.js' %}?v=20260504-1"></script>
+</body>
+</html>

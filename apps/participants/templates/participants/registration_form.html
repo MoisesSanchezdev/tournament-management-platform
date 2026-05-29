@@ -1,0 +1,56 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Inscripciones</p>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ subtitle }}</p>
+</section>
+
+<section class="grid form-layout">
+    <aside class="card form-side">
+        <p class="eyebrow">Tipo de registro</p>
+        <h2>{{ registration_type }}</h2>
+        <p>{{ form_intro }}</p>
+        <div class="side-checklist">
+            <span>1 robot</span>
+            <span>Lider obligatorio</span>
+            <span>Hasta 3 integrantes</span>
+        </div>
+        <p class="muted-text">
+            El nombre del robot debe ser exclusivo. Tampoco se aceptan variantes como agregar numeros al final.
+        </p>
+    </aside>
+
+    <section class="card">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Formulario</p>
+                <h2>Datos del robot y del grupo</h2>
+            </div>
+            <p class="section-label">Hasta 3 participantes</p>
+        </div>
+        <form method="post" class="form-grid form-grid-public">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <div class="field {% if forloop.counter <= 5 %}field-priority{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small>{{ field.help_text }}</small>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <small class="error">{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button primary" type="submit">Enviar inscripcion</button>
+            </div>
+        </form>
+    </section>
+</section>
+{% endblock %}

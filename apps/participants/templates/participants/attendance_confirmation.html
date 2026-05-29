@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+
+{% block title %}Confirmacion de asistencia{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Confirmacion de asistencia</p>
+    <h1>{{ registration.robot_name }}</h1>
+    <p class="lead">
+        Este paso confirma que tu equipo realmente asistira al torneo y permite que entre al cuadro oficial de fases.
+    </p>
+</section>
+
+<section class="grid form-layout">
+    <aside class="card form-side">
+        <p class="eyebrow">Resumen</p>
+        <h2>{{ registration.institution_name }}</h2>
+        <p>Categoria: {{ registration_type|title }}</p>
+        <div class="side-checklist">
+            <span>Robot: {{ registration.robot_name }}</span>
+            <span>Responsable: {{ registration.responsible_name }}</span>
+            <span>Correo: {{ registration.contact_email }}</span>
+        </div>
+    </aside>
+
+    <section class="card">
+        {% if already_confirmed %}
+            <p class="eyebrow">Estado</p>
+            <h2>Asistencia ya confirmada</h2>
+            <p>
+                Este robot ya confirmo asistencia y puede ser tenido en cuenta por la organizacion para el cuadro oficial.
+            </p>
+        {% else %}
+            <p class="eyebrow">Paso final</p>
+            <h2>Confirmar asistencia</h2>
+            <p>
+                Si vas a participar en el torneo, confirma aqui. Una vez confirmado, el robot podra ser reflejado
+                dentro del sistema de fases de la organizacion.
+            </p>
+            <form method="post" class="login-form">
+                {% csrf_token %}
+                <button class="button primary" type="submit">Confirmar asistencia</button>
+            </form>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

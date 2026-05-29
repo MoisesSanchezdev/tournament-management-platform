@@ -1,0 +1,78 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Panel interno{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Operacion interna</p>
+    <h1>Panel de organizacion</h1>
+    <p class="lead">Vista general para entrar a cada categoria y operar el torneo sin saturacion visual.</p>
+</section>
+
+{% if edition %}
+    <section class="grid stats-grid">
+        <article class="card stat-card">
+            <p class="eyebrow">Edicion activa</p>
+            <h2>{{ edition.name }}</h2>
+            <p>{{ edition.location|default:"Ubicacion pendiente" }}</p>
+        </article>
+        <article class="card stat-card">
+            <p class="eyebrow">Inscripciones</p>
+            <h2>{{ school_total|add:university_total }}</h2>
+            <p>{{ school_total }} colegios · {{ university_total }} universidades</p>
+        </article>
+        <article class="card stat-card">
+            <p class="eyebrow">Modelo</p>
+            <h2>Adaptativo</h2>
+            <p>Automatico al crear, editable durante la operacion.</p>
+        </article>
+    </section>
+
+    <section class="division-dashboard-grid">
+        {% for division in division_plans %}
+            <article class="division-board division-summary-board" id="{{ division.anchor }}">
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow">Categoria {{ forloop.counter }}</p>
+                        <h2>{{ division.name }}</h2>
+                    </div>
+                    <div class="division-metrics">
+                        <span>{{ division.registered_count }} inscritos</span>
+                        <span>{{ division.mode_label }}</span>
+                    </div>
+                </div>
+
+                <div class="metric-strip compact-metric-strip">
+                    {% for stat in division.quick_stats %}
+                        <article class="card metric-chip-card compact-metric-card">
+                            <p class="eyebrow">{{ stat.label }}</p>
+                            <h3>{{ stat.value }}</h3>
+                        </article>
+                    {% endfor %}
+                </div>
+
+                <div class="division-actions">
+                    {% if division.competition %}
+                        <a class="button primary" href="{% url 'tournament:control_division' division.competition.id %}">
+                            Abrir {{ division.name }}
+                        </a>
+                    {% endif %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="generate_competition">
+                        <input type="hidden" name="division" value="{{ division.key }}">
+                        <button class="button secondary" type="submit">
+                            {% if division.competition %}Regenerar grupos{% else %}Generar torneo{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="card">
+        <h2>Sin edicion activa</h2>
+        <p>Debes tener una edicion activa del torneo para usar este panel.</p>
+    </section>
+{% endif %}
+{% endblock %}

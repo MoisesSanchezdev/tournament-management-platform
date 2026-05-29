@@ -1,0 +1,334 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}{{ stage_title }}{% endblock %}
+
+{% block content %}
+<div class="control-screen" data-competition-id="{{ competition.id }}">
+<section class="page-header">
+    <p class="eyebrow">Operacion por fase</p>
+    <h1>{{ competition.get_division_display }} · {{ stage_title }}</h1>
+    <p class="lead">Vista enfocada solo en la fase actual.</p>
+</section>
+
+<section class="phase-nav phase-nav-top">
+    <a class="phase-nav-link" href="{% url 'tournament:control_division' competition.id %}">Resumen</a>
+    {% for item in navigation %}
+        <a
+            class="phase-nav-link {% if item.key == stage_key %}active{% endif %}"
+            href="{% url 'tournament:control_division_stage' competition.id item.key %}"
+        >
+            {{ item.title }}
+        </a>
+    {% endfor %}
+</section>
+
+{% if stage_key == "final" %}
+    <section class="stage-action-bar">
+        <form method="post" onsubmit="return confirm('Esto reinicia el torneo y borra progreso. Confirma solo si ya hiciste respaldo o estas seguro.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset_competition">
+            <input type="hidden" name="confirm_reset" value="yes">
+            <button class="button secondary danger-outline" type="submit">Reiniciar torneo</button>
+        </form>
+    </section>
+{% endif %}
+
+{% if stage_key == "groups" %}
+    {% if groups_payload %}
+        <section class="result-save-bar">
+            <div>
+                <p class="eyebrow">Guardado operativo</p>
+                <strong>Resultados visibles</strong>
+                <span>Editable después de guardar</span>
+            </div>
+            <button class="button primary" type="button" data-save-all-results>
+                Guardar todos los resultados
+            </button>
+        </section>
+    {% endif %}
+
+    <section class="group-grid">
+        {% for group_data in groups_payload %}
+            <article class="card group-card">
+                <div class="group-head">
+                    <div>
+                        <p class="eyebrow">Grupo {{ group_data.group.label }}</p>
+                        <h3>{{ group_data.entries|length }} carros</h3>
+                    </div>
+                    <div class="group-tags">
+                        <span>{{ profile.qualifiers_per_group }} clasifica(n)</span>
+                        <span>Selección editable</span>
+                    </div>
+                </div>
+
+                <form
+                    method="post"
+                    class="rank-form result-form"
+                    data-result-form
+                    data-result-kind="group"
+                    data-result-label="Grupo {{ group_data.group.label }}"
+                    data-required-selections="{{ profile.qualifiers_per_group }}"
+                >
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="save_group_qualifiers">
+                    <input type="hidden" name="group_id" value="{{ group_data.group.id }}">
+                    <div class="slot-list">
+                        {% for item in group_data.entries %}
+                            <div class="qualifier-row result-choice-card entry-card {% if item.entry.qualified_from_group %}is-winner entry-card--winner{% else %}is-pending entry-card--pending{% endif %}" data-result-card>
+                                <input
+                                    class="result-choice-input"
+                                    type="checkbox"
+                                    name="qualified_entry_ids"
+                                    value="{{ item.entry.id }}"
+                                    {% if item.entry.qualified_from_group %}checked{% endif %}
+                                >
+                                <button class="result-choice-body participant-trigger" type="button" data-participant-state-id="{{ item.state.id }}">
+                                    <span class="slot-row-head">
+                                        <strong>{{ item.participant.robot_name }}</strong>
+                                        <span>{{ item.participant.institution_name }}</span>
+                                    </span>
+                                </button>
+                                <span
+                                    class="result-status-badge"
+                                    data-result-status
+                                    data-winner-label="Ganador"
+                                    data-loser-label="Perdedor"
+                                    data-pending-label="Pendiente"
+                                >
+                                    <span class="result-status-dot" aria-hidden="true"></span>
+                                    <span data-result-label>{% if item.entry.qualified_from_group %}Ganador{% else %}Pendiente{% endif %}</span>
+                                </span>
+                                <button class="result-select-button winner-action-button" type="button" data-result-select data-result-select-label>
+                                    {% if item.entry.qualified_from_group %}Ganador{% else %}Marcar ganador{% endif %}
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button class="button secondary" type="submit">Guardar este grupo</button>
+                    </div>
+                </form>
+            </article>
+        {% endfor %}
+    </section>
+
+    <section class="grid two">
+        <article class="card">
+            <div class="section-head compact-head">
+                <div>
+                    <p class="eyebrow">Salida A</p>
+                    <h2>Clasificados</h2>
+                </div>
+            </div>
+            <details class="control-panel disclosure-panel nested-disclosure">
+                <summary>
+                    <div>
+                        <p class="eyebrow">Lista</p>
+                        <strong>{{ classified_participants|length }} participante(s)</strong>
+                    </div>
+                    <span class="summary-hint">Ver lista</span>
+                </summary>
+                <div class="disclosure-body">
+                    <div class="participant-list">
+                        {% for participant in classified_participants %}
+                            <button class="participant-pill participant-trigger" type="button" data-participant-state-id="{{ participant.state_id }}">
+                                <strong>{{ participant.robot_name }}</strong>
+                                <span>{{ participant.group_label }} · {{ participant.status_label }}</span>
+                            </button>
+                        {% empty %}
+                            <p class="muted-text">Aún no hay clasificados confirmados.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+        </article>
+
+        <article class="card">
+            <div class="section-head compact-head">
+                <div>
+                    <p class="eyebrow">Salida B</p>
+                    <h2>{{ secondary_title }}</h2>
+                </div>
+            </div>
+            <details class="control-panel disclosure-panel nested-disclosure">
+                <summary>
+                    <div>
+                        <p class="eyebrow">Lista</p>
+                        <strong>{{ secondary_participants|length }} participante(s)</strong>
+                    </div>
+                    <span class="summary-hint">Ver lista</span>
+                </summary>
+                <div class="disclosure-body">
+                    <div class="participant-list">
+                        {% for participant in secondary_participants %}
+                            <button class="participant-pill participant-trigger" type="button" data-participant-state-id="{{ participant.state_id }}">
+                                <strong>{{ participant.robot_name }}</strong>
+                                <span>{{ participant.group_label }} · {{ participant.status_label }}</span>
+                            </button>
+                        {% empty %}
+                            <p class="muted-text">No hay participantes en esta lista por ahora.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+        </article>
+    </section>
+{% else %}
+    {% if battles_payload %}
+        <section class="result-save-bar">
+            <div>
+                <p class="eyebrow">Guardado operativo</p>
+                <strong>Ganadores visibles</strong>
+                <span>Editable después de guardar</span>
+            </div>
+            <button class="button primary" type="button" data-save-all-results>
+                Guardar todos los ganadores
+            </button>
+        </section>
+    {% endif %}
+
+    <section class="phase-stage-layout">
+        <div class="phase-stage-main">
+            {% for battle_data in battles_payload %}
+                {% if battle_data.entries %}
+                    <article class="card phase-battle-card">
+                        <div class="group-head">
+                            <div>
+                                <p class="eyebrow">{{ battle_data.battle.get_format_type_display }}</p>
+                                <h3>{{ battle_data.battle.name }}</h3>
+                            </div>
+                            <div class="group-tags">
+                                <span>{{ battle_data.battle.get_status_display }}</span>
+                                <span>{{ battle_data.entries|length }} participante(s)</span>
+                            </div>
+                        </div>
+
+                        <form
+                            method="post"
+                            class="battle-form result-form"
+                            data-result-form
+                            data-result-kind="battle"
+                            data-result-label="{{ battle_data.battle.name }}"
+                            data-required-selections="1"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="save_battle_winner">
+                            <input type="hidden" name="battle_id" value="{{ battle_data.battle.id }}">
+                            <div class="battle-entry-list result-choice-list" id="winner_{{ battle_data.battle.id }}">
+                                {% for item in battle_data.entries %}
+                                    <div class="winner-choice-card entry-card {% if battle_data.battle.winner_id == item.state.team_id %}is-winner entry-card--winner{% elif battle_data.battle.winner_id %}is-loser entry-card--loser{% else %}is-pending entry-card--pending{% endif %}" data-result-card>
+                                        <input
+                                            class="result-choice-input"
+                                            type="radio"
+                                            name="winner_team_id"
+                                            value="{{ item.state.team_id }}"
+                                            {% if battle_data.battle.winner_id == item.state.team_id %}checked{% endif %}
+                                        >
+                                        <button class="winner-choice-main participant-trigger" type="button" data-participant-state-id="{{ item.state.id }}">
+                                            <strong>{{ item.participant.robot_name }}</strong>
+                                            <span>{{ item.battle_entry.origin_label|default:item.participant.institution_name }}</span>
+                                        </button>
+                                        <span
+                                            class="result-status-badge"
+                                            data-result-status
+                                            data-winner-label="Ganador"
+                                            data-loser-label="Perdedor"
+                                            data-pending-label="Pendiente"
+                                        >
+                                            <span class="result-status-dot" aria-hidden="true"></span>
+                                            <span data-result-label>
+                                                {% if battle_data.battle.winner_id == item.state.team_id %}Ganador{% elif battle_data.battle.winner_id %}Perdedor{% else %}Pendiente{% endif %}
+                                            </span>
+                                        </span>
+                                        <button class="result-select-button winner-action-button" type="button" data-result-select data-result-select-label>
+                                            {% if battle_data.battle.winner_id == item.state.team_id %}Ganador{% else %}Marcar ganador{% endif %}
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-actions">
+                                <button class="button secondary" type="submit">Guardar este ganador</button>
+                            </div>
+                        </form>
+                    </article>
+                {% endif %}
+            {% empty %}
+                <article class="card empty-stage-card">
+                    <p class="eyebrow">Sin cruces activos</p>
+                    <h3>Esta fase todavía no tiene participantes asignados.</h3>
+                </article>
+            {% endfor %}
+
+            {% if not stage_participants %}
+                <article class="card empty-stage-card">
+                    <p class="eyebrow">Sin cruces activos</p>
+                    <h3>Esta fase todavía no tiene participantes asignados.</h3>
+                </article>
+            {% endif %}
+        </div>
+
+        <aside class="phase-stage-side">
+            <article class="card">
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow">Ganadores</p>
+                        <h2>Avance de la ronda</h2>
+                    </div>
+                </div>
+                <details class="control-panel disclosure-panel nested-disclosure">
+                    <summary>
+                        <div>
+                            <p class="eyebrow">Lista</p>
+                            <strong>{{ winner_participants|length }} ganador(es)</strong>
+                        </div>
+                        <span class="summary-hint">Ver lista</span>
+                    </summary>
+                    <div class="disclosure-body">
+                        <div class="participant-list">
+                            {% for participant in winner_participants %}
+                                <button class="participant-pill participant-trigger" type="button" data-participant-state-id="{{ participant.state_id }}">
+                                    <strong>{{ participant.robot_name }}</strong>
+                                    <span>{{ participant.status_label }}</span>
+                                </button>
+                            {% empty %}
+                                <p class="muted-text">Todavía no hay ganadores registrados en esta fase.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </details>
+            </article>
+
+            <article class="card">
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow">Eliminados</p>
+                        <h2>Salida de la ronda</h2>
+                    </div>
+                </div>
+                <details class="control-panel disclosure-panel nested-disclosure">
+                    <summary>
+                        <div>
+                            <p class="eyebrow">Lista</p>
+                            <strong>{{ eliminated_participants|length }} participante(s)</strong>
+                        </div>
+                        <span class="summary-hint">Ver lista</span>
+                    </summary>
+                    <div class="disclosure-body">
+                        <div class="participant-list">
+                            {% for participant in eliminated_participants %}
+                                <button class="participant-pill participant-trigger" type="button" data-participant-state-id="{{ participant.state_id }}">
+                                    <strong>{{ participant.robot_name }}</strong>
+                                    <span>{{ participant.status_label }}</span>
+                                </button>
+                            {% empty %}
+                                <p class="muted-text">Todavía no hay eliminados en esta fase.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </details>
+            </article>
+        </aside>
+    </section>
+{% endif %}
+</div>
+{% endblock %}

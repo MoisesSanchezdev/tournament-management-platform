@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+
+{% block title %}Registro enviado{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Registro recibido</p>
+    <h1>Inscripcion registrada</h1>
+    <p>
+        La solicitud para <strong>{{ registration_type }}</strong> ya quedo almacenada correctamente.
+        Si el correo esta configurado, el responsable ya recibio un mensaje de confirmacion de registro.
+    </p>
+    <p class="muted-text">
+        Antes del torneo se enviara un nuevo correo para confirmar asistencia. Solo despues de esa confirmacion
+        el robot podra entrar al cuadro oficial de fases. Recuerda: este envio representa un solo robot del torneo.
+    </p>
+    <div class="actions">
+        <a class="button primary" href="{% url 'participants:team_register' %}">Registrar otro equipo</a>
+        <a class="button secondary" href="{% url 'core:home' %}">Volver al inicio</a>
+    </div>
+</section>
+{% endblock %}

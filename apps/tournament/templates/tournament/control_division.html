@@ -1,0 +1,172 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Control de categoria{% endblock %}
+
+{% block content %}
+<div class="control-screen" data-competition-id="{{ competition.id }}">
+<section class="page-header">
+    <p class="eyebrow">Operacion por categoria</p>
+    <h1>{{ competition.get_division_display }}</h1>
+    <p class="lead">Resumen rapido de formato, grupos y accesos directos a cada fase.</p>
+</section>
+
+<section class="phase-nav phase-nav-top">
+    <a class="phase-nav-link active" href="{% url 'tournament:control_division' competition.id %}">Resumen</a>
+    {% for item in stage_navigation %}
+        <a class="phase-nav-link" href="{% url 'tournament:control_division_stage' competition.id item.key %}">
+            {{ item.title }}
+        </a>
+    {% endfor %}
+</section>
+
+<section class="grid stats-grid">
+    <article class="card stat-card">
+        <p class="eyebrow">Edicion</p>
+        <h2>{{ edition.name }}</h2>
+        <p>{{ edition.location|default:"Ubicacion pendiente" }}</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Estado</p>
+        <h2>{{ competition.get_status_display }}</h2>
+        <p>Semilla: {{ competition.shuffle_seed }}</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Modo activo</p>
+        <h2>{% if profile.mode_source == "manual" %}Manual{% else %}Automatico{% endif %}</h2>
+        <p>{{ profile.group_count }} grupos · {{ profile.qualifier_count }} cupos</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Accion rapida</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="regenerate_competition">
+            <button class="button secondary" type="submit">Volver a mezclar grupos</button>
+        </form>
+    </article>
+</section>
+
+<section class="control-accordion-grid">
+    <details class="control-panel disclosure-panel">
+        <summary>
+            <div>
+                <p class="eyebrow">Modo sugerido</p>
+                <strong>{{ auto_suggestion.label }}</strong>
+            </div>
+            <span class="summary-hint">Ver detalle</span>
+        </summary>
+        <div class="disclosure-body">
+            <div class="config-chip-list">
+                <span>{{ auto_suggestion.group_count }} grupos</span>
+                <span>{{ auto_suggestion.qualifiers_per_group }} clasifica(n) por grupo</span>
+                <span>
+                    {% if auto_suggestion.allow_purgatory_two %}Con P1 y P2{% elif auto_suggestion.allow_purgatory_one %}Con P1{% else %}Sin repechaje{% endif %}
+                </span>
+            </div>
+            <form method="post" class="config-form-stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="apply_auto_configuration">
+                <button class="button secondary" type="submit">Usar modo sugerido</button>
+            </form>
+        </div>
+    </details>
+
+    <details class="control-panel disclosure-panel">
+        <summary>
+            <div>
+                <p class="eyebrow">Modo editable</p>
+                <strong>Personalizar formato</strong>
+            </div>
+            <span class="summary-hint">Abrir ajustes</span>
+        </summary>
+        <div class="disclosure-body">
+            <form method="post" class="config-form-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="apply_manual_configuration">
+
+                <div class="field">
+                    <label for="group_count">Numero de grupos</label>
+                    <input id="group_count" name="group_count" type="number" min="2" max="16" step="2" value="{{ profile.group_count }}">
+                </div>
+
+                <div class="field">
+                    <label for="qualifiers_per_group">Clasificados por grupo</label>
+                    <input id="qualifiers_per_group" name="qualifiers_per_group" type="number" min="1" max="4" value="{{ profile.qualifiers_per_group }}">
+                </div>
+
+                <label class="toggle-field">
+                    <input name="allow_purgatory_one" type="checkbox" {% if profile.allow_purgatory_one %}checked{% endif %}>
+                    <span>Activar Purgatorio 1</span>
+                </label>
+
+                <label class="toggle-field">
+                    <input name="allow_purgatory_two" type="checkbox" {% if profile.allow_purgatory_two %}checked{% endif %}>
+                    <span>Activar Purgatorio 2</span>
+                </label>
+
+                <label class="toggle-field toggle-wide">
+                    <input name="enable_third_place" type="checkbox" {% if profile.enable_third_place %}checked{% endif %}>
+                    <span>Jugar tercer lugar</span>
+                </label>
+
+                <div class="form-actions">
+                    <button class="button primary" type="submit">Aplicar formato manual</button>
+                </div>
+            </form>
+        </div>
+    </details>
+</section>
+
+<details class="control-panel disclosure-panel heavy-panel">
+    <summary>
+        <div>
+            <p class="eyebrow">Distribucion manual</p>
+            <strong>Reorganizar grupos</strong>
+        </div>
+        <span class="summary-hint">Mostrar lista completa</span>
+    </summary>
+    <div class="disclosure-body">
+        <form method="post" class="layout-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_group_layout">
+            {% for entry in layout_entries %}
+                <div class="layout-row">
+                    <div>
+                        <strong>{{ entry.team.robot_name }}</strong>
+                        <p class="muted-text">{{ entry.team.institution.name }} · Grupo {{ entry.group.label }}</p>
+                    </div>
+                    <div class="field compact-field">
+                        <label for="target_group_{{ entry.id }}">Mover a</label>
+                        <select id="target_group_{{ entry.id }}" name="target_group_{{ entry.id }}">
+                            {% for group in layout_groups %}
+                                <option value="{{ group.id }}" {% if entry.group_id == group.id %}selected{% endif %}>
+                                    Grupo {{ group.label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button secondary" type="submit">Guardar distribucion manual</button>
+            </div>
+        </form>
+    </div>
+</details>
+
+<section class="section-head compact-head">
+    <div>
+        <p class="eyebrow">Navegacion por fases</p>
+        <h2>Fases del torneo</h2>
+    </div>
+</section>
+
+<section class="phase-summary-grid compact-summary-grid">
+    {% for item in stage_navigation %}
+        <a class="card phase-jump-card" href="{% url 'tournament:control_division_stage' competition.id item.key %}">
+            <p class="eyebrow">Fase</p>
+            <h3>{{ item.title }}</h3>
+        </a>
+    {% endfor %}
+</section>
+</div>
+{% endblock %}
