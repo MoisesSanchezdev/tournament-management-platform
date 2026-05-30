@@ -1,136 +1,168 @@
 # Torneo Robot Explota Globos
 
-Base inicial de un proyecto Django para administrar el torneo de robots explota globos de la Universidad Tecnologica de Pereira.
+Aplicación web desarrollada con Django para apoyar la gestión del torneo Robot Explota Globos UTP. El sistema centraliza información pública del evento, registro de participantes y herramientas operativas para organizar ediciones, fases y enfrentamientos.
 
-## Objetivo del proyecto
+Este repositorio se presenta como proyecto de portafolio y como base técnica para digitalizar procesos del torneo, manteniendo una separación clara entre configuración local, datos sensibles y código versionado.
 
-La plataforma esta pensada para cubrir tres frentes:
+## Contexto
 
-1. Publicar reglas y condiciones oficiales del evento.
-2. Registrar robots provenientes de colegios y universidades.
-3. Gestionar la logistica del torneo, incluyendo fases y enfrentamientos.
+Robot Explota Globos es una competencia de robótica en la que equipos de colegios y universidades participan con robots diseñados para cumplir las reglas oficiales del evento. Este proyecto fue desarrollado para apoyar la gestión del torneo Robot Explota Globos UTP, especialmente en el registro de robots, publicación de reglas y organización inicial de la competencia.
+
+El archivo `static/docs/ExplotaGlobos.pdf` se conserva en el repositorio porque contiene las reglas oficiales del torneo.
+
+## Funcionalidades principales
+
+- Página pública de inicio y consulta de reglas del torneo.
+- Registro diferenciado para robots de colegios y universidades.
+- Validación de inscripciones por edición activa.
+- Prevención de duplicados por robot, correo y documento del líder.
+- Envío configurable de correos de confirmación.
+- Modelado de ediciones, fases y enfrentamientos.
+- Panel interno para gestión operativa del torneo.
+- Configuración por variables de entorno para desarrollo y producción.
+- Soporte para SQLite en desarrollo local y PostgreSQL en entornos productivos.
+
+## Stack tecnológico
+
+- Python
+- Django 5.2 LTS
+- PostgreSQL
+- SQLite para desarrollo local
+- HTML, CSS y JavaScript
+- python-dotenv
+- psycopg
 
 ## Estructura del proyecto
 
-- `config/`: configuracion central de Django.
-- `apps/core/`: pagina principal y seccion publica de reglas.
-- `apps/participants/`: inscripciones de colegios y universidades.
-- `apps/tournament/`: ediciones, reglas publicadas, fases y enfrentamientos.
-- `apps/common/`: componentes reutilizables como modelos abstractos.
-- `static/`: estilos, PDF oficial y recursos publicos.
-- `.venv/`: entorno virtual de Python.
+- `config/`: configuración central de Django, rutas principales, WSGI y ASGI.
+- `apps/core/`: páginas públicas, inicio, reglas y patrocinadores.
+- `apps/participants/`: formularios, modelos, vistas y servicios de inscripción.
+- `apps/tournament/`: modelos y vistas para ediciones, fases, enfrentamientos y panel interno.
+- `apps/common/`: componentes reutilizables del dominio.
+- `static/css/`: estilos públicos del sitio.
+- `static/js/`: scripts del sistema.
+- `static/docs/`: documentos públicos del torneo, incluyendo el reglamento oficial.
+- `static/sponsors/`: recursos visuales de patrocinadores y contexto del evento.
+- `logos_patrocinadores/`: logos usados como referencia visual del torneo.
 
-## Modelo actual del dominio publico
+## Instalación local
 
-- `SchoolRegistration`: inscripcion de un robot perteneciente a colegio.
-- `UniversityRegistration`: inscripcion de un robot perteneciente a universidad.
-- `SchoolParticipant`: integrantes del robot inscrito por colegio.
-- `UniversityParticipant`: integrantes del robot inscrito por universidad.
-- `TournamentEdition`: cada edicion del torneo.
-- `RuleSection`: reglas publicables por secciones.
-- `TournamentPhase`: fase configurable con `JSONField` para no fijar aun el formato.
-- `Match`: enfrentamiento entre dos equipos con estado, puntaje y metadata flexible.
+1. Clona el repositorio.
+2. Crea y activa un entorno virtual de Python.
+3. Instala las dependencias:
 
-Importante: cada inscripcion publica representa un solo robot en competencia.
-
-## Mapa rapido de carpetas
-
-- `config/settings.py`: base de datos, seguridad, correo, apps instaladas y configuracion general.
-- `config/urls.py`: enrutador principal del proyecto.
-- `apps/core/views.py`: logica del inicio y pagina de reglas.
-- `apps/participants/forms.py`: validaciones del formulario de inscripcion.
-- `apps/participants/views.py`: flujo de registro y confirmacion.
-- `apps/participants/services.py`: servicios auxiliares, por ejemplo envio de correo.
-- `apps/participants/models.py`: tablas de inscripcion y participantes.
-- `apps/tournament/views.py`: vista publica del torneo y panel interno.
-- `apps/*/templates/`: HTML de cada modulo.
-- `apps/*/migrations/`: historial de cambios de base de datos.
-- `static/css/app.css`: estilo visual del sitio.
-- `static/docs/ExplotaGlobos.pdf`: reglamento oficial embebido.
-
-## Flujo de una inscripcion
-
-```mermaid
-flowchart TD
-    A["Usuario entra a /registro/"] --> B["config/urls.py"]
-    B --> C["apps/participants/urls.py"]
-    C --> D["registration_choice"]
-    D --> E["Seleccion de colegio o universidad"]
-    E --> F["Formulario GET"]
-    F --> G["apps/participants/views.py"]
-    G --> H["SchoolRegistrationForm o UniversityRegistrationForm"]
-    H --> I["Validaciones"]
-    I --> J["Edicion activa"]
-    I --> K["Robot no repetido"]
-    I --> L["Correo no repetido"]
-    I --> M["Documento del lider no repetido"]
-    H --> N["save()"]
-    N --> O["SchoolRegistration o UniversityRegistration"]
-    N --> P["SchoolParticipant o UniversityParticipant"]
-    O --> Q["PostgreSQL"]
-    P --> Q
-    G --> R["send_registration_approved_email()"]
-    R --> S["Backend de correo configurado"]
-    G --> T["registration_success.html"]
+```bash
+pip install -r requirements.txt
 ```
 
-## Flujo general de Django en este proyecto
+4. Copia el archivo de ejemplo de variables de entorno:
 
-```mermaid
-flowchart LR
-    A["Browser"] --> B["config/urls.py"]
-    B --> C["urls.py de cada app"]
-    C --> D["views.py"]
-    D --> E["forms.py"]
-    D --> F["models.py"]
-    D --> G["templates/"]
-    F --> H["PostgreSQL"]
-    G --> A
+```bash
+cp .env.example .env
 ```
 
-## Seguridad y robustez
+En Windows PowerShell:
 
-Esta base ya incluye medidas iniciales:
+```powershell
+Copy-Item .env.example .env
+```
 
-- `PROTECT` en relaciones criticas para evitar borrados accidentales.
-- Configuracion de cookies seguras y cabeceras cuando `DEBUG=False`.
-- Variables de entorno para secretos y parametros de base de datos.
-- Indices basicos sobre campos de consulta frecuente.
-- Bloqueo de duplicados por nombre de robot, correo y documento del lider en la edicion activa.
-- Aprobacion automatica del registro al enviar el formulario.
+5. Ajusta los valores de `.env` según tu entorno local.
 
-## Como levantarlo en PyCharm
+Para desarrollo rápido puedes usar SQLite con:
 
-1. Crea un entorno virtual dentro del proyecto, por ejemplo `.venv`.
-2. Instala dependencias con `pip install -r requirements.txt`.
-3. Copia `.env.example` a `.env` y ajusta credenciales.
-4. Crea la base de datos PostgreSQL desde pgAdmin4.
-5. Ejecuta:
+```env
+DJANGO_DEBUG=True
+DJANGO_DATABASE=sqlite
+```
+
+Para un entorno más cercano a producción, configura PostgreSQL con las variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` y `POSTGRES_PORT`.
+
+## Variables de entorno
+
+El archivo `.env.example` documenta las variables necesarias para levantar el proyecto localmente:
+
+- `DJANGO_SECRET_KEY`: clave secreta local o de producción.
+- `DJANGO_DEBUG`: activa o desactiva el modo debug.
+- `DJANGO_ALLOWED_HOSTS`: hosts permitidos por Django.
+- `DJANGO_CSRF_TRUSTED_ORIGINS`: orígenes confiables para protección CSRF.
+- `DJANGO_DATABASE`: motor esperado para desarrollo local, por ejemplo `sqlite`.
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`: configuración de PostgreSQL.
+- `DJANGO_EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `DEFAULT_FROM_EMAIL`: configuración de correo.
+
+No subas archivos `.env` reales al repositorio. El archivo `.env.example` debe contener solo placeholders seguros.
+
+## Comandos principales
+
+Crear migraciones:
 
 ```bash
 python manage.py makemigrations
+```
+
+Aplicar migraciones:
+
+```bash
 python manage.py migrate
+```
+
+Crear usuario administrador:
+
+```bash
 python manage.py createsuperuser
+```
+
+Ejecutar servidor local:
+
+```bash
 python manage.py runserver
 ```
 
-## Conexion con PostgreSQL
+Verificar configuración de despliegue:
 
-Importante: `pgAdmin4` no conecta Django con la base de datos; es solo una herramienta visual de administracion.
-Django se conecta directamente a PostgreSQL usando los datos de `.env`.
+```bash
+python manage.py check --deploy
+```
 
-## Correo de confirmacion
+## Seguridad y privacidad
 
-El proyecto ya esta preparado para enviar confirmaciones automaticas al registrar.
+Este proyecto está preparado para mantener fuera del repositorio archivos sensibles o locales:
 
-- En desarrollo se puede usar `django.core.mail.backends.console.EmailBackend`.
-- Para correo real, configura SMTP en `.env`.
-- La logica del mensaje esta en `apps/participants/services.py`.
+- `.env` está ignorado y no debe publicarse.
+- `db.sqlite3` y archivos `*.sqlite3` están ignorados.
+- Entornos virtuales, cachés, logs y archivos temporales están ignorados.
+- Las credenciales reales de correo, base de datos y claves secretas deben configurarse mediante variables de entorno.
 
-## Siguientes pasos recomendados
+No uses datos reales de estudiantes, colegios, universidades, documentos, correos o participantes en una base de datos que vaya a publicarse. Para demos o portafolio, usa datos ficticios o semillas controladas.
 
-1. Diseñar la conversion de inscripciones aprobadas a equipos oficiales del torneo.
-2. Definir el formato real de fases, clasificacion y playoffs.
-3. Crear paneles operativos para aprobacion, check-in y resultados.
-4. Incorporar pruebas automaticas y auditoria de cambios.
-5. Preparar un entorno de pruebas en servidor institucional.
+## Logos y recursos visuales
+
+Los logos incluidos corresponden al contexto visual del torneo, semillero, institución o patrocinadores. Deben usarse respetando los permisos institucionales o de las organizaciones correspondientes.
+
+Si el repositorio se reutiliza fuera del contexto del torneo Robot Explota Globos UTP, revisa primero si esos recursos pueden mantenerse, reemplazarse o retirarse.
+
+## Estado actual
+
+El proyecto cuenta con una base funcional para registro público y administración inicial del torneo. Incluye modelos de inscripción, participantes, ediciones, reglas, fases y enfrentamientos, además de configuración por variables de entorno y medidas básicas de seguridad para despliegue.
+
+Estado recomendado para portafolio:
+
+- Código funcional como demostración técnica.
+- README orientado a instalación y revisión del proyecto.
+- Variables sensibles documentadas mediante `.env.example`.
+- Archivos locales y secretos excluidos mediante `.gitignore`.
+- Reglamento oficial disponible en `static/docs/ExplotaGlobos.pdf`.
+
+## Roadmap
+
+1. Diseñar la conversión de inscripciones aprobadas a equipos oficiales del torneo.
+2. Definir el formato final de fases, clasificación y playoffs.
+3. Crear flujos operativos para aprobación, check-in y resultados.
+4. Incorporar pruebas automáticas para modelos, formularios y vistas críticas.
+5. Añadir datos demo seguros para presentación pública.
+6. Documentar una guía de despliegue con PostgreSQL, archivos estáticos y servidor WSGI/ASGI.
+7. Revisar permisos de uso de logos y recursos visuales antes de reutilizar el proyecto en otro contexto.
+
+## Nota para portafolio
+
+Este repositorio muestra una solución Django aplicada a un caso real de gestión de torneo: registro de participantes, estructura de dominio, configuración por entorno y primeras medidas de seguridad para publicación. Antes de usarlo en producción, se recomienda completar pruebas, despliegue controlado, política de privacidad y revisión final de datos sensibles.
