@@ -25,7 +25,7 @@ Las capturas corresponden a pruebas piloto y simulaciones utilizadas para valida
 
 ### Registro por categoría
 
-![Registro por categoría](docs/screenshots/02_registration..png)
+![Registro por categoría](docs/screenshots/02_registration.png)
 
 ### Reglamento oficial integrado
 
@@ -33,7 +33,7 @@ Las capturas corresponden a pruebas piloto y simulaciones utilizadas para valida
 
 ### Configuración del formato de competencia
 
-![Configuración del formato de competencia](docs/screenshots/04_control_format..png)
+![Configuración del formato de competencia](docs/screenshots/04_control_format.png)
 
 ### Validación de grupos y resultados
 
