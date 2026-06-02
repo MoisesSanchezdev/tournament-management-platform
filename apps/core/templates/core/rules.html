@@ -8,13 +8,13 @@
     <p class="eyebrow">Reglamento oficial</p>
     <h1>Reglas del torneo</h1>
     <p class="lead">
-        Consulta aqui el reglamento oficial del evento.
+        Consulta aquí el reglamento oficial del evento.
     </p>
 </section>
 
 <section class="rule-banner">
     <div class="rule-banner-copy">
-        <p class="eyebrow">Ingenieria Electronica UTP</p>
+        <p class="eyebrow">Ingeniería Electrónica UTP</p>
         <h2>La competencia se vive dentro y fuera del aula</h2>
         <p>
             El reglamento es la base para que cada robot llegue preparado a una experiencia competitiva organizada.
@@ -22,12 +22,12 @@
     </div>
     <img
         src="https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2598-1024x788.jpg"
-        alt="Actividad del programa de Ingenieria Electronica UTP">
+        alt="Actividad del programa de Ingeniería Electrónica UTP">
 </section>
 
 <section class="grid two">
     <article class="card">
-        <p class="eyebrow">Consulta rapida</p>
+        <p class="eyebrow">Consulta rápida</p>
         <h2>Antes de registrarte</h2>
         <ul class="clean-list">
             <li>Revisa el PDF oficial.</li>
@@ -37,7 +37,7 @@
     </article>
     {% if edition %}
         <article class="card accent-card">
-            <p class="eyebrow">Edicion activa</p>
+            <p class="eyebrow">Edición activa</p>
             <h2>{{ edition.name }}</h2>
             <p>{{ edition.description|default:"Reglamento e inscripciones disponibles para participantes." }}</p>
         </article>
@@ -49,7 +49,7 @@
         <div>
             <h2>Reglamento oficial en PDF</h2>
             <p>
-                El documento completo esta disponible dentro de esta misma pagina.
+                El documento completo está disponible dentro de esta misma página.
             </p>
         </div>
         <a class="button secondary" href="{% static 'docs/ExplotaGlobos.pdf' %}" target="_blank" rel="noopener">
@@ -76,8 +76,8 @@
         <article class="card">
             <h2>Reglamento pendiente</h2>
             <p>
-                Aun no se han cargado reglas. Desde el admin podremos publicar secciones oficiales
-                sin tocar el codigo.
+                Aún no se han cargado reglas. Desde el admin podremos publicar secciones oficiales
+                sin tocar el código.
             </p>
         </article>
     {% endfor %}

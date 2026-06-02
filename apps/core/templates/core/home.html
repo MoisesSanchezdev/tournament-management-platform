@@ -6,14 +6,14 @@
 {% block content %}
 <section class="hero-shell">
     <div class="hero-copy">
-        <p class="eyebrow">Universidad Tecnologica de Pereira</p>
+        <p class="eyebrow">Universidad Tecnológica de Pereira</p>
         <h1>Torneo Robot Explota Globos</h1>
         <p class="lead">
             Consulta el reglamento oficial y registra tu robot para participar.
         </p>
         <p class="hero-support">
-            Una iniciativa impulsada desde el programa de Ingenieria Electronica para reunir creatividad,
-            diseno y competencia alrededor de la robotica.
+            Una iniciativa impulsada desde el programa de Ingeniería Electrónica para reunir creatividad,
+            diseño y competencia alrededor de la robótica.
         </p>
         <div class="actions">
             <a class="button primary" href="{% url 'participants:team_register' %}">Registrar un robot</a>
@@ -27,7 +27,7 @@
                 <p class="eyebrow">Estado del evento</p>
                 {% if edition %}
                     <h2>{{ edition.name }}</h2>
-                    <p>{{ edition.description|default:"Edicion activa lista para recibir y organizar las inscripciones." }}</p>
+                    <p>{{ edition.description|default:"Edición activa lista para recibir y organizar las inscripciones." }}</p>
                     <div class="mini-stats">
                         <div>
                             <strong>{{ school_total }}</strong>
@@ -39,13 +39,13 @@
                         </div>
                     </div>
                 {% else %}
-                    <h2>Configuracion en curso</h2>
-                    <p>La edicion activa aun no ha sido publicada, pero la plataforma ya esta lista para estructurarla.</p>
+                    <h2>Configuración en curso</h2>
+                    <p>La edición activa aún no ha sido publicada, pero la plataforma ya está lista para estructurarla.</p>
                 {% endif %}
             </div>
             <div class="card support-card">
-                <p class="eyebrow">Ingenieria Electronica UTP</p>
-                <h2>Diseno y desarrollo del proyecto</h2>
+                <p class="eyebrow">Ingeniería Electrónica UTP</p>
+                <h2>Diseño y desarrollo del proyecto</h2>
                 <p>
                     Este espacio muestra el trabajo del programa y abre una vitrina inicial para el torneo y su comunidad.
                 </p>
@@ -60,7 +60,7 @@
             <p class="eyebrow">Reglamento</p>
             <h2>Reglas destacadas</h2>
         </div>
-        <a class="button secondary" href="{% url 'core:rules' %}">Abrir pagina de reglas</a>
+        <a class="button secondary" href="{% url 'core:rules' %}">Abrir página de reglas</a>
     </div>
     {% if rules %}
         <div class="rule-grid">
@@ -73,7 +73,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>Aun no se han cargado reglas en la base de datos.</p>
+        <p>Aún no se han cargado reglas en la base de datos.</p>
     {% endif %}
 </section>
 
@@ -81,7 +81,7 @@
     <div class="section-head">
         <div>
             <p class="eyebrow">Ambiente del torneo</p>
-            <h2>Ingenieria Electronica y cultura de competencia</h2>
+            <h2>Ingeniería Electrónica y cultura de competencia</h2>
         </div>
     </div>
     <div class="showcase-grid">
@@ -135,7 +135,7 @@
                     <div class="sponsor-details">
                         <strong>{{ sponsor.name }}</strong>
                         <span>{{ sponsor.tagline }}</span>
-                        <small>Enlace oficial en confirmacion</small>
+                        <small>Enlace oficial en confirmación</small>
                     </div>
                 </article>
             {% endif %}

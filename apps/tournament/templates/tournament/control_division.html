@@ -211,9 +211,44 @@
                     </article>
                 </div>
                 <p>{{ system_recommendation.preview.explanation }}</p>
-                <button class="button primary" type="button" disabled>
-                    Proximamente: crear fase
-                </button>
+
+                <div class="phase-repechage-choice">
+                    <div>
+                        <p class="eyebrow">Decision de repechaje</p>
+                        <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
+                    </div>
+                    <div class="phase-repechage-actions">
+                        <button class="button secondary" type="button" data-phase-repechage-skip>
+                            No, continuar con la fase recomendada
+                        </button>
+                        <button class="button secondary" type="button" data-phase-repechage-open>
+                            Si, abrir repechaje
+                        </button>
+                    </div>
+                </div>
+
+                <div class="phase-repechage-soon" data-phase-repechage-soon hidden>
+                    <strong>Creacion de repechaje proximamente.</strong>
+                    <p>No se creara ninguna fase real mientras esta opcion este pendiente de implementacion.</p>
+                </div>
+
+                <div data-phase-create-action hidden>
+                    {% if system_recommendation.preview.can_create %}
+                        <form
+                            method="post"
+                            action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
+                            onsubmit="return confirm('Se crear&aacute; la siguiente fase con los participantes activos actuales. Esta acci&oacute;n no borrar&aacute; fases anteriores. &iquest;Deseas continuar?');"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="create_recommended_phase">
+                            <button class="button primary" type="submit">Confirmar creaci&oacute;n</button>
+                        </form>
+                    {% else %}
+                        <button class="button primary" type="button" disabled>
+                            Requiere configuracion manual proximamente.
+                        </button>
+                    {% endif %}
+                </div>
             </section>
 
             <section class="phase-decision-manual-panel" data-phase-decision-manual-panel hidden>

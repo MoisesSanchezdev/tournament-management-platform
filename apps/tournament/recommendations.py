@@ -24,6 +24,13 @@ STAGE_ORDER = [
     CompetitionStage.FINAL,
 ]
 STAGE_WEIGHT = {stage: index for index, stage in enumerate(STAGE_ORDER)}
+SAFE_DUEL_STAGE_COUNTS = {
+    CompetitionStage.ROUND_OF_32: 32,
+    CompetitionStage.ROUND_OF_16: 16,
+    CompetitionStage.QUARTERFINAL: 8,
+    CompetitionStage.SEMIFINAL: 4,
+    CompetitionStage.FINAL: 2,
+}
 
 
 def participant_snapshot(competition):
@@ -186,6 +193,7 @@ def phase_plan_preview(recommendation):
         CompetitionStage.FINAL,
     }:
         duel_count = participant_count // 2
+        can_create = SAFE_DUEL_STAGE_COUNTS.get(recommended_type) == participant_count
         return {
             "name": title,
             "participant_count": participant_count,
@@ -194,7 +202,7 @@ def phase_plan_preview(recommendation):
             "unit_label": "duelo" if duel_count == 1 else "duelos",
             "structure_label": f"{duel_count} duelo(s)",
             "explanation": recommendation.get("explanation", ""),
-            "can_create": False,
+            "can_create": can_create,
         }
 
     if recommended_type == "two_triangulars":
@@ -264,6 +272,15 @@ def next_phase_recommendation(competition):
             }
         )
 
+    preview = phase_plan_preview(
+        {
+            **recommendation,
+            "participant_count": active_count,
+            "active_count": active_count,
+        }
+    )
+    if warnings:
+        preview["can_create"] = False
     result = {
         **recommendation,
         "participant_count": active_count,
@@ -273,8 +290,8 @@ def next_phase_recommendation(competition):
         "repechable_count": len(repechable),
         "alternatives": alternatives,
         "warnings": warnings,
-        "can_apply": False,
+        "can_apply": preview["can_create"],
         "mode": "diagnostic",
+        "preview": preview,
     }
-    result["preview"] = phase_plan_preview(result)
     return result

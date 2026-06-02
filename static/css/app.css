@@ -1380,6 +1380,40 @@ h1 {
     box-shadow: 0 0 0 1px rgba(103, 236, 255, 0.22), 0 12px 28px rgba(103, 236, 255, 0.1);
 }
 
+.phase-repechage-choice,
+.phase-repechage-soon {
+    border-radius: 16px;
+    border: 1px solid rgba(103, 236, 255, 0.16);
+    background: rgba(3, 10, 26, 0.38);
+    padding: 0.9rem;
+}
+
+.phase-repechage-choice h4 {
+    margin: 0.15rem 0 0.75rem;
+    color: #f4fdff;
+}
+
+.phase-repechage-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.phase-repechage-actions .button.is-selected {
+    border-color: rgba(103, 236, 255, 0.68) !important;
+    box-shadow: 0 0 0 1px rgba(103, 236, 255, 0.22), 0 12px 28px rgba(103, 236, 255, 0.1);
+}
+
+.phase-repechage-soon {
+    border-color: rgba(255, 207, 102, 0.32);
+    background: rgba(255, 207, 102, 0.08);
+}
+
+.phase-repechage-soon[hidden],
+[data-phase-create-action][hidden] {
+    display: none !important;
+}
+
 .phase-decision-preview,
 .phase-decision-manual-panel {
     display: grid;
@@ -2455,6 +2489,7 @@ h1 {
     .phase-decision-grid,
     .phase-decision-actions,
     .phase-decision-preview-grid,
+    .phase-repechage-actions,
     .metric-strip,
     .group-overview-grid,
     .group-grid,

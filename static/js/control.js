@@ -67,6 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 button.classList.remove("is-selected");
             }
         );
+        modal.querySelectorAll("[data-phase-create-action], [data-phase-repechage-soon]").forEach((panel) => {
+            panel.hidden = true;
+        });
+        modal.querySelectorAll("[data-phase-repechage-skip], [data-phase-repechage-open]").forEach((button) => {
+            button.classList.remove("is-selected");
+        });
     };
 
     const showPhaseDecisionPanel = (modal, panelSelector, selectedButton) => {
@@ -84,6 +90,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const panel = modal.querySelector(panelSelector);
         if (panel) {
             panel.hidden = false;
+        }
+    };
+
+    const chooseRepechageDecision = (modal, selectedButton, options = {}) => {
+        if (!modal) {
+            return;
+        }
+        modal.querySelectorAll("[data-phase-repechage-skip], [data-phase-repechage-open]").forEach((button) => {
+            button.classList.toggle("is-selected", button === selectedButton);
+        });
+        const createAction = modal.querySelector("[data-phase-create-action]");
+        const soonPanel = modal.querySelector("[data-phase-repechage-soon]");
+        if (createAction) {
+            createAction.hidden = !options.allowCreate;
+        }
+        if (soonPanel) {
+            soonPanel.hidden = !options.showSoon;
         }
     };
 
@@ -577,6 +600,16 @@ document.addEventListener("DOMContentLoaded", () => {
             modal.querySelectorAll("[data-phase-decision-manual]").forEach((button) => {
                 button.addEventListener("click", () => {
                     showPhaseDecisionPanel(modal, "[data-phase-decision-manual-panel]", button);
+                });
+            });
+            modal.querySelectorAll("[data-phase-repechage-skip]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    chooseRepechageDecision(modal, button, { allowCreate: true });
+                });
+            });
+            modal.querySelectorAll("[data-phase-repechage-open]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    chooseRepechageDecision(modal, button, { showSoon: true });
                 });
             });
         });

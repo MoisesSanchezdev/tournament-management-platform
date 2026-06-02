@@ -23,6 +23,7 @@ from .services import (
     competition_stage_navigation,
     initialize_competition,
     ManualCorrectionRequired,
+    materialize_recommended_duel_stage,
     participant_modal_payload,
     reset_competition_state,
     set_battle_winner,
@@ -91,15 +92,11 @@ def confirmation_required_response(error):
 def stage_has_visible_activity(competition, stage_key):
     if stage_key == CompetitionStage.GROUPS:
         return competition.groups.exists()
+    progressive_created_stages = set((competition.configuration or {}).get("progressive_created_stages", []))
+    if stage_key in progressive_created_stages:
+        return True
     return (
-        competition.battles.filter(stage=stage_key)
-        .filter(
-            entries__isnull=False,
-        )
-        .distinct()
-        .exists()
-        or competition.battles.filter(stage=stage_key)
-        .exclude(status=MatchStatus.PENDING)
+        competition.battles.filter(stage=stage_key, status__in=[MatchStatus.IN_PROGRESS, MatchStatus.FINISHED])
         .exists()
         or competition.battles.filter(stage=stage_key, winner__isnull=False).exists()
     )
@@ -364,6 +361,7 @@ def control_division(request, competition_id):
             "profile": profile,
             "system_recommendation": system_recommendation,
             "recommendation_ready": recommendation_ready,
+            "recommendation_stage_key": current_stage_key,
             "auto_suggestion": auto_suggestion,
             "edition": competition.edition,
             "groups": groups,
@@ -389,10 +387,12 @@ def control_division_stage(request, competition_id, stage_key):
     valid_stages = {item["key"] for item in competition_stage_navigation(competition)}
     if stage_key not in valid_stages:
         return redirect("tournament:control_division", competition_id=competition.id)
-    sync_competition(competition)
+    post_action = request.POST.get("action") if request.method == "POST" else ""
+    if post_action != "create_recommended_phase":
+        sync_competition(competition)
 
     if request.method == "POST":
-        action = request.POST.get("action")
+        action = post_action
         if action == "save_group_qualifiers" and stage_key == CompetitionStage.GROUPS:
             group = get_object_or_404(competition.groups.prefetch_related("entries__team"), pk=request.POST.get("group_id"))
             try:
@@ -452,12 +452,32 @@ def control_division_stage(request, competition_id, stage_key):
             )
             return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=CompetitionStage.GROUPS)
 
+        if action == "create_recommended_phase":
+            if not stage_is_closed(competition, stage_key):
+                messages.error(request, "Completa y guarda todos los resultados antes de pasar a la siguiente fase.")
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            try:
+                result = materialize_recommended_duel_stage(competition)
+            except ValueError as error:
+                messages.error(request, str(error))
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            if result.get("existing"):
+                messages.info(request, result["message"])
+            else:
+                messages.success(request, result["message"])
+            return redirect(
+                "tournament:control_division_stage",
+                competition_id=competition.id,
+                stage_key=result["stage"],
+            )
+
     context = build_stage_context(competition, stage_key)
     context["edition"] = competition.edition
     context["navigation"] = visible_stage_navigation(competition, current_stage=stage_key)
     context["system_recommendation"] = next_phase_recommendation(competition)
     context["recommendation_ready"] = stage_is_closed(competition, stage_key)
     context["recommendation_wait_message"] = "Finaliza esta fase para calcular la recomendacion de avance."
+    context["recommendation_stage_key"] = stage_key
     return render(request, "tournament/control_stage.html", context)
 
 

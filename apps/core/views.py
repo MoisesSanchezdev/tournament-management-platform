@@ -7,9 +7,9 @@ from apps.tournament.models import RuleSection, TournamentEdition
 def sponsor_catalog():
     sponsors = [
         {
-            "name": "Universidad Tecnologica de Pereira",
+            "name": "Universidad Tecnológica de Pereira",
             "short_name": "UTP",
-            "tagline": "Institucion anfitriona del torneo",
+            "tagline": "Institución anfitriona del torneo",
             "url": "https://www.utp.edu.co/",
             "logo_path": "sponsors/utp.png",
             "accent": "#67ecff",
@@ -17,7 +17,7 @@ def sponsor_catalog():
             "link_ready": True,
         },
         {
-            "name": "Ingenieria Electronica UTP",
+            "name": "Ingeniería Electrónica UTP",
             "short_name": "IE UTP",
             "tagline": "Programa organizador",
             "url": "https://ingenierias.utp.edu.co/ingenieria-electronica/",
@@ -29,7 +29,7 @@ def sponsor_catalog():
         {
             "name": "ASE UTP",
             "short_name": "ASE",
-            "tagline": "Asociacion de Egresados UTP",
+            "tagline": "Asociación de Egresados UTP",
             "url": "https://egresados.utp.edu.co/page-asociacion-egresados/",
             "logo_path": "sponsors/ase-utp.png",
             "accent": "#ffc940",
@@ -47,9 +47,9 @@ def sponsor_catalog():
             "link_ready": True,
         },
         {
-            "name": "Energia de Pereira",
+            "name": "Energía de Pereira",
             "short_name": "EEP",
-            "tagline": "Empresa de Energia de Pereira",
+            "tagline": "Empresa de Energía de Pereira",
             "url": "https://www.eep.com.co/",
             "logo_path": "sponsors/energia-de-pereira.png",
             "accent": "#ff9b32",
@@ -59,7 +59,7 @@ def sponsor_catalog():
         {
             "name": "Impointer",
             "short_name": "IMPOINTER",
-            "tagline": "Soluciones didacticas e industriales",
+            "tagline": "Soluciones didácticas e industriales",
             "url": "https://www.impointer.com/",
             "logo_path": "sponsors/impointer.png",
             "accent": "#35d3ad",
@@ -67,7 +67,7 @@ def sponsor_catalog():
             "link_ready": True,
         },
         {
-            "name": "Mutual Ingenieria",
+            "name": "Mutual Ingeniería",
             "short_name": "MUTUAL",
             "tagline": "Aliado empresarial del torneo",
             "url": None,
@@ -79,7 +79,7 @@ def sponsor_catalog():
         {
             "name": "INGE LEAN S.A.S",
             "short_name": "INGE LEAN",
-            "tagline": "Ingenieria especializada a la medida",
+            "tagline": "Ingeniería especializada a la medida",
             "url": "https://www.ingelean.com/",
             "logo_path": "sponsors/inge-lean.png",
             "accent": "#ffb47c",
@@ -87,7 +87,7 @@ def sponsor_catalog():
             "link_ready": True,
         },
         {
-            "name": "Ideas varita magica",
+            "name": "Ideas varita mágica",
             "short_name": "VARITA",
             "tagline": "Emprendimiento aliado",
             "url": None,
@@ -120,12 +120,12 @@ def home(request):
         {
             "url": "https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/Portada-29-2-edited-scaled.jpg",
             "title": "Encuentro de robots y comunidad UTP",
-            "caption": "Memoria visual del ambiente academico y competitivo alrededor de Ingenieria Electronica UTP.",
+            "caption": "Memoria visual del ambiente académico y competitivo alrededor de Ingeniería Electrónica UTP.",
         },
         {
             "url": "https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2608-1-1024x788.jpg",
-            "title": "Semana de Ingenieria Electronica",
-            "caption": "Espacios de innovacion, muestras y actividades que conectan estudiantes, docentes y tecnologia.",
+            "title": "Semana de Ingeniería Electrónica",
+            "caption": "Espacios de innovación, muestras y actividades que conectan estudiantes, docentes y tecnología.",
         },
         {
             "url": "https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2599-1024x748.jpg",

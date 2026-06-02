@@ -76,6 +76,14 @@ BATTLE_CAPACITY = {
     BattleFormat.TRIANGULAR: 3,
 }
 
+SAFE_PROGRESSIVE_DUEL_STAGES = {
+    32: CompetitionStage.ROUND_OF_32,
+    16: CompetitionStage.ROUND_OF_16,
+    8: CompetitionStage.QUARTERFINAL,
+    4: CompetitionStage.SEMIFINAL,
+    2: CompetitionStage.FINAL,
+}
+
 
 class ManualCorrectionRequired(ValueError):
     def __init__(self, message=None):
@@ -162,6 +170,10 @@ def competition_profile_from_instance(competition):
     profile = competition_profile(team_count, manual_overrides_from_profile(configuration))
     profile["group_labels"] = configuration.get("group_labels", GROUP_LABELS[:profile.get("group_count", 0)])
     return profile
+
+
+def progressive_flow_enabled(competition):
+    return bool((competition.configuration or {}).get("progressive_flow"))
 
 
 def ensure_team_states(competition):
@@ -331,12 +343,15 @@ def validate_profile_change(competition, current_profile: dict, new_profile: dic
 
 def profile_configuration(competition, profile: dict, team_count: int) -> dict:
     existing_labels = (competition.configuration or {}).get("group_labels") or []
+    existing_progressive_flow = (competition.configuration or {}).get("progressive_flow", True)
     group_count = profile.get("group_count", 0)
     group_labels = existing_labels if len(existing_labels) == group_count else GROUP_LABELS[:group_count]
     return {
         **profile,
         "team_count": team_count,
         "group_labels": group_labels,
+        "progressive_flow": existing_progressive_flow,
+        "progressive_created_stages": list((competition.configuration or {}).get("progressive_created_stages", [])),
     }
 
 
@@ -409,16 +424,17 @@ def rebuild_competition_scaffold(competition, teams, profile):
             index += 1
             DivisionGroupEntry.objects.create(group=group, team=team, slot_order=slot_order)
 
-    for stage_config in profile["stages"]:
-        stage = stage_config["stage"]
-        for order in range(1, stage_config["count"] + 1):
-            CompetitionBattle.objects.create(
-                competition=competition,
-                stage=stage,
-                format_type=stage_format_for_profile(stage, profile),
-                order=order,
-                name=f"{STAGE_LABELS[stage]} {order}",
-            )
+    if not progressive_flow_enabled(competition):
+        for stage_config in profile["stages"]:
+            stage = stage_config["stage"]
+            for order in range(1, stage_config["count"] + 1):
+                CompetitionBattle.objects.create(
+                    competition=competition,
+                    stage=stage,
+                    format_type=stage_format_for_profile(stage, profile),
+                    order=order,
+                    name=f"{STAGE_LABELS[stage]} {order}",
+                )
 
     ensure_team_states(competition)
     sync_competition(competition)
@@ -458,7 +474,8 @@ def initialize_competition(
     competition.format_key = requested_profile["key"]
     competition.configuration = profile_configuration(competition, requested_profile, len(teams))
     competition.save(update_fields=["name", "format_key", "configuration", "updated_at"])
-    ensure_stage_battles(competition, requested_profile)
+    if not progressive_flow_enabled(competition):
+        ensure_stage_battles(competition, requested_profile)
     ensure_team_states(competition)
     sync_competition(competition)
     return competition
@@ -731,6 +748,148 @@ def set_battle_entries(battle, entry_specs):
     battle.winner = None
     battle.status = MatchStatus.READY if entry_specs else MatchStatus.PENDING
     battle.save(update_fields=["winner", "status", "updated_at"])
+
+
+def _ensure_stage_in_configuration(competition, stage, battle_count):
+    configuration = {**(competition.configuration or {})}
+    configuration["progressive_flow"] = True
+    stages = [dict(item) for item in configuration.get("stages", [])]
+    found = False
+    for stage_config in stages:
+        if stage_config.get("stage") != stage:
+            continue
+        found = True
+        stage_config["count"] = max(int(stage_config.get("count") or 0), battle_count)
+        stage_config["progressive_created"] = True
+        break
+    if not found:
+        stages.append(
+            {
+                "stage": stage,
+                "count": battle_count,
+                "progressive_created": True,
+            }
+        )
+    created_stages = list(configuration.get("progressive_created_stages", []))
+    if stage not in created_stages:
+        created_stages.append(stage)
+    configuration["stages"] = stages
+    configuration["progressive_created_stages"] = created_stages
+    competition.configuration = configuration
+    competition.save(update_fields=["configuration", "updated_at"])
+
+
+def _progressive_active_states(competition):
+    return list(
+        TeamCompetitionState.objects.filter(
+            competition=competition,
+            current_status__in=[ParticipantStatus.ACTIVE, ParticipantStatus.QUALIFIED],
+        )
+        .select_related("team__institution", "current_group", "current_battle")
+        .order_by("team__robot_name", "team_id")
+    )
+
+
+def _ensure_progressive_duel_battles(competition, stage, battle_count):
+    battles = {
+        battle.order: battle
+        for battle in competition.battles.filter(stage=stage).prefetch_related("entries").order_by("order")
+    }
+    ensured = []
+    for order in range(1, battle_count + 1):
+        battle = battles.get(order)
+        name = f"{STAGE_LABELS[stage]} {order}"
+        if battle is None:
+            battle = CompetitionBattle.objects.create(
+                competition=competition,
+                stage=stage,
+                format_type=BattleFormat.DUEL,
+                order=order,
+                name=name,
+            )
+        elif not battle_is_locked(battle) and not battle.entries.exists():
+            changed_fields = []
+            if battle.format_type != BattleFormat.DUEL:
+                battle.format_type = BattleFormat.DUEL
+                changed_fields.append("format_type")
+            if battle.name != name:
+                battle.name = name
+                changed_fields.append("name")
+            if changed_fields:
+                battle.save(update_fields=[*changed_fields, "updated_at"])
+        ensured.append(battle)
+    return ensured
+
+
+@transaction.atomic
+def materialize_recommended_duel_stage(competition):
+    sync_team_states(competition)
+    active_states = _progressive_active_states(competition)
+    active_count = len(active_states)
+    target_stage = SAFE_PROGRESSIVE_DUEL_STAGES.get(active_count)
+    if target_stage is None:
+        raise ValueError("Requiere configuracion manual proximamente.")
+    active_stage_keys = {state.current_stage for state in active_states}
+    if len(active_stage_keys) > 1:
+        raise ValueError("Los participantes activos aparecen en mas de una fase. Revisa la consistencia antes de crear otra fase.")
+
+    battle_count = active_count // 2
+    existing_stage_entries = CompetitionBattleEntry.objects.filter(
+        battle__competition=competition,
+        battle__stage=target_stage,
+    ).exists()
+    if existing_stage_entries:
+        _ensure_stage_in_configuration(competition, target_stage, battle_count)
+        return {
+            "created": False,
+            "existing": True,
+            "stage": target_stage,
+            "message": f"{STAGE_TITLES[target_stage]} ya existe. Se abrio la fase existente.",
+        }
+
+    _ensure_stage_in_configuration(competition, target_stage, battle_count)
+    battles = _ensure_progressive_duel_battles(competition, target_stage, battle_count)
+    if any(battle_is_locked(battle) or battle.entries.exists() for battle in battles):
+        raise ValueError("La fase recomendada ya tiene progreso o entradas. Abre la fase existente para revisarla.")
+
+    rng = random.Random(f"{competition.shuffle_seed}:{target_stage}:{active_count}")
+    rng.shuffle(active_states)
+    for battle_index, battle in enumerate(battles):
+        left = active_states[battle_index * 2]
+        right = active_states[battle_index * 2 + 1]
+        set_battle_entries(
+            battle,
+            [
+                (left.team, f"Activo {battle_index * 2 + 1}"),
+                (right.team, f"Activo {battle_index * 2 + 2}"),
+            ],
+        )
+        for state in (left, right):
+            record_history(
+                competition=competition,
+                team=state.team,
+                action_type=HistoryActionType.AUTO_SYNC,
+                title=f"Asignado a {STAGE_TITLES[target_stage]}",
+                description=battle.name,
+                stage=target_stage,
+                status=ParticipantStatus.ACTIVE,
+                previous_stage=state.current_stage,
+                new_stage=target_stage,
+                previous_status=state.current_status,
+                new_status=ParticipantStatus.ACTIVE,
+                battle=battle,
+                metadata={"progressive_phase_creation": True},
+            )
+
+    competition.status = CompetitionStatus.IN_PROGRESS
+    competition.save(update_fields=["status", "updated_at"])
+    sync_team_states(competition)
+    return {
+        "created": True,
+        "existing": False,
+        "stage": target_stage,
+        "message": f"Se creo {STAGE_TITLES[target_stage]} con {battle_count} duelo(s).",
+    }
 
 
 def group_entries_by_group(competition):
@@ -1024,6 +1183,7 @@ def sync_team_states(competition):
 def sync_competition(competition):
     profile = competition_profile_from_instance(competition)
     grouped_battles = battle_map(competition)
+    progressive_flow = progressive_flow_enabled(competition)
 
     if profile["group_count"] == 0:
         competition.status = CompetitionStatus.DRAFT
@@ -1032,9 +1192,29 @@ def sync_competition(competition):
         return
 
     if not groups_are_complete(competition, profile["qualifiers_per_group"]):
-        for stage in stage_sequence(profile)[1:]:
-            clear_battles(grouped_battles.get(stage, []))
+        if not progressive_flow:
+            for stage in stage_sequence(profile)[1:]:
+                clear_battles(grouped_battles.get(stage, []))
         competition.status = CompetitionStatus.DRAFT
+        competition.save(update_fields=["status", "updated_at"])
+        sync_team_states(competition)
+        return
+
+    if progressive_flow:
+        final_battles = stage_battles(competition, CompetitionStage.FINAL)
+        completed = (
+            final_battles
+            and final_battles[0].status == MatchStatus.FINISHED
+            and final_battles[0].winner_id is not None
+        )
+        any_finished_battles = competition.battles.filter(status=MatchStatus.FINISHED).exists()
+        competition.status = (
+            CompetitionStatus.COMPLETED
+            if completed
+            else CompetitionStatus.IN_PROGRESS
+            if any_finished_battles
+            else CompetitionStatus.READY
+        )
         competition.save(update_fields=["status", "updated_at"])
         sync_team_states(competition)
         return
