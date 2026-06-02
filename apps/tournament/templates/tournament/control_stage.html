@@ -91,16 +91,14 @@
     {% endif %}
 </section>
 
-{% if stage_key == "final" %}
-    <section class="stage-action-bar">
-        <form method="post" onsubmit="return confirm('Esto reinicia el torneo y borra progreso. Confirma solo si ya hiciste respaldo o estas seguro.');">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="reset_competition">
-            <input type="hidden" name="confirm_reset" value="yes">
-            <button class="button secondary danger-outline" type="submit">Reiniciar torneo</button>
-        </form>
-    </section>
-{% endif %}
+<section class="stage-action-bar">
+    <form method="post" onsubmit="return confirm('Esta acci&oacute;n reiniciar&aacute; el torneo y eliminar&aacute; el progreso operativo actual. &iquest;Deseas continuar?');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reset_competition">
+        <input type="hidden" name="confirm_reset" value="yes">
+        <button class="button secondary danger-outline" type="submit">Reiniciar torneo</button>
+    </form>
+</section>
 
 {% if stage_key == "groups" %}
     {% if groups_payload %}
