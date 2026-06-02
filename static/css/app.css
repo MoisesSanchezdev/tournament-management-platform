@@ -1252,6 +1252,123 @@ h1 {
     background: rgba(255, 207, 102, 0.08);
 }
 
+.phase-decision-modal-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 130;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 104px 1rem 1.5rem;
+    overflow: hidden;
+}
+
+.phase-decision-modal-shell[hidden] {
+    display: none !important;
+}
+
+.phase-decision-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 8, 22, 0.72);
+    backdrop-filter: blur(10px);
+}
+
+.phase-decision-modal {
+    position: relative;
+    width: min(980px, 100%);
+    max-height: calc(100vh - 128px);
+    margin: 0 auto;
+    border-radius: 28px;
+    border: 1px solid rgba(103, 236, 255, 0.2);
+    background: rgba(8, 20, 48, 0.97);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    overflow: auto;
+}
+
+.phase-decision-content {
+    display: grid;
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.phase-decision-header {
+    padding-right: 3rem;
+}
+
+.phase-decision-header p:last-child {
+    margin-bottom: 0;
+    color: #d7f8ff;
+}
+
+.phase-decision-summary,
+.phase-decision-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.phase-decision-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.phase-decision-summary article,
+.phase-decision-grid > article,
+.phase-decision-list > div {
+    border-radius: 18px;
+    border: 1px solid rgba(103, 236, 255, 0.16);
+    background: rgba(6, 16, 39, 0.66);
+    padding: 0.95rem;
+}
+
+.phase-decision-summary span,
+.phase-decision-list span {
+    display: block;
+    color: var(--muted);
+}
+
+.phase-decision-summary strong {
+    display: block;
+    margin-top: 0.25rem;
+    color: #f4fdff;
+    font-family: var(--title-font);
+    font-size: 1.18rem;
+}
+
+.phase-decision-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.phase-decision-list p {
+    margin: 0.35rem 0 0;
+}
+
+.phase-decision-warnings > div {
+    border-color: rgba(255, 207, 102, 0.32);
+    background: rgba(255, 207, 102, 0.08);
+}
+
+.phase-decision-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.phase-decision-actions .button {
+    flex-direction: column;
+    min-height: 62px;
+    gap: 0.2rem;
+}
+
+.phase-decision-actions .button span {
+    font-family: var(--body-font);
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.78;
+}
+
 .division-dashboard-grid {
     display: grid;
     gap: 1.25rem;
@@ -2287,6 +2404,9 @@ h1 {
     .participant-summary-grid,
     .recommendation-main,
     .recommendation-metrics,
+    .phase-decision-summary,
+    .phase-decision-grid,
+    .phase-decision-actions,
     .metric-strip,
     .group-overview-grid,
     .group-grid,
@@ -2305,6 +2425,14 @@ h1 {
 
     .result-save-bar .button {
         width: 100%;
+    }
+
+    .phase-decision-modal-shell {
+        padding-top: 88px;
+    }
+
+    .phase-decision-modal {
+        max-height: calc(100vh - 108px);
     }
 
     .recommendation-status {

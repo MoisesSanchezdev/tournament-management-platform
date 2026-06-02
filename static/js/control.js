@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
+    console.debug("[control.js] loaded 20260601-4");
+
     const modalShell = document.querySelector("[data-participant-modal]");
     const modalContent = modalShell?.querySelector(".participant-modal-content");
     const controlMain = document.querySelector("[data-control-main]");
@@ -26,6 +28,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const closeModal = () => {
         modalShell.hidden = true;
+        document.body.classList.remove("modal-open");
+    };
+
+    const openPhaseDecisionModal = (modal) => {
+        if (!modal) {
+            return;
+        }
+        console.debug("[phase-decision] opening", {
+            path: window.location.pathname,
+        });
+        modal.hidden = false;
+        modal.classList.add("is-active");
+        document.body.classList.add("modal-open");
+    };
+
+    const closePhaseDecisionModal = (modal) => {
+        if (!modal) {
+            return;
+        }
+        console.debug("[phase-decision] closing", {
+            path: window.location.pathname,
+        });
+        modal.hidden = true;
+        modal.classList.remove("is-active");
         document.body.classList.remove("modal-open");
     };
 
@@ -492,10 +518,62 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
+    const bindPhaseDecisionModal = () => {
+        if (!window.location.pathname.includes("/torneo/control/divisiones/")) {
+            return;
+        }
+
+        document.querySelectorAll(".control-screen[data-competition-id] [data-phase-decision-modal]").forEach((modal) => {
+            if (modal.dataset.phaseDecisionBound === "true") {
+                return;
+            }
+            modal.dataset.phaseDecisionBound = "true";
+            modal.hidden = true;
+            modal.classList.remove("is-active");
+            modal.querySelectorAll("[data-phase-decision-close]").forEach((element) => {
+                element.addEventListener("click", () => closePhaseDecisionModal(modal));
+            });
+        });
+
+        document.querySelectorAll(".control-screen[data-competition-id] button[data-phase-decision-open]").forEach((button) => {
+            if (button.dataset.phaseDecisionOpenBound === "true") {
+                return;
+            }
+            button.dataset.phaseDecisionOpenBound = "true";
+            console.debug("[phase-decision] registered", {
+                text: button.textContent.trim(),
+                path: window.location.pathname,
+            });
+            button.addEventListener("click", (event) => {
+                if (event.currentTarget !== button || !button.matches("button[data-phase-decision-open]")) {
+                    return;
+                }
+                event.preventDefault();
+                const screen = button.closest(".control-screen[data-competition-id]");
+                const modal = screen?.querySelector("[data-phase-decision-modal]");
+                if (!modal) {
+                    return;
+                }
+                openPhaseDecisionModal(modal);
+            });
+        });
+    };
+
     const bindDynamicControls = () => {
         bindTriggers();
         bindResultControls();
+        bindPhaseDecisionModal();
     };
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") {
+            return;
+        }
+        const phaseDecisionModal = document.querySelector("[data-phase-decision-modal]:not([hidden])");
+        if (phaseDecisionModal) {
+            closePhaseDecisionModal(phaseDecisionModal);
+        }
+    });
 
     modalShell.querySelectorAll("[data-modal-close]").forEach((element) => {
         element.addEventListener("click", closeModal);

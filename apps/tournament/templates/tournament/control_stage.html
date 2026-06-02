@@ -330,5 +330,152 @@
         </aside>
     </section>
 {% endif %}
+
+<section class="recommendation-panel card stage-recommendation-panel">
+    <div class="recommendation-main">
+        <div>
+            <p class="eyebrow">Recomendacion del sistema</p>
+            {% if recommendation_ready %}
+                <h2>{{ system_recommendation.title }}</h2>
+                <p>{{ system_recommendation.explanation }}</p>
+            {% else %}
+                <h2>Avance pendiente</h2>
+                <p>{{ recommendation_wait_message }}</p>
+            {% endif %}
+        </div>
+        <div class="recommendation-status">
+            <span>Modo diagnostico</span>
+            {% if recommendation_ready %}
+                <button class="button secondary" type="button" data-phase-decision-open>Ver opciones de avance</button>
+            {% else %}
+                <button class="button secondary" type="button" disabled>Esperando cierre de fase</button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if recommendation_ready %}
+        <div class="recommendation-metrics">
+            <article>
+                <span>Participantes vivos</span>
+                <strong>{{ system_recommendation.participant_count }}</strong>
+            </article>
+            <article>
+                <span>Formato sugerido</span>
+                <strong>{{ system_recommendation.suggested_format }}</strong>
+            </article>
+            <article>
+                <span>Repechables</span>
+                <strong>{{ system_recommendation.repechable_count }}</strong>
+            </article>
+            <article>
+                <span>Eliminados recientes</span>
+                <strong>{{ system_recommendation.recent_eliminated_count }}</strong>
+            </article>
+        </div>
+
+        {% if system_recommendation.alternatives %}
+            <div class="recommendation-list">
+                <p class="eyebrow">Alternativas</p>
+                {% for alternative in system_recommendation.alternatives %}
+                    <article>
+                        <strong>{{ alternative.title }}</strong>
+                        <span>{{ alternative.suggested_format }} &middot; {{ alternative.participant_count }} participante(s)</span>
+                        <p>{{ alternative.explanation }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if system_recommendation.warnings %}
+            <div class="recommendation-list recommendation-warnings">
+                <p class="eyebrow">Advertencias</p>
+                {% for warning in system_recommendation.warnings %}
+                    <article>
+                        <strong>Revisar manualmente</strong>
+                        <p>{{ warning }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+</section>
+
+{% if recommendation_ready %}
+    <div class="phase-decision-modal-shell" data-phase-decision-modal hidden>
+        <div class="phase-decision-backdrop" data-phase-decision-close></div>
+        <section class="phase-decision-modal" role="dialog" aria-modal="true" aria-labelledby="phase-decision-title">
+            <button class="modal-close" type="button" data-phase-decision-close aria-label="Cerrar">&times;</button>
+            <div class="phase-decision-content">
+                <header class="phase-decision-header">
+                    <p class="eyebrow">Flujo progresivo</p>
+                    <h2 id="phase-decision-title">Opciones de avance</h2>
+                    <p>Modo diagnostico: todav&iacute;a no se generar&aacute; ninguna fase.</p>
+                </header>
+
+                <section class="phase-decision-summary">
+                    <article>
+                        <span>Recomendacion principal</span>
+                        <strong>{{ system_recommendation.title }}</strong>
+                        <p>{{ system_recommendation.explanation }}</p>
+                    </article>
+                    <article>
+                        <span>Participantes vivos</span>
+                        <strong>{{ system_recommendation.participant_count }}</strong>
+                    </article>
+                    <article>
+                        <span>Formato sugerido</span>
+                        <strong>{{ system_recommendation.suggested_format }}</strong>
+                    </article>
+                </section>
+
+                <section class="phase-decision-grid">
+                    <article>
+                        <p class="eyebrow">Alternativas</p>
+                        <div class="phase-decision-list">
+                            {% for alternative in system_recommendation.alternatives %}
+                                <div>
+                                    <strong>{{ alternative.title }}</strong>
+                                    <span>{{ alternative.suggested_format }} &middot; {{ alternative.participant_count }} participante(s)</span>
+                                    <p>{{ alternative.explanation }}</p>
+                                </div>
+                            {% empty %}
+                                <p class="muted-text">No hay alternativas adicionales para esta recomendacion.</p>
+                            {% endfor %}
+                        </div>
+                    </article>
+
+                    <article>
+                        <p class="eyebrow">Advertencias</p>
+                        <div class="phase-decision-list phase-decision-warnings">
+                            {% for warning in system_recommendation.warnings %}
+                                <div>
+                                    <strong>Revisar manualmente</strong>
+                                    <p>{{ warning }}</p>
+                                </div>
+                            {% empty %}
+                                <p class="muted-text">No hay advertencias detectadas en modo diagnostico.</p>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </section>
+
+                <section class="phase-decision-actions">
+                    <button class="button primary" type="button" disabled>
+                        Aceptar recomendacion
+                        <span>Proximamente</span>
+                    </button>
+                    <button class="button secondary" type="button" disabled>
+                        Modificar propuesta
+                        <span>Proximamente</span>
+                    </button>
+                    <button class="button secondary" type="button" disabled>
+                        Crear fase manual
+                        <span>Proximamente</span>
+                    </button>
+                </section>
+            </div>
+        </section>
+    </div>
+{% endif %}
 </div>
 {% endblock %}

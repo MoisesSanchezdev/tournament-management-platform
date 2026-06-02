@@ -54,7 +54,7 @@
         </div>
         <div class="recommendation-status">
             <span>Modo diagnostico</span>
-            <button class="button secondary" type="button" disabled>Proximamente: generar siguiente fase</button>
+            <button class="button secondary" type="button" data-phase-decision-open>Ver opciones de avance</button>
         </div>
     </div>
 
@@ -102,6 +102,82 @@
         </div>
     {% endif %}
 </section>
+
+<div class="phase-decision-modal-shell" data-phase-decision-modal hidden>
+    <div class="phase-decision-backdrop" data-phase-decision-close></div>
+    <section class="phase-decision-modal" role="dialog" aria-modal="true" aria-labelledby="phase-decision-title">
+        <button class="modal-close" type="button" data-phase-decision-close aria-label="Cerrar">&times;</button>
+        <div class="phase-decision-content">
+            <header class="phase-decision-header">
+                <p class="eyebrow">Flujo progresivo</p>
+                <h2 id="phase-decision-title">Opciones de avance</h2>
+                <p>Modo diagnostico: todav&iacute;a no se generar&aacute; ninguna fase.</p>
+            </header>
+
+            <section class="phase-decision-summary">
+                <article>
+                    <span>Recomendacion principal</span>
+                    <strong>{{ system_recommendation.title }}</strong>
+                    <p>{{ system_recommendation.explanation }}</p>
+                </article>
+                <article>
+                    <span>Participantes vivos</span>
+                    <strong>{{ system_recommendation.participant_count }}</strong>
+                </article>
+                <article>
+                    <span>Formato sugerido</span>
+                    <strong>{{ system_recommendation.suggested_format }}</strong>
+                </article>
+            </section>
+
+            <section class="phase-decision-grid">
+                <article>
+                    <p class="eyebrow">Alternativas</p>
+                    <div class="phase-decision-list">
+                        {% for alternative in system_recommendation.alternatives %}
+                            <div>
+                                <strong>{{ alternative.title }}</strong>
+                                <span>{{ alternative.suggested_format }} &middot; {{ alternative.participant_count }} participante(s)</span>
+                                <p>{{ alternative.explanation }}</p>
+                            </div>
+                        {% empty %}
+                            <p class="muted-text">No hay alternativas adicionales para esta recomendacion.</p>
+                        {% endfor %}
+                    </div>
+                </article>
+
+                <article>
+                    <p class="eyebrow">Advertencias</p>
+                    <div class="phase-decision-list phase-decision-warnings">
+                        {% for warning in system_recommendation.warnings %}
+                            <div>
+                                <strong>Revisar manualmente</strong>
+                                <p>{{ warning }}</p>
+                            </div>
+                        {% empty %}
+                            <p class="muted-text">No hay advertencias detectadas en modo diagnostico.</p>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+
+            <section class="phase-decision-actions">
+                <button class="button primary" type="button" disabled>
+                    Aceptar recomendacion
+                    <span>Proximamente</span>
+                </button>
+                <button class="button secondary" type="button" disabled>
+                    Modificar propuesta
+                    <span>Proximamente</span>
+                </button>
+                <button class="button secondary" type="button" disabled>
+                    Crear fase manual
+                    <span>Proximamente</span>
+                </button>
+            </section>
+        </div>
+    </section>
+</div>
 
 <section class="control-accordion-grid">
     <details class="control-panel disclosure-panel">
@@ -217,20 +293,5 @@
     </div>
 </details>
 
-<section class="section-head compact-head">
-    <div>
-        <p class="eyebrow">Navegacion por fases</p>
-        <h2>Fases del torneo</h2>
-    </div>
-</section>
-
-<section class="phase-summary-grid compact-summary-grid">
-    {% for item in stage_navigation %}
-        <a class="card phase-jump-card" href="{% url 'tournament:control_division_stage' competition.id item.key %}">
-            <p class="eyebrow">Fase</p>
-            <h3>{{ item.title }}</h3>
-        </a>
-    {% endfor %}
-</section>
 </div>
 {% endblock %}

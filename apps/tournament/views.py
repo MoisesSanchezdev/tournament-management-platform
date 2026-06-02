@@ -8,7 +8,15 @@ from apps.participants.models import SchoolRegistration, UniversityRegistration
 from .formats import competition_profile
 from .planner import build_division_plan
 from .recommendations import next_phase_recommendation
-from .models import CompetitionStage, DivisionCompetition, DivisionType, TeamCompetitionState, TournamentEdition, TournamentPhase
+from .models import (
+    CompetitionStage,
+    DivisionCompetition,
+    DivisionType,
+    MatchStatus,
+    TeamCompetitionState,
+    TournamentEdition,
+    TournamentPhase,
+)
 from .services import (
     build_stage_context,
     competition_profile_from_instance,
@@ -78,6 +86,61 @@ def confirmation_required_response(error):
         },
         status=409,
     )
+
+
+def stage_has_visible_activity(competition, stage_key):
+    if stage_key == CompetitionStage.GROUPS:
+        return competition.groups.exists()
+    return (
+        competition.battles.filter(stage=stage_key)
+        .filter(
+            entries__isnull=False,
+        )
+        .distinct()
+        .exists()
+        or competition.battles.filter(stage=stage_key)
+        .exclude(status=MatchStatus.PENDING)
+        .exists()
+        or competition.battles.filter(stage=stage_key, winner__isnull=False).exists()
+    )
+
+
+def visible_stage_navigation(competition, current_stage=None):
+    visible = []
+    for item in competition_stage_navigation(competition):
+        stage_key = item["key"]
+        if stage_key == CompetitionStage.GROUPS or stage_key == current_stage or stage_has_visible_activity(competition, stage_key):
+            visible.append(item)
+    return visible
+
+
+def groups_stage_is_closed(competition):
+    profile = competition_profile_from_instance(competition)
+    qualifiers_per_group = profile.get("qualifiers_per_group", 0)
+    groups = list(competition.groups.prefetch_related("entries"))
+    if not groups or qualifiers_per_group < 1:
+        return False
+    for group in groups:
+        entries = list(group.entries.all())
+        if len(entries) < qualifiers_per_group:
+            return False
+        if sum(1 for entry in entries if entry.qualified_from_group) != qualifiers_per_group:
+            return False
+    return True
+
+
+def battle_stage_is_closed(competition, stage_key):
+    battles = list(competition.battles.filter(stage=stage_key).prefetch_related("entries"))
+    active_battles = [battle for battle in battles if battle.entries.exists()]
+    if not active_battles:
+        return False
+    return all(battle.status == MatchStatus.FINISHED and battle.winner_id for battle in active_battles)
+
+
+def stage_is_closed(competition, stage_key):
+    if stage_key == CompetitionStage.GROUPS:
+        return groups_stage_is_closed(competition)
+    return battle_stage_is_closed(competition, stage_key)
 
 
 @login_required
@@ -285,6 +348,7 @@ def control_division(request, competition_id):
     profile = competition_profile_from_instance(competition)
     system_recommendation = next_phase_recommendation(competition)
     auto_suggestion = competition_profile(profile.get("team_count", 0))
+    navigation = visible_stage_navigation(competition)
     layout_entries = (
         competition.groups.all()
         .prefetch_related("entries__team__institution")
@@ -301,7 +365,7 @@ def control_division(request, competition_id):
             "edition": competition.edition,
             "groups": groups,
             "stages": stages,
-            "stage_navigation": competition_stage_navigation(competition),
+            "stage_navigation": navigation,
             "layout_groups": competition.groups.all().order_by("order"),
             "layout_entries": [
                 entry
@@ -387,6 +451,10 @@ def control_division_stage(request, competition_id, stage_key):
 
     context = build_stage_context(competition, stage_key)
     context["edition"] = competition.edition
+    context["navigation"] = visible_stage_navigation(competition, current_stage=stage_key)
+    context["system_recommendation"] = next_phase_recommendation(competition)
+    context["recommendation_ready"] = stage_is_closed(competition, stage_key)
+    context["recommendation_wait_message"] = "Finaliza esta fase para calcular la recomendacion de avance."
     return render(request, "tournament/control_stage.html", context)
 
 
