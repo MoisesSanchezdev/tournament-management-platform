@@ -1174,6 +1174,84 @@ h1 {
     margin-bottom: 1rem;
 }
 
+.recommendation-panel {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.recommendation-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+}
+
+.recommendation-main h2 {
+    margin-bottom: 0.45rem;
+}
+
+.recommendation-status {
+    display: grid;
+    justify-items: end;
+    gap: 0.65rem;
+}
+
+.recommendation-status span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(103, 236, 255, 0.22);
+    background: rgba(103, 236, 255, 0.08);
+    color: #e2fbff;
+    font-family: var(--title-font);
+    font-size: 0.82rem;
+}
+
+.recommendation-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.recommendation-metrics article,
+.recommendation-list article {
+    border-radius: 18px;
+    border: 1px solid rgba(103, 236, 255, 0.16);
+    background: rgba(6, 16, 39, 0.66);
+    padding: 0.9rem;
+}
+
+.recommendation-metrics span,
+.recommendation-list span {
+    display: block;
+    color: var(--muted);
+}
+
+.recommendation-metrics strong {
+    display: block;
+    color: #f4fdff;
+    font-family: var(--title-font);
+    font-size: 1.25rem;
+    margin-top: 0.25rem;
+}
+
+.recommendation-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.recommendation-list article p {
+    margin: 0.35rem 0 0;
+}
+
+.recommendation-warnings article {
+    border-color: rgba(255, 207, 102, 0.32);
+    background: rgba(255, 207, 102, 0.08);
+}
+
 .division-dashboard-grid {
     display: grid;
     gap: 1.25rem;
@@ -1232,6 +1310,15 @@ h1 {
 
 .disclosure-body {
     padding: 0 1.15rem 1.15rem;
+}
+
+.initial-config-note {
+    margin: 0 0 0.9rem;
+    padding: 0.8rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid rgba(103, 236, 255, 0.18);
+    background: rgba(103, 236, 255, 0.07);
+    color: #d7f8ff;
 }
 
 .compact-head {
@@ -2198,6 +2285,8 @@ h1 {
     .phase-summary-grid,
     .phase-stage-layout,
     .participant-summary-grid,
+    .recommendation-main,
+    .recommendation-metrics,
     .metric-strip,
     .group-overview-grid,
     .group-grid,
@@ -2216,6 +2305,10 @@ h1 {
 
     .result-save-bar .button {
         width: 100%;
+    }
+
+    .recommendation-status {
+        justify-items: start;
     }
 
     .result-choice-card,

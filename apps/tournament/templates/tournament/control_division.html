@@ -45,16 +45,77 @@
     </article>
 </section>
 
+<section class="recommendation-panel card">
+    <div class="recommendation-main">
+        <div>
+            <p class="eyebrow">Recomendacion del sistema</p>
+            <h2>{{ system_recommendation.title }}</h2>
+            <p>{{ system_recommendation.explanation }}</p>
+        </div>
+        <div class="recommendation-status">
+            <span>Modo diagnostico</span>
+            <button class="button secondary" type="button" disabled>Proximamente: generar siguiente fase</button>
+        </div>
+    </div>
+
+    <div class="recommendation-metrics">
+        <article>
+            <span>Participantes vivos</span>
+            <strong>{{ system_recommendation.participant_count }}</strong>
+        </article>
+        <article>
+            <span>Formato sugerido</span>
+            <strong>{{ system_recommendation.suggested_format }}</strong>
+        </article>
+        <article>
+            <span>Repechables</span>
+            <strong>{{ system_recommendation.repechable_count }}</strong>
+        </article>
+        <article>
+            <span>Eliminados recientes</span>
+            <strong>{{ system_recommendation.recent_eliminated_count }}</strong>
+        </article>
+    </div>
+
+    {% if system_recommendation.alternatives %}
+        <div class="recommendation-list">
+            <p class="eyebrow">Alternativas</p>
+            {% for alternative in system_recommendation.alternatives %}
+                <article>
+                    <strong>{{ alternative.title }}</strong>
+                    <span>{{ alternative.suggested_format }} &middot; {{ alternative.participant_count }} participante(s)</span>
+                    <p>{{ alternative.explanation }}</p>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if system_recommendation.warnings %}
+        <div class="recommendation-list recommendation-warnings">
+            <p class="eyebrow">Advertencias</p>
+            {% for warning in system_recommendation.warnings %}
+                <article>
+                    <strong>Revisar manualmente</strong>
+                    <p>{{ warning }}</p>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
 <section class="control-accordion-grid">
     <details class="control-panel disclosure-panel">
         <summary>
             <div>
-                <p class="eyebrow">Modo sugerido</p>
+                <p class="eyebrow">Configuracion inicial sugerida</p>
                 <strong>{{ auto_suggestion.label }}</strong>
             </div>
             <span class="summary-hint">Ver detalle</span>
         </summary>
         <div class="disclosure-body">
+            <p class="initial-config-note">
+                Esta configuracion prepara la fase inicial. Las siguientes fases se gestionaran progresivamente mediante la recomendacion del sistema.
+            </p>
             <div class="config-chip-list">
                 <span>{{ auto_suggestion.group_count }} grupos</span>
                 <span>{{ auto_suggestion.qualifiers_per_group }} clasifica(n) por grupo</span>
@@ -73,12 +134,15 @@
     <details class="control-panel disclosure-panel">
         <summary>
             <div>
-                <p class="eyebrow">Modo editable</p>
-                <strong>Personalizar formato</strong>
+                <p class="eyebrow">Configuracion inicial editable</p>
+                <strong>Preparar primera fase</strong>
             </div>
             <span class="summary-hint">Abrir ajustes</span>
         </summary>
         <div class="disclosure-body">
+            <p class="initial-config-note">
+                Esta configuracion prepara la fase inicial. Las siguientes fases se gestionaran progresivamente mediante la recomendacion del sistema.
+            </p>
             <form method="post" class="config-form-grid">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="apply_manual_configuration">

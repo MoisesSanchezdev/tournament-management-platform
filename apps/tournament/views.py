@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.participants.models import SchoolRegistration, UniversityRegistration
 from .formats import competition_profile
 from .planner import build_division_plan
+from .recommendations import next_phase_recommendation
 from .models import CompetitionStage, DivisionCompetition, DivisionType, TeamCompetitionState, TournamentEdition, TournamentPhase
 from .services import (
     build_stage_context,
@@ -282,6 +283,7 @@ def control_division(request, competition_id):
     groups = competition.groups.all().order_by("order")
     stages = stage_summary(competition)
     profile = competition_profile_from_instance(competition)
+    system_recommendation = next_phase_recommendation(competition)
     auto_suggestion = competition_profile(profile.get("team_count", 0))
     layout_entries = (
         competition.groups.all()
@@ -294,6 +296,7 @@ def control_division(request, competition_id):
         {
             "competition": competition,
             "profile": profile,
+            "system_recommendation": system_recommendation,
             "auto_suggestion": auto_suggestion,
             "edition": competition.edition,
             "groups": groups,
