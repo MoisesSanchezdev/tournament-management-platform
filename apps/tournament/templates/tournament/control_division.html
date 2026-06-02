@@ -53,8 +53,12 @@
             <p>{{ system_recommendation.explanation }}</p>
         </div>
         <div class="recommendation-status">
-            <span>Modo diagnostico</span>
-            <button class="button secondary" type="button" data-phase-decision-open>Ver opciones de avance</button>
+            <span>Vista previa</span>
+            {% if recommendation_ready %}
+                <button class="button secondary" type="button" data-phase-decision-open>Pasar a la siguiente fase</button>
+            {% else %}
+                <button class="button secondary" type="button" disabled>Completa y guarda todos los resultados para pasar a la siguiente fase.</button>
+            {% endif %}
         </div>
     </div>
 
@@ -110,11 +114,11 @@
         <div class="phase-decision-content">
             <header class="phase-decision-header">
                 <p class="eyebrow">Flujo progresivo</p>
-                <h2 id="phase-decision-title">Opciones de avance</h2>
-                <p>Modo diagnostico: todav&iacute;a no se generar&aacute; ninguna fase.</p>
+                <h2 id="phase-decision-title">Pasar a la siguiente fase</h2>
+                <p>Vista previa: todav&iacute;a no se generar&aacute; ninguna fase ni se modificar&aacute;n datos.</p>
             </header>
 
-            <section class="phase-decision-summary">
+            <section class="phase-decision-summary phase-decision-summary-wide">
                 <article>
                     <span>Recomendacion principal</span>
                     <strong>{{ system_recommendation.title }}</strong>
@@ -123,6 +127,14 @@
                 <article>
                     <span>Participantes vivos</span>
                     <strong>{{ system_recommendation.participant_count }}</strong>
+                </article>
+                <article>
+                    <span>Eliminados recientes</span>
+                    <strong>{{ system_recommendation.recent_eliminated_count }}</strong>
+                </article>
+                <article>
+                    <span>Repechables</span>
+                    <strong>{{ system_recommendation.repechable_count }}</strong>
                 </article>
                 <article>
                     <span>Formato sugerido</span>
@@ -162,18 +174,75 @@
             </section>
 
             <section class="phase-decision-actions">
+                <button class="button primary" type="button" data-phase-decision-use-recommendation>
+                    Usar recomendacion del sistema
+                </button>
+                <button class="button secondary" type="button" data-phase-decision-manual>
+                    Configurar manualmente
+                </button>
+                <button class="button secondary" type="button" data-phase-decision-cancel>
+                    Cancelar
+                </button>
+            </section>
+
+            <section class="phase-decision-preview" data-phase-decision-preview hidden>
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow">Vista previa de creacion</p>
+                        <h3>{{ system_recommendation.preview.name }}</h3>
+                    </div>
+                </div>
+                <div class="phase-decision-preview-grid">
+                    <article>
+                        <span>Participantes</span>
+                        <strong>{{ system_recommendation.preview.participant_count }}</strong>
+                    </article>
+                    <article>
+                        <span>Formato</span>
+                        <strong>{{ system_recommendation.preview.format }}</strong>
+                    </article>
+                    <article>
+                        <span>Estructura</span>
+                        <strong>{{ system_recommendation.preview.structure_label }}</strong>
+                    </article>
+                    <article>
+                        <span>Unidades</span>
+                        <strong>{{ system_recommendation.preview.unit_count }} {{ system_recommendation.preview.unit_label }}</strong>
+                    </article>
+                </div>
+                <p>{{ system_recommendation.preview.explanation }}</p>
                 <button class="button primary" type="button" disabled>
-                    Aceptar recomendacion
-                    <span>Proximamente</span>
+                    Proximamente: crear fase
                 </button>
-                <button class="button secondary" type="button" disabled>
-                    Modificar propuesta
-                    <span>Proximamente</span>
-                </button>
-                <button class="button secondary" type="button" disabled>
-                    Crear fase manual
-                    <span>Proximamente</span>
-                </button>
+            </section>
+
+            <section class="phase-decision-manual-panel" data-phase-decision-manual-panel hidden>
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow">Configuracion manual proximamente</p>
+                        <h3>Preparar fase personalizada</h3>
+                    </div>
+                </div>
+                <div class="config-form-grid">
+                    <div class="field">
+                        <label for="manual_phase_type">Tipo de fase</label>
+                        <select id="manual_phase_type" disabled>
+                            <option>Seleccionar tipo de fase</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="manual_group_count">Cantidad de grupos</label>
+                        <input id="manual_group_count" type="number" value="0" disabled>
+                    </div>
+                    <div class="field">
+                        <label for="manual_qualifiers">Clasificados</label>
+                        <input id="manual_qualifiers" type="number" value="0" disabled>
+                    </div>
+                    <label class="toggle-field">
+                        <input type="checkbox" disabled>
+                        <span>Incluir repechaje</span>
+                    </label>
+                </div>
             </section>
         </div>
     </section>

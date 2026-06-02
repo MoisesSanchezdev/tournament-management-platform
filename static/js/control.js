@@ -55,6 +55,38 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.remove("modal-open");
     };
 
+    const resetPhaseDecisionModal = (modal) => {
+        if (!modal) {
+            return;
+        }
+        modal.querySelectorAll("[data-phase-decision-preview], [data-phase-decision-manual-panel]").forEach((panel) => {
+            panel.hidden = true;
+        });
+        modal.querySelectorAll("[data-phase-decision-use-recommendation], [data-phase-decision-manual]").forEach(
+            (button) => {
+                button.classList.remove("is-selected");
+            }
+        );
+    };
+
+    const showPhaseDecisionPanel = (modal, panelSelector, selectedButton) => {
+        if (!modal) {
+            return;
+        }
+        modal.querySelectorAll("[data-phase-decision-preview], [data-phase-decision-manual-panel]").forEach((panel) => {
+            panel.hidden = true;
+        });
+        modal.querySelectorAll("[data-phase-decision-use-recommendation], [data-phase-decision-manual]").forEach(
+            (button) => {
+                button.classList.toggle("is-selected", button === selectedButton);
+            }
+        );
+        const panel = modal.querySelector(panelSelector);
+        if (panel) {
+            panel.hidden = false;
+        }
+    };
+
     const buildOptions = (items, selectedValue, placeholder) => {
         const options = [`<option value="">${placeholder}</option>`];
         items.forEach((item) => {
@@ -530,8 +562,22 @@ document.addEventListener("DOMContentLoaded", () => {
             modal.dataset.phaseDecisionBound = "true";
             modal.hidden = true;
             modal.classList.remove("is-active");
+            resetPhaseDecisionModal(modal);
             modal.querySelectorAll("[data-phase-decision-close]").forEach((element) => {
                 element.addEventListener("click", () => closePhaseDecisionModal(modal));
+            });
+            modal.querySelectorAll("[data-phase-decision-cancel]").forEach((element) => {
+                element.addEventListener("click", () => closePhaseDecisionModal(modal));
+            });
+            modal.querySelectorAll("[data-phase-decision-use-recommendation]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    showPhaseDecisionPanel(modal, "[data-phase-decision-preview]", button);
+                });
+            });
+            modal.querySelectorAll("[data-phase-decision-manual]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    showPhaseDecisionPanel(modal, "[data-phase-decision-manual-panel]", button);
+                });
             });
         });
 
@@ -554,6 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!modal) {
                     return;
                 }
+                resetPhaseDecisionModal(modal);
                 openPhaseDecisionModal(modal);
             });
         });

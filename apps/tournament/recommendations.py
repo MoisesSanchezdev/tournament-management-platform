@@ -172,6 +172,67 @@ def repechage_alternative(repechable_count, recent_eliminated_count):
     }
 
 
+def phase_plan_preview(recommendation):
+    participant_count = recommendation.get("participant_count") or recommendation.get("active_count") or 0
+    recommended_type = recommendation.get("recommended_type")
+    title = recommendation.get("title", "Revision manual")
+    suggested_format = recommendation.get("suggested_format", "manual")
+
+    if recommended_type in {
+        CompetitionStage.ROUND_OF_32,
+        CompetitionStage.ROUND_OF_16,
+        CompetitionStage.QUARTERFINAL,
+        CompetitionStage.SEMIFINAL,
+        CompetitionStage.FINAL,
+    }:
+        duel_count = participant_count // 2
+        return {
+            "name": title,
+            "participant_count": participant_count,
+            "format": suggested_format,
+            "unit_count": duel_count,
+            "unit_label": "duelo" if duel_count == 1 else "duelos",
+            "structure_label": f"{duel_count} duelo(s)",
+            "explanation": recommendation.get("explanation", ""),
+            "can_create": False,
+        }
+
+    if recommended_type == "two_triangulars":
+        return {
+            "name": title,
+            "participant_count": participant_count,
+            "format": suggested_format,
+            "unit_count": 2,
+            "unit_label": "triangulares",
+            "structure_label": "2 triangulares de 3 participantes",
+            "explanation": recommendation.get("explanation", ""),
+            "can_create": False,
+        }
+
+    if recommended_type == "triangular_final":
+        return {
+            "name": title,
+            "participant_count": participant_count,
+            "format": suggested_format,
+            "unit_count": 1,
+            "unit_label": "triangular",
+            "structure_label": "1 triangular final de 3 participantes",
+            "explanation": recommendation.get("explanation", ""),
+            "can_create": False,
+        }
+
+    return {
+        "name": title,
+        "participant_count": participant_count,
+        "format": suggested_format,
+        "unit_count": 0,
+        "unit_label": "revision manual",
+        "structure_label": "Requiere configuracion manual antes de crear fase",
+        "explanation": recommendation.get("explanation", ""),
+        "can_create": False,
+    }
+
+
 def next_phase_recommendation(competition):
     snapshot = participant_snapshot(competition)
     active = snapshot["active"]
@@ -203,7 +264,7 @@ def next_phase_recommendation(competition):
             }
         )
 
-    return {
+    result = {
         **recommendation,
         "participant_count": active_count,
         "active_count": active_count,
@@ -215,3 +276,5 @@ def next_phase_recommendation(competition):
         "can_apply": False,
         "mode": "diagnostic",
     }
+    result["preview"] = phase_plan_preview(result)
+    return result

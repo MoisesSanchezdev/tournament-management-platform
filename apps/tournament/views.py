@@ -349,6 +349,8 @@ def control_division(request, competition_id):
     system_recommendation = next_phase_recommendation(competition)
     auto_suggestion = competition_profile(profile.get("team_count", 0))
     navigation = visible_stage_navigation(competition)
+    current_stage_key = navigation[-1]["key"] if navigation else CompetitionStage.GROUPS
+    recommendation_ready = stage_is_closed(competition, current_stage_key)
     layout_entries = (
         competition.groups.all()
         .prefetch_related("entries__team__institution")
@@ -361,6 +363,7 @@ def control_division(request, competition_id):
             "competition": competition,
             "profile": profile,
             "system_recommendation": system_recommendation,
+            "recommendation_ready": recommendation_ready,
             "auto_suggestion": auto_suggestion,
             "edition": competition.edition,
             "groups": groups,

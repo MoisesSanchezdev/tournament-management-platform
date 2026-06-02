@@ -1308,13 +1308,19 @@ h1 {
     gap: 0.85rem;
 }
 
+.phase-decision-summary-wide {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
 .phase-decision-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .phase-decision-summary article,
 .phase-decision-grid > article,
-.phase-decision-list > div {
+.phase-decision-list > div,
+.phase-decision-preview,
+.phase-decision-manual-panel {
     border-radius: 18px;
     border: 1px solid rgba(103, 236, 255, 0.16);
     background: rgba(6, 16, 39, 0.66);
@@ -1367,6 +1373,47 @@ h1 {
     letter-spacing: 0;
     text-transform: none;
     opacity: 0.78;
+}
+
+.phase-decision-actions .button.is-selected {
+    border-color: rgba(103, 236, 255, 0.68);
+    box-shadow: 0 0 0 1px rgba(103, 236, 255, 0.22), 0 12px 28px rgba(103, 236, 255, 0.1);
+}
+
+.phase-decision-preview,
+.phase-decision-manual-panel {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.phase-decision-preview[hidden],
+.phase-decision-manual-panel[hidden] {
+    display: none !important;
+}
+
+.phase-decision-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.phase-decision-preview-grid article {
+    border-radius: 14px;
+    border: 1px solid rgba(103, 236, 255, 0.14);
+    background: rgba(3, 10, 26, 0.42);
+    padding: 0.8rem;
+}
+
+.phase-decision-preview-grid span {
+    display: block;
+    color: var(--muted);
+}
+
+.phase-decision-preview-grid strong {
+    display: block;
+    margin-top: 0.25rem;
+    color: #f4fdff;
+    font-family: var(--title-font);
 }
 
 .division-dashboard-grid {
@@ -2407,6 +2454,7 @@ h1 {
     .phase-decision-summary,
     .phase-decision-grid,
     .phase-decision-actions,
+    .phase-decision-preview-grid,
     .metric-strip,
     .group-overview-grid,
     .group-grid,
