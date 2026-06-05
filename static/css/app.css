@@ -1409,6 +1409,24 @@ h1 {
     background: rgba(255, 207, 102, 0.08);
 }
 
+.phase-repechage-candidates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.phase-repechage-candidates span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 207, 102, 0.22);
+    background: rgba(3, 10, 26, 0.44);
+    color: #f4fdff;
+    font-size: 0.82rem;
+}
+
 .phase-repechage-soon[hidden],
 [data-phase-create-action][hidden] {
     display: none !important;

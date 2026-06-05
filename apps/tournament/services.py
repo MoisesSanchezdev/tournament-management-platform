@@ -341,17 +341,25 @@ def validate_profile_change(competition, current_profile: dict, new_profile: dic
             raise ValueError("No puedes cambiar el Purgatorio 2 cuando el cierre del torneo ya fue iniciado.")
 
 
-def profile_configuration(competition, profile: dict, team_count: int) -> dict:
+def profile_configuration(competition, profile: dict, team_count: int, reset_progressive_state: bool = False) -> dict:
     existing_labels = (competition.configuration or {}).get("group_labels") or []
     existing_progressive_flow = (competition.configuration or {}).get("progressive_flow", True)
     group_count = profile.get("group_count", 0)
     group_labels = existing_labels if len(existing_labels) == group_count else GROUP_LABELS[:group_count]
+    configuration = {**profile}
+    if reset_progressive_state:
+        configuration["stages"] = [
+            {key: value for key, value in stage_config.items() if key != "progressive_created"}
+            for stage_config in configuration.get("stages", [])
+        ]
     return {
-        **profile,
+        **configuration,
         "team_count": team_count,
         "group_labels": group_labels,
-        "progressive_flow": existing_progressive_flow,
-        "progressive_created_stages": list((competition.configuration or {}).get("progressive_created_stages", [])),
+        "progressive_flow": True if reset_progressive_state else existing_progressive_flow,
+        "progressive_created_stages": []
+        if reset_progressive_state
+        else list((competition.configuration or {}).get("progressive_created_stages", [])),
     }
 
 
@@ -390,10 +398,15 @@ def ensure_stage_battles(competition, profile: dict):
                 battle.save(update_fields=["format_type", "name", "updated_at"])
 
 
-def rebuild_competition_scaffold(competition, teams, profile):
+def rebuild_competition_scaffold(competition, teams, profile, reset_progressive_state: bool = False):
     competition.name = f"{competition.edition.name} - {division_category_label(competition.division)}"
     competition.format_key = profile["key"]
-    competition.configuration = profile_configuration(competition, profile, len(teams))
+    competition.configuration = profile_configuration(
+        competition,
+        profile,
+        len(teams),
+        reset_progressive_state=reset_progressive_state,
+    )
     competition.shuffle_seed = random.randint(1000, 999999)
     competition.status = CompetitionStatus.DRAFT
     competition.save(update_fields=["name", "format_key", "configuration", "shuffle_seed", "status"])
@@ -485,7 +498,7 @@ def initialize_competition(
 def reset_competition_state(competition):
     profile = competition_profile_from_instance(competition)
     teams = randomized_teams(competition.edition, competition.division)
-    return rebuild_competition_scaffold(competition, teams, profile)
+    return rebuild_competition_scaffold(competition, teams, profile, reset_progressive_state=True)
 
 
 def attach_group_payload(competition):

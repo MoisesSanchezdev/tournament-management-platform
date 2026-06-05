@@ -71,7 +71,7 @@ def recent_eliminated_states(competition):
         return []
     return list(
         TeamCompetitionState.objects.filter(competition=competition, team_id__in=recent_team_ids)
-        .select_related("team__institution", "current_battle")
+        .select_related("team__institution", "current_group", "current_battle")
         .order_by("team__robot_name")
     )
 
@@ -158,22 +158,66 @@ def base_recommendation(active_count):
     }
 
 
-def repechage_alternative(repechable_count, recent_eliminated_count):
-    candidate_count = repechable_count or recent_eliminated_count
-    if candidate_count < 3:
-        return None
+def participant_preview_payload(state):
+    return {
+        "name": state.team.robot_name,
+        "institution": state.team.institution.name if state.team.institution_id else "",
+        "stage": state.get_current_stage_display() if hasattr(state, "get_current_stage_display") else state.current_stage,
+        "status": state.get_current_status_display() if hasattr(state, "get_current_status_display") else state.current_status,
+    }
+
+
+def repechage_format_for_count(candidate_count):
     if candidate_count >= 8:
-        format_label = "campales o grupos de repechaje"
-    elif candidate_count == 6:
-        format_label = "2 triangulares de repechaje"
-    elif candidate_count == 3:
-        format_label = "triangular de repechaje"
-    else:
-        format_label = "repechaje manual balanceado"
+        return "campales o grupos de repechaje", min(4, candidate_count // 2)
+    if candidate_count == 6:
+        return "2 triangulares de repechaje", 2
+    if candidate_count == 3:
+        return "triangular de repechaje", 1
+    return "repechaje manual balanceado", 1
+
+
+def repechage_candidates(repechable, recent_eliminated, eliminated):
+    candidate_source = recent_eliminated or repechable or eliminated
+    seen = set()
+    candidates = []
+    for state in candidate_source:
+        if state.team_id in seen:
+            continue
+        seen.add(state.team_id)
+        candidates.append(state)
+    return candidates
+
+
+def repechage_preview(repechable, recent_eliminated, eliminated):
+    candidates = repechage_candidates(repechable, recent_eliminated, eliminated)
+    candidate_count = len(candidates)
+    can_offer = candidate_count >= 3
+    format_label, return_slots = repechage_format_for_count(candidate_count)
+    return {
+        "can_offer": can_offer,
+        "candidate_count": candidate_count,
+        "suggested_format": format_label if can_offer else "sin candidatos suficientes",
+        "return_slots": return_slots if can_offer else 0,
+        "explanation": (
+            "Hay candidatos suficientes para evaluar una via de recuperacion antes de la siguiente fase."
+            if can_offer
+            else "No hay suficientes candidatos para sugerir repechaje en esta transicion."
+        ),
+        "message": "Creacion real de repechaje proximamente",
+        "candidates": [participant_preview_payload(state) for state in candidates[:12]],
+        "overflow_count": max(candidate_count - 12, 0),
+    }
+
+
+def repechage_alternative(preview):
+    candidate_count = preview["candidate_count"]
+    if not preview["can_offer"]:
+        return None
     return {
         "type": "optional_repechage",
         "title": "Repechaje opcional",
-        "suggested_format": format_label,
+        "suggested_format": preview["suggested_format"],
         "participant_count": candidate_count,
         "explanation": "Hay suficientes eliminados o repechables para ofrecer una via de recuperacion.",
     }
@@ -252,10 +296,11 @@ def next_phase_recommendation(competition):
     recommendation = base_recommendation(active_count)
     alternatives = []
     warnings = []
+    repechage = repechage_preview(repechable, recent_eliminated, eliminated)
 
-    repechage = repechage_alternative(len(repechable), len(recent_eliminated))
-    if repechage:
-        alternatives.append(repechage)
+    repechage_option = repechage_alternative(repechage)
+    if repechage_option:
+        alternatives.append(repechage_option)
 
     if active_count == 0:
         warnings.append("No hay participantes activos detectados; revisa resultados o estados manuales.")
@@ -293,5 +338,6 @@ def next_phase_recommendation(competition):
         "can_apply": preview["can_create"],
         "mode": "diagnostic",
         "preview": preview,
+        "repechage_preview": repechage,
     }
     return result

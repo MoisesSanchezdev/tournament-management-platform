@@ -513,15 +513,57 @@
                             <button class="button secondary" type="button" data-phase-repechage-skip>
                                 No, continuar con la fase recomendada
                             </button>
-                            <button class="button secondary" type="button" data-phase-repechage-open>
-                                Si, abrir repechaje
-                            </button>
+                            {% if system_recommendation.repechage_preview.can_offer %}
+                                <button class="button secondary" type="button" data-phase-repechage-open>
+                                    Evaluar/Abrir repechaje
+                                </button>
+                            {% else %}
+                                <button class="button secondary" type="button" disabled>
+                                    Sin candidatos suficientes
+                                </button>
+                            {% endif %}
                         </div>
                     </div>
 
                     <div class="phase-repechage-soon" data-phase-repechage-soon hidden>
-                        <strong>Creacion de repechaje proximamente.</strong>
-                        <p>No se creara ninguna fase real mientras esta opcion este pendiente de implementacion.</p>
+                        <div class="section-head compact-head">
+                            <div>
+                                <p class="eyebrow">Preview de repechaje</p>
+                                <h3>{{ system_recommendation.repechage_preview.suggested_format }}</h3>
+                            </div>
+                        </div>
+                        <div class="phase-decision-preview-grid">
+                            <article>
+                                <span>Candidatos</span>
+                                <strong>{{ system_recommendation.repechage_preview.candidate_count }}</strong>
+                            </article>
+                            <article>
+                                <span>Podrian volver</span>
+                                <strong>{{ system_recommendation.repechage_preview.return_slots }}</strong>
+                            </article>
+                            <article>
+                                <span>Estado</span>
+                                <strong>Proximamente</strong>
+                            </article>
+                            <article>
+                                <span>Creacion real</span>
+                                <strong>Bloqueada</strong>
+                            </article>
+                        </div>
+                        <p>{{ system_recommendation.repechage_preview.explanation }}</p>
+                        <div class="phase-repechage-candidates">
+                            {% for candidate in system_recommendation.repechage_preview.candidates %}
+                                <span>{{ candidate.name }}{% if candidate.institution %} · {{ candidate.institution }}{% endif %}</span>
+                            {% empty %}
+                                <span>No hay candidatos suficientes para esta transicion.</span>
+                            {% endfor %}
+                            {% if system_recommendation.repechage_preview.overflow_count %}
+                                <span>+{{ system_recommendation.repechage_preview.overflow_count }} candidato(s) mas</span>
+                            {% endif %}
+                        </div>
+                        <button class="button primary" type="button" disabled>
+                            Creacion real de repechaje proximamente
+                        </button>
                     </div>
 
                     <div data-phase-create-action hidden>
