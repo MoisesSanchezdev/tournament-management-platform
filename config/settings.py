@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     "apps.common",
     "apps.participants",
     "apps.tournament",
-    "apps.invitations",  # se agrega esta parte
+    "apps.invitations.apps.InvitationsConfig",
 ]
 
 MIDDLEWARE = [

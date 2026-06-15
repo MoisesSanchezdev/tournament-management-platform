@@ -1,25 +1,39 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Panel interno{% endblock %}</title>
+    <script>
+        (() => {
+            try {
+                const theme = localStorage.getItem("preExplotaGlobosTheme");
+                document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+            } catch (error) {
+                document.documentElement.dataset.theme = "dark";
+            }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260601-4">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260604-1">
 </head>
 <body class="control-body">
     <header class="site-header control-header">
         <div class="container nav">
-            <a class="brand" href="{% url 'tournament:control_dashboard' %}">Panel de organizacion</a>
+            <a class="brand" href="{% url 'tournament:control_dashboard' %}">Panel de organización</a>
             <nav>
                 <a href="{% url 'tournament:control_dashboard' %}">Resumen</a>
-                <a href="{% url 'tournament:overview' %}">Vista publica</a>
+                <a href="{% url 'invitations:dashboard' %}">Comunicaciones</a>
+                <a href="{% url 'tournament:overview' %}">Vista pública</a>
+                <button class="nav-button theme-toggle" type="button" data-theme-toggle aria-label="Cambiar tema">
+                    <span data-theme-label>Modo claro</span>
+                </button>
                 <form method="post" action="{% url 'tournament:control_logout' %}">
                     {% csrf_token %}
-                    <button class="nav-button" type="submit">Cerrar sesion</button>
+                    <button class="nav-button" type="submit">Cerrar sesión</button>
                 </form>
             </nav>
         </div>
@@ -45,6 +59,6 @@
             </div>
         </section>
     </div>
-    <script src="{% static 'js/control.js' %}?v=20260601-4"></script>
+    <script src="{% static 'js/control.js' %}?v=20260604-1"></script>
 </body>
 </html>

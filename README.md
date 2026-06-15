@@ -257,6 +257,31 @@ Verificar configuración de despliegue:
 python manage.py check --deploy
 ```
 
+## Comunicaciones
+
+El modulo interno esta disponible para organizadores en:
+
+```text
+/comunicaciones/
+```
+
+Por seguridad, los comandos operan en simulacion si no se confirma el envio real:
+
+```bash
+python manage.py send_invitations --file docs/correos/listado_invitaciones.example.xlsx
+python manage.py send_attendance_requests --base-url http://127.0.0.1:8000
+```
+
+El envio real requiere SMTP completo en `.env` y confirmacion explicita:
+
+```bash
+python manage.py send_invitations --file docs/correos/listado_invitaciones.example.xlsx --yes
+python manage.py send_attendance_requests --base-url https://dominio-oficial.com --yes
+python manage.py send_attendance_requests --base-url https://dominio-oficial.com --yes --resend
+```
+
+No subas listados reales de destinatarios. Usa `docs/correos/listado_invitaciones.example.xlsx` como formato seguro.
+
 ## Seguridad y privacidad
 
 Este proyecto está preparado para mantener fuera del repositorio archivos sensibles o locales:

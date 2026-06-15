@@ -1,0 +1,52 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Nueva plantilla{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Comunicaciones</p>
+    <h1>Nueva plantilla</h1>
+    <p class="lead">Sube un DOCX y declara los marcadores que deben existir antes de activar la plantilla.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="grid form-layout">
+    <aside class="card form-side">
+        <p class="eyebrow">Marcadores soportados</p>
+        <h2>DOCX</h2>
+        <div class="side-checklist">
+            <span>{% templatetag openvariable %}NOMBRE{% templatetag closevariable %}</span>
+            <span>{% templatetag openvariable %}INSTITUCION{% templatetag closevariable %}</span>
+            <span>{% templatetag openvariable %}EVENTO{% templatetag closevariable %}</span>
+            <span>{% templatetag openvariable %}FECHA{% templatetag closevariable %}</span>
+            <span>{% templatetag openvariable %}ENLACE_CONFIRMACION{% templatetag closevariable %}</span>
+        </div>
+        <p class="muted-text">Si falta un marcador declarado, la plantilla no se guarda como valida.</p>
+    </aside>
+
+    <section class="card">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Carga</p>
+                <h2>Datos de plantilla</h2>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="form-grid form-grid-public">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button primary" type="submit">Guardar plantilla</button>
+            </div>
+        </form>
+    </section>
+</section>
+{% endblock %}

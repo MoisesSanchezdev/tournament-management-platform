@@ -1,0 +1,112 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Confirmaciones de asistencia{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Asistencia</p>
+    <h1>Confirmaciones</h1>
+    <p class="lead">Solicitudes a participantes inscritos, sin reenvios automaticos y con envio real confirmado.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Estado SMTP</p>
+            <h2>{% if email_status.can_send_real %}Listo para envio real{% else %}Envio real bloqueado{% endif %}</h2>
+        </div>
+    </div>
+    <p>{{ email_status.message }}</p>
+</section>
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Registros</p>
+            <h2>Solicitudes de asistencia</h2>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Equipo</th>
+                    <th>Responsable</th>
+                    <th>Correo</th>
+                    <th>Categoria</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in records %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.registration.robot_name }}</strong><br>
+                            <small>{{ item.registration.institution_name }}</small>
+                        </td>
+                        <td>{{ item.registration.responsible_name }}</td>
+                        <td>{{ item.registration.contact_email }}</td>
+                        <td>{{ item.type }}</td>
+                        <td>
+                            {% if item.registration.attendance_confirmed_at %}
+                                Confirmado
+                            {% elif item.registration.attendance_request_sent_at %}
+                                Solicitud enviada
+                            {% else %}
+                                Pendiente sin solicitud
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" class="inline-action-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="model" value="{{ item.model }}">
+                                <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
+                                <input type="hidden" name="send_mode" value="dry_run">
+                                <button class="button secondary button-compact" type="submit">Simular</button>
+                            </form>
+                            <form method="post" class="inline-action-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="model" value="{{ item.model }}">
+                                <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
+                                <input type="hidden" name="send_mode" value="test">
+                                {% if item.registration.attendance_request_sent_at %}
+                                    <input type="hidden" name="resend" value="yes">
+                                {% endif %}
+                                <label class="mini-confirm" for="test_recipient_{{ item.model }}_{{ item.registration.id }}">Prueba</label>
+                                <input class="compact-input" id="test_recipient_{{ item.model }}_{{ item.registration.id }}" type="email" name="test_recipient" placeholder="correo@prueba.com" required>
+                                <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo prueba</label>
+                                <button class="button secondary button-compact" type="submit">Enviar prueba</button>
+                            </form>
+                            {% if not item.registration.attendance_request_sent_at %}
+                                <form method="post" class="inline-action-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="model" value="{{ item.model }}">
+                                    <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
+                                    <input type="hidden" name="send_mode" value="official">
+                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo envio real</label>
+                                    <button class="button primary button-compact" type="submit">Enviar</button>
+                                </form>
+                            {% else %}
+                                <form method="post" class="inline-action-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="model" value="{{ item.model }}">
+                                    <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
+                                    <input type="hidden" name="send_mode" value="official">
+                                    <input type="hidden" name="resend" value="yes">
+                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo reenvio</label>
+                                    <button class="button secondary button-compact danger-outline" type="submit">Reenviar</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">No hay registros pendientes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

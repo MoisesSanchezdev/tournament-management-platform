@@ -1,0 +1,91 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Historial de comunicaciones{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Auditoria</p>
+    <h1>Historial</h1>
+    <p class="lead">Registro de lotes, simulaciones, envios reales, omisiones y errores por destinatario.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Lotes</p>
+            <h2>Procesamientos recientes</h2>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Modo</th>
+                    <th>Correo prueba</th>
+                    <th>Logs</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in batches %}
+                    <tr>
+                        <td>{{ batch.name }}</td>
+                        <td>{{ batch.get_communication_type_display }}</td>
+                        <td>{{ batch.get_status_display }}</td>
+                        <td>{{ batch.get_send_mode_display }}</td>
+                        <td>{{ batch.test_recipient|default:"-" }}</td>
+                        <td>{{ batch.logs.count }}</td>
+                        <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">No hay lotes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Detalle</p>
+            <h2>Ultimos intentos</h2>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Destinatario</th>
+                    <th>Correo original</th>
+                    <th>Correo fisico</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Error</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log.recipient_name }}</td>
+                        <td>{{ log.original_recipient_email|default:log.recipient_email|default:"-" }}</td>
+                        <td>{{ log.physical_recipient_email|default:"-" }}</td>
+                        <td>{{ log.get_communication_type_display }}</td>
+                        <td>{{ log.get_status_display }}</td>
+                        <td>{{ log.error_message|default:"-"|truncatechars:120 }}</td>
+                        <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">No hay logs.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

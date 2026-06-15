@@ -1,0 +1,35 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Previsualizar plantilla{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Plantilla</p>
+    <h1>{{ template.name }}</h1>
+    <p class="lead">Resumen tecnico de marcadores detectados en el archivo DOCX cargado.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="grid two">
+    <article class="card">
+        <p class="eyebrow">Configuracion</p>
+        <h2>{{ template.get_template_type_display }}</h2>
+        <p>{{ template.description|default:"Sin descripcion." }}</p>
+        <p><strong>Estado:</strong> {% if template.is_active %}Activa{% else %}Inactiva{% endif %}</p>
+        <p><strong>Archivo:</strong> <a href="{{ template.file.url }}">{{ template.file.name }}</a></p>
+    </article>
+    <article class="card">
+        <p class="eyebrow">Marcadores</p>
+        <h2>Detectados</h2>
+        <div class="side-checklist">
+            {% for marker in markers %}
+                <span>{{ marker }}</span>
+            {% empty %}
+                <span>Sin marcadores detectados</span>
+            {% endfor %}
+        </div>
+        <p class="muted-text">Requeridos: {{ template.required_markers|join:", " }}</p>
+    </article>
+</section>
+{% endblock %}

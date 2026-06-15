@@ -1,0 +1,51 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Plantillas de comunicacion{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Comunicaciones</p>
+    <h1>Plantillas</h1>
+    <p class="lead">Archivos DOCX versionados por tipo, con marcadores validados antes de activarse.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Repositorio</p>
+            <h2>Plantillas cargadas</h2>
+        </div>
+        <a class="button primary" href="{% url 'invitations:template_create' %}">Nueva plantilla</a>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Marcadores</th>
+                    <th>Estado</th>
+                    <th>Archivo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for template in templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.get_template_type_display }}</td>
+                        <td>{{ template.required_markers|join:", " }}</td>
+                        <td>{% if template.is_active %}Activa{% else %}Inactiva{% endif %}</td>
+                        <td><a href="{{ template.file.url }}">{{ template.file.name }}</a></td>
+                        <td><a class="button secondary button-compact" href="{% url 'invitations:template_preview' template.id %}">Previsualizar</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">No hay plantillas cargadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

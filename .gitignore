@@ -14,6 +14,9 @@ db.sqlite3
 .vscode/
 staticfiles/
 media/
+docs/correos/listado_invitaciones.xlsx
+docs/correos/listados/*.xlsx
+docs/correos/*reales*.xlsx
 .pytest_cache/
 .mypy_cache/
 mypy_cache/

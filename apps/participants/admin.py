@@ -109,6 +109,7 @@ class UniversityRegistrationAdmin(RegistrationAdminMixin, admin.ModelAdmin):
         "institution_name",
         "robot_name",
         "responsible_name",
+        "semester",
         "edition",
         "status",
         "attendance_request_sent_at",

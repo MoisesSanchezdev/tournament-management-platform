@@ -1,6 +1,6 @@
 import uuid
 
-from django.core.validators import EmailValidator, RegexValidator
+from django.core.validators import EmailValidator, MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 
 from apps.common.models import TimeStampedModel
@@ -69,6 +69,7 @@ class SchoolRegistration(RegistrationBase):
 class UniversityRegistration(RegistrationBase):
     semester = models.PositiveSmallIntegerField(
         default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(4)],
         help_text="Semestre actual del equipo universitario. Solo participan estudiantes hasta cuarto semestre.",
     )
 

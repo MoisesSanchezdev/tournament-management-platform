@@ -1,20 +1,31 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Torneo Robot Explota Globos{% endblock %}</title>
+    <script>
+        (() => {
+            try {
+                const theme = localStorage.getItem("preExplotaGlobosTheme");
+                document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+            } catch (error) {
+                document.documentElement.dataset.theme = "dark";
+            }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260425-1">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260605-2">
 </head>
 <body class="{% block body_class %}public-body{% endblock %}">
     <header class="site-header">
         <div class="container nav">
             <a class="brand brand-lockup" href="{% url 'core:home' %}">
                 <img
+                    class="brand-logo-primary"
                     src="https://media2.utp.edu.co/oficinas/15/2024/09/6.logo_hor_azu.png"
                     alt="Universidad Tecnológica de Pereira">
                 <span>Robot Explota Globos</span>
@@ -23,6 +34,9 @@
                 <a href="{% url 'core:rules' %}">Reglas</a>
                 <a href="{% url 'core:sponsors' %}">Patrocinadores</a>
                 <a href="{% url 'participants:team_register' %}">Registro</a>
+                <button class="nav-button theme-toggle" type="button" data-theme-toggle aria-label="Cambiar tema">
+                    <span data-theme-label>Modo claro</span>
+                </button>
             </nav>
         </div>
     </header>
@@ -37,6 +51,6 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
-    <script src="{% static 'js/app.js' %}?v=20260425-1"></script>
+    <script src="{% static 'js/app.js' %}?v=20260604-1"></script>
 </body>
 </html>

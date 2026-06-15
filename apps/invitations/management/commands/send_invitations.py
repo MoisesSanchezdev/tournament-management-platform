@@ -1,130 +1,121 @@
-import os
-from django.core.management.base import BaseCommand
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
-import openpyxl
-from docx import Document
-from docx2pdf import convert
-import tempfile
+from django.core.management.base import BaseCommand, CommandError
+
+from collections import Counter
+
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+
+from apps.invitations.models import CommunicationLog, CommunicationLogStatus, CommunicationSendMode, CommunicationTemplate
+from apps.invitations.services import (
+    active_template_for,
+    create_communication_batch,
+    is_real_email_configured,
+    load_recipients_from_xlsx,
+    mark_batch_finished,
+    send_rendered_invitation,
+)
 
 
 class Command(BaseCommand):
-    help = 'Genera y envía cartas de invitación personalizadas desde el Excel'
+    help = "Procesa invitaciones personalizadas desde Excel. Dry-run por defecto; envio real solo con --yes."
 
     def add_arguments(self, parser):
-        parser.add_argument('--file', type=str, required=True)
-        parser.add_argument('--plantillas', type=str, default='docs/correos/plantillas')
-        parser.add_argument('--dry-run', action='store_true')
+        parser.add_argument("--file", type=str, required=True, help="Excel con columnas NOMBRE, CORREO, TIPO e INSTITUCION opcional.")
+        parser.add_argument("--template-id", type=int, help="ID de plantilla especifica. Si se omite usa la activa por tipo.")
+        parser.add_argument("--yes", action="store_true", help="Confirma envio real. Sin este flag solo simula.")
+        parser.add_argument("--dry-run", action="store_true", help="Mantiene simulacion aunque se pase por compatibilidad.")
+        parser.add_argument(
+            "--test-recipient",
+            type=str,
+            default="",
+            help="Envia fisicamente todos los correos a este destinatario de prueba. Requiere --yes y SMTP completo.",
+        )
 
     def handle(self, *args, **options):
-        excel_path = options['file']
-        plantillas_dir = options['plantillas']
-        dry_run = options['dry_run']
+        test_recipient = options["test_recipient"].strip()
+        if test_recipient and not options["yes"]:
+            raise CommandError("--test-recipient requiere --yes para confirmar la prueba real controlada.")
+        if test_recipient:
+            try:
+                validate_email(test_recipient)
+            except ValidationError as error:
+                raise CommandError("El correo de prueba no es valido.") from error
 
-        config = {
-            'colegio': {
-                'plantilla': 'invitacion_colegios.docx',
-                'marcador': '{{ NOMBRE DE COLEGIO }}',
-            },
-            'universidad': {
-                'plantilla': 'invitacion_universidades.docx',
-                'marcador': '{{NOMBRE UNIVERSIDAD}}',
-            },
-            'patrocinador': {
-                'plantilla': 'invitacion_patrocinadores.docx',
-                'marcador': '{{NOMBRE}}',
-            },
-        }
-
-        wb = openpyxl.load_workbook(excel_path)
-        ws = wb.active
-
-        headers = [cell.value for cell in ws[1]]
-        col = {h.strip(): i for i, h in enumerate(headers) if h}
-
-        if 'ESTADO' not in col:
-            self.stdout.write(self.style.ERROR('❌ No se encontró la columna ESTADO en el Excel'))
-            return
-
-        enviados = 0
-        omitidos = 0
-
-        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-            nombre = row[col['NOMBRE']]
-            correo = row[col['CORREO']]
-            tipo   = str(row[col['TIPO']]).lower().strip() if row[col['TIPO']] else ''
-            estado = str(row[col['ESTADO']]).lower().strip() if row[col['ESTADO']] else ''
-
-            if not nombre or not correo or tipo not in config:
-                self.stdout.write(f'  ⚠ Fila omitida: {nombre} / {tipo}')
-                continue
-
-            if estado == 'enviado':
-                self.stdout.write(f'  ⏭ Ya enviado: {nombre}')
-                omitidos += 1
-                continue
-
-            cfg = config[tipo]
-            plantillas_dir_abs = os.path.normpath(os.path.join(settings.BASE_DIR, plantillas_dir))
-            plantilla_path = os.path.normpath(os.path.join(plantillas_dir_abs, cfg['plantilla']))
-
-            doc = Document(plantilla_path)
-            self._reemplazar(doc, cfg['marcador'], nombre)
-
-            with tempfile.TemporaryDirectory() as tmpdir:
-                docx_out = os.path.join(tmpdir, f'carta_{nombre}.docx')
-                pdf_out  = os.path.join(tmpdir, f'carta_{nombre}.pdf')
-                doc.save(docx_out)
-                convert(docx_out, pdf_out)
-
-                if dry_run:
-                    self.stdout.write(f'  [DRY-RUN] {nombre} → {correo} ({tipo})')
-                else:
-                    self._enviar(correo, nombre, tipo, pdf_out)
-                    ws.cell(row=row_idx, column=col['ESTADO'] + 1).value = 'enviado'
-                    self.stdout.write(self.style.SUCCESS(f'  ✓ Enviado: {nombre} → {correo}'))
-                    enviados += 1
-
-        if not dry_run:
-            wb.save(excel_path)
-            self.stdout.write(self.style.SUCCESS('✅ Excel actualizado'))
-
-        self.stdout.write(f'\nTotal enviados: {enviados} | Ya enviados antes: {omitidos}')
-
-    def _reemplazar(self, doc, marcador, nombre):
-        for para in doc.paragraphs:
-            if marcador in para.text:
-                texto_completo = para.text.replace(marcador, nombre)
-                for i, run in enumerate(para.runs):
-                    run.text = texto_completo if i == 0 else ''
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for para in cell.paragraphs:
-                        if marcador in para.text:
-                            texto_completo = para.text.replace(marcador, nombre)
-                            for i, run in enumerate(para.runs):
-                                run.text = texto_completo if i == 0 else ''
-
-    def _enviar(self, correo, nombre, tipo, pdf_path):
-        asuntos = {
-            'colegio':      'Invitación - Semana de la Electrónica UTP 2026',
-            'universidad':  'Invitación - Semana de la Electrónica UTP 2026',
-            'patrocinador': 'Invitación a patrocinar - Semana de la Electrónica UTP 2026',
-        }
-        cuerpo_html = f"""
-        <p>Estimados señores de <strong>{nombre}</strong>,</p>
-        <p>Adjunto encontrarán la carta de invitación.</p>
-        <br>
-        <p>Atentamente,<br>Programa de Ingeniería Electrónica - UTP</p>
-        """
-        email = EmailMultiAlternatives(
-            subject=asuntos[tipo],
-            body=f'Estimados señores de {nombre}, adjunto encontrarán la carta de invitación.\n\nAtentamente,\nPrograma de Ingeniería Electrónica - UTP',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[correo],
+        dry_run = (not options["yes"] or options["dry_run"]) and not test_recipient
+        send_mode = (
+            CommunicationSendMode.TEST
+            if test_recipient
+            else CommunicationSendMode.DRY_RUN
+            if dry_run
+            else CommunicationSendMode.OFFICIAL
         )
-        email.attach_alternative(cuerpo_html, "text/html")
-        with open(pdf_path, 'rb') as f:
-            email.attach(f'Invitacion_{nombre}.pdf', f.read(), 'application/pdf')
-        email.send()
+        email_status = is_real_email_configured()
+        if not dry_run and not email_status.can_send_real:
+            raise CommandError(email_status.message)
+
+        try:
+            recipients = load_recipients_from_xlsx(options["file"])
+        except Exception as error:
+            raise CommandError(str(error)) from error
+
+        selected_template = None
+        if options.get("template_id"):
+            selected_template = CommunicationTemplate.objects.filter(pk=options["template_id"]).first()
+            if selected_template is None:
+                raise CommandError("No existe la plantilla indicada.")
+
+        batch = create_communication_batch(
+            name=f"Invitaciones desde {options['file']}",
+            communication_type="general",
+            template=selected_template,
+            dry_run=dry_run,
+            send_mode=send_mode,
+            test_recipient=test_recipient,
+        )
+
+        for recipient in recipients:
+            recipient_type = recipient.get("recipient_type") or "general"
+            template = selected_template or active_template_for(recipient_type)
+            if template is None:
+                CommunicationLog.objects.create(
+                    batch=batch,
+                    recipient_name=recipient.get("name", ""),
+                    recipient_email=recipient.get("email", ""),
+                    communication_type=recipient_type,
+                    subject="Invitacion",
+                    status=CommunicationLogStatus.SKIPPED,
+                    error_message=f"No hay plantilla activa para {recipient_type}.",
+                )
+                continue
+            send_rendered_invitation(
+                batch=batch,
+                template=template,
+                recipient=recipient,
+                communication_type=recipient_type,
+                dry_run=dry_run,
+                test_recipient=test_recipient,
+                extra_data=recipient.get("extra_data") or {},
+            )
+
+        mark_batch_finished(batch)
+        skipped_reasons = Counter(
+            batch.logs.filter(status=CommunicationLogStatus.SKIPPED)
+            .exclude(error_message="")
+            .values_list("error_message", flat=True)
+        )
+        mode_label = {
+            CommunicationSendMode.DRY_RUN: "SIMULACION SEGURA",
+            CommunicationSendMode.TEST: "PRUEBA REAL CONTROLADA",
+            CommunicationSendMode.OFFICIAL: "ENVIO REAL OFICIAL",
+        }[send_mode]
+        self.stdout.write(f"Modo: {mode_label}")
+        self.stdout.write(f"Correos reales enviados: {batch.logs.filter(status=CommunicationLogStatus.SENT).count()}")
+        self.stdout.write(f"Correos de prueba enviados: {batch.logs.filter(status=CommunicationLogStatus.TEST_SENT).count()}")
+        self.stdout.write(f"Correos simulados: {batch.logs.filter(status=CommunicationLogStatus.DRY_RUN).count()}")
+        self.stdout.write(f"Omitidos: {batch.logs.filter(status=CommunicationLogStatus.SKIPPED).count()}")
+        self.stdout.write(f"Fallidos: {batch.logs.filter(status=CommunicationLogStatus.FAILED).count()}")
+        if skipped_reasons:
+            self.stdout.write(f"Motivo principal de omision: {skipped_reasons.most_common(1)[0][0]}")
+        if test_recipient:
+            self.stdout.write(f"Destinatario fisico de prueba: {test_recipient}")
+        self.stdout.write(f"Lote: {batch.id}")

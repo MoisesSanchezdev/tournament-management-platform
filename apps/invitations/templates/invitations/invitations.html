@@ -1,0 +1,98 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Invitaciones{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Comunicaciones</p>
+    <h1>Invitaciones</h1>
+    <p class="lead">Personaliza plantillas DOCX para colegios, universidades y patrocinadores con dry-run por defecto.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="grid two">
+    <article class="card">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Lote</p>
+                <h2>Procesar invitaciones</h2>
+            </div>
+        </div>
+        <p class="muted-text">{{ email_status.message }}</p>
+        <form method="post" enctype="multipart/form-data" class="form-grid">
+            {% csrf_token %}
+            {{ invitation_form.non_field_errors }}
+            {% for field in invitation_form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button primary" type="submit">Procesar lote</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="card">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Destinatario</p>
+                <h2>Registro manual</h2>
+            </div>
+        </div>
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_recipient">
+            {{ recipient_form.non_field_errors }}
+            {% for field in recipient_form %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button secondary" type="submit">Guardar destinatario</button>
+            </div>
+        </form>
+    </article>
+</section>
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Base local</p>
+            <h2>Destinatarios registrados</h2>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Tipo</th>
+                    <th>Institucion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for recipient in recipients %}
+                    <tr>
+                        <td>{{ recipient.name }}</td>
+                        <td>{{ recipient.email }}</td>
+                        <td>{{ recipient.get_recipient_type_display }}</td>
+                        <td>{{ recipient.institution_name|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">No hay destinatarios registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

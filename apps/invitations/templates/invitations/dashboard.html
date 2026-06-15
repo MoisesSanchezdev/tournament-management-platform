@@ -1,0 +1,90 @@
+{% extends "tournament/control_base.html" %}
+
+{% block title %}Comunicaciones{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Modulo administrativo</p>
+    <h1>Comunicaciones</h1>
+    <p class="lead">Plantillas, invitaciones, confirmaciones de asistencia e historial con envio real bloqueado por defecto.</p>
+</section>
+
+{% include "invitations/_nav.html" %}
+
+<section class="grid stats-grid">
+    <article class="card stat-card">
+        <p class="eyebrow">SMTP</p>
+        <h2>{% if email_status.can_send_real %}Configurado{% else %}Bloqueado{% endif %}</h2>
+        <p>{{ email_status.message }}</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Plantillas activas</p>
+        <h2>{{ active_templates }}</h2>
+        <p>{{ recipient_total }} destinatarios registrados.</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Confirmaciones</p>
+        <h2>{{ pending_confirmations }}</h2>
+        <p>Pendientes sin solicitud enviada.</p>
+    </article>
+</section>
+
+<section class="grid three">
+    <article class="card stat-card">
+        <p class="eyebrow">Simulados</p>
+        <h2>{{ dry_run_total }}</h2>
+        <p>Correos procesados en dry-run.</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Pruebas</p>
+        <h2>{{ test_sent_total }}</h2>
+        <p>Correos enviados a destinatarios de prueba.</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Enviados</p>
+        <h2>{{ sent_total }}</h2>
+        <p>Correos reales enviados.</p>
+    </article>
+    <article class="card stat-card">
+        <p class="eyebrow">Errores</p>
+        <h2>{{ failed_total }}</h2>
+        <p>Intentos fallidos registrados.</p>
+    </article>
+</section>
+
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Actividad reciente</p>
+            <h2>Lotes</h2>
+        </div>
+        <a class="button secondary" href="{% url 'invitations:history' %}">Ver historial</a>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Modo</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in recent_batches %}
+                    <tr>
+                        <td>{{ batch.name }}</td>
+                        <td>{{ batch.get_communication_type_display }}</td>
+                        <td>{{ batch.get_status_display }}</td>
+                        <td>{{ batch.get_send_mode_display }}</td>
+                        <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No hay lotes registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
