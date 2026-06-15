@@ -212,16 +212,57 @@
                 </div>
                 <p>{{ system_recommendation.preview.explanation }}</p>
 
+                {% if system_recommendation.preview.integration_needed %}
+                    <div class="phase-integration-preview">
+                        <p class="eyebrow">Integracion post-repechaje</p>
+                        <div class="phase-decision-preview-grid">
+                            <article>
+                                <span>Llave objetivo</span>
+                                <strong>{{ system_recommendation.preview.target_bracket_size }}</strong>
+                            </article>
+                            <article>
+                                <span>Juegan previa</span>
+                                <strong>{{ system_recommendation.preview.participants_to_play_preliminary }}</strong>
+                            </article>
+                            <article>
+                                <span>Esperan con bye</span>
+                                <strong>{{ system_recommendation.preview.participants_with_bye }}</strong>
+                            </article>
+                            <article>
+                                <span>Cupos de previa</span>
+                                <strong>{{ system_recommendation.preview.winners_needed }}</strong>
+                            </article>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if system_recommendation.third_place_preview.can_create %}
+                    <div class="phase-repechage-soon phase-third-place-preview">
+                        <p class="eyebrow">Tercer lugar disponible</p>
+                        <strong>{{ system_recommendation.third_place_preview.title }}</strong>
+                        <p>{{ system_recommendation.third_place_preview.explanation }}</p>
+                    </div>
+                {% endif %}
+
                 <div class="phase-repechage-choice">
                     <div>
-                        <p class="eyebrow">Decision de repechaje</p>
-                        <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
+                        {% if system_recommendation.integration_plan %}
+                            <p class="eyebrow">Decision de integracion</p>
+                            <h4>&iquest;Deseas continuar con la integracion recomendada?</h4>
+                        {% else %}
+                            <p class="eyebrow">Decision de repechaje</p>
+                            <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
+                        {% endif %}
                     </div>
                     <div class="phase-repechage-actions">
                         <button class="button secondary" type="button" data-phase-repechage-skip>
-                            No, continuar con la fase recomendada
+                            {% if system_recommendation.integration_plan %}Continuar con integracion recomendada{% else %}No, continuar con la fase recomendada{% endif %}
                         </button>
-                        {% if system_recommendation.repechage_preview.can_offer %}
+                        {% if system_recommendation.integration_plan %}
+                            <button class="button secondary" type="button" disabled>
+                                Repechaje ya integrado
+                            </button>
+                        {% elif system_recommendation.repechage_preview.can_offer %}
                             <button class="button secondary" type="button" data-phase-repechage-open>
                                 Evaluar/Abrir repechaje
                             </button>
@@ -251,11 +292,11 @@
                         </article>
                         <article>
                             <span>Estado</span>
-                            <strong>Proximamente</strong>
+                            <strong>{% if system_recommendation.repechage_preview.can_create %}Disponible{% else %}Proximamente{% endif %}</strong>
                         </article>
                         <article>
                             <span>Creacion real</span>
-                            <strong>Bloqueada</strong>
+                            <strong>{% if system_recommendation.repechage_preview.can_create %}Habilitada{% else %}Bloqueada{% endif %}</strong>
                         </article>
                     </div>
                     <p>{{ system_recommendation.repechage_preview.explanation }}</p>
@@ -269,9 +310,21 @@
                             <span>+{{ system_recommendation.repechage_preview.overflow_count }} candidato(s) mas</span>
                         {% endif %}
                     </div>
-                    <button class="button primary" type="button" disabled>
-                        Creacion real de repechaje proximamente
-                    </button>
+                    {% if system_recommendation.repechage_preview.can_create %}
+                        <form
+                            method="post"
+                            action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
+                            onsubmit="return confirm('Se crear&aacute; una fase real de repechaje con los candidatos actuales. No se crear&aacute; la fase principal todav&iacute;a. &iquest;Deseas continuar?');"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="create_repechage_phase">
+                            <button class="button primary" type="submit">Confirmar repechaje</button>
+                        </form>
+                    {% else %}
+                        <button class="button primary" type="button" disabled>
+                            Requiere configuracion manual
+                        </button>
+                    {% endif %}
                 </div>
 
                 <div data-phase-create-action hidden>
@@ -283,7 +336,9 @@
                         >
                             {% csrf_token %}
                             <input type="hidden" name="action" value="create_recommended_phase">
-                            <button class="button primary" type="submit">Confirmar creaci&oacute;n</button>
+                            <button class="button primary" type="submit">
+                                {% if system_recommendation.third_place_preview.can_create %}Crear final y tercer lugar{% else %}Confirmar creaci&oacute;n{% endif %}
+                            </button>
                         </form>
                     {% else %}
                         <button class="button primary" type="button" disabled>
@@ -300,26 +355,30 @@
                         <h3>Preparar fase personalizada</h3>
                     </div>
                 </div>
-                <div class="config-form-grid">
+                <form
+                    method="post"
+                    action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
+                    class="config-form-grid"
+                    onsubmit="return confirm('Se crear&aacute; una fase manual por duelos con participantes activos seleccionados autom&aacute;ticamente. &iquest;Deseas continuar?');"
+                >
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create_manual_duel_phase">
+                    <div class="field">
+                        <label for="manual_phase_name">Nombre de fase</label>
+                        <input id="manual_phase_name" name="manual_phase_name" type="text" maxlength="80" value="Fase manual">
+                    </div>
                     <div class="field">
                         <label for="manual_phase_type">Tipo de fase</label>
-                        <select id="manual_phase_type" disabled>
-                            <option>Seleccionar tipo de fase</option>
-                        </select>
+                        <input id="manual_phase_type" type="text" value="Duelos" disabled>
                     </div>
                     <div class="field">
-                        <label for="manual_group_count">Cantidad de grupos</label>
-                        <input id="manual_group_count" type="number" value="0" disabled>
+                        <label for="manual_participant_count">Participantes</label>
+                        <input id="manual_participant_count" name="manual_participant_count" type="number" min="2" max="{{ system_recommendation.participant_count }}" step="2" value="{{ system_recommendation.participant_count }}">
                     </div>
-                    <div class="field">
-                        <label for="manual_qualifiers">Clasificados</label>
-                        <input id="manual_qualifiers" type="number" value="0" disabled>
+                    <div class="form-actions">
+                        <button class="button primary" type="submit">Crear fase manual</button>
                     </div>
-                    <label class="toggle-field">
-                        <input type="checkbox" disabled>
-                        <span>Incluir repechaje</span>
-                    </label>
-                </div>
+                </form>
             </section>
         </div>
     </section>

@@ -31,6 +31,8 @@ SAFE_DUEL_STAGE_COUNTS = {
     CompetitionStage.SEMIFINAL: 4,
     CompetitionStage.FINAL: 2,
 }
+BRACKET_SIZES = [32, 16, 8, 4, 2]
+REPECHAGE_STAGES = {CompetitionStage.PURGATORY_1, CompetitionStage.PURGATORY_2}
 
 
 def participant_snapshot(competition):
@@ -78,6 +80,128 @@ def recent_eliminated_states(competition):
 
 def stage_counts(states):
     return Counter(state.current_stage for state in states)
+
+
+def bracket_stage_for_count(participant_count):
+    return {
+        32: CompetitionStage.ROUND_OF_32,
+        16: CompetitionStage.ROUND_OF_16,
+        8: CompetitionStage.QUARTERFINAL,
+        4: CompetitionStage.SEMIFINAL,
+        2: CompetitionStage.FINAL,
+    }.get(participant_count)
+
+
+def bracket_title_for_count(participant_count):
+    return {
+        32: "Ronda de 32",
+        16: "Octavos",
+        8: "Cuartos",
+        4: "Semifinal",
+        2: "Gran final",
+    }.get(participant_count, "Llave eliminatoria")
+
+
+def lower_bracket_size(participant_count):
+    for size in BRACKET_SIZES:
+        if participant_count > size:
+            return size
+    return None
+
+
+def build_progressive_pool(active):
+    recovered = [state for state in active if state.current_stage in REPECHAGE_STAGES]
+    direct = [state for state in active if state.current_stage not in REPECHAGE_STAGES]
+    return {
+        "active": active,
+        "direct": direct,
+        "recovered": recovered,
+        "total": len(active),
+        "direct_count": len(direct),
+        "recovered_count": len(recovered),
+    }
+
+
+def recommend_integration_plan(competition, active):
+    pool = build_progressive_pool(active)
+    total = pool["total"]
+    has_recovered = pool["recovered_count"] > 0
+    has_pending_integration = bool((competition.configuration or {}).get("pending_integration_plan"))
+    mixed_active_paths = len(stage_counts(active)) > 1
+
+    if not (has_recovered or has_pending_integration or mixed_active_paths):
+        return None
+
+    exact_stage = bracket_stage_for_count(total)
+    if exact_stage:
+        title = bracket_title_for_count(total)
+        return {
+            "total_participants": total,
+            "target_bracket_size": total,
+            "direct_slots": pool["direct_count"],
+            "recovered_slots": pool["recovered_count"],
+            "integration_needed": False,
+            "recommended_type": exact_stage,
+            "title": title,
+            "suggested_format": "duelos",
+            "participants_to_play_preliminary": 0,
+            "participants_with_bye": 0,
+            "winners_needed": 0,
+            "explanation": (
+                f"Hay {total} participantes vivos consolidados entre clasificados directos y recuperados. "
+                f"La cantidad ya permite crear {title} sin ronda previa."
+            ),
+            "alternatives": [],
+            "warnings": [],
+            "can_create": True,
+            "creation_strategy": "direct_bracket",
+        }
+
+    target = lower_bracket_size(total)
+    if not target:
+        return None
+
+    excess = total - target
+    preliminary_players = excess * 2
+    bye_players = total - preliminary_players
+    target_stage = bracket_stage_for_count(target)
+    can_create = bool(
+        target_stage
+        and preliminary_players >= 2
+        and preliminary_players <= total
+        and preliminary_players % 2 == 0
+        and bye_players >= 0
+    )
+    return {
+        "total_participants": total,
+        "target_bracket_size": target,
+        "direct_slots": pool["direct_count"],
+        "recovered_slots": pool["recovered_count"],
+        "integration_needed": True,
+        "recommended_type": "integration_preliminary",
+        "title": "Ronda previa de integracion",
+        "suggested_format": f"{preliminary_players // 2} duelo(s) de integracion",
+        "participants_to_play_preliminary": preliminary_players,
+        "participants_with_bye": bye_players,
+        "winners_needed": excess,
+        "explanation": (
+            f"Hay {total} participantes vivos. Para llegar a un cuadro limpio de {target}, "
+            f"se propone una ronda previa con {preliminary_players} participantes y {excess} cupo(s). "
+            f"Los otros {bye_players} participante(s) esperan con bye para integrarse a la llave."
+        ),
+        "alternatives": [
+            {
+                "type": "manual_integration",
+                "title": "Integracion manual",
+                "suggested_format": "seleccion manual de previa y byes",
+                "participant_count": total,
+                "explanation": "El organizador puede ajustar manualmente quienes juegan la previa y quienes esperan con bye.",
+            }
+        ],
+        "warnings": [],
+        "can_create": can_create,
+        "creation_strategy": "preliminary_duels" if can_create else "manual_required",
+    }
 
 
 def base_recommendation(active_count):
@@ -168,12 +292,16 @@ def participant_preview_payload(state):
 
 
 def repechage_format_for_count(candidate_count):
-    if candidate_count >= 8:
-        return "campales o grupos de repechaje", min(4, candidate_count // 2)
-    if candidate_count == 6:
-        return "2 triangulares de repechaje", 2
+    if candidate_count == 2:
+        return "duelo de repechaje", 1
     if candidate_count == 3:
         return "triangular de repechaje", 1
+    if candidate_count == 4:
+        return "2 duelos de repechaje", 2
+    if candidate_count == 6:
+        return "2 triangulares de repechaje", 2
+    if candidate_count >= 4:
+        return "campales equilibradas de repechaje", min(4, max(1, candidate_count // 2))
     return "repechaje manual balanceado", 1
 
 
@@ -192,10 +320,12 @@ def repechage_candidates(repechable, recent_eliminated, eliminated):
 def repechage_preview(repechable, recent_eliminated, eliminated):
     candidates = repechage_candidates(repechable, recent_eliminated, eliminated)
     candidate_count = len(candidates)
-    can_offer = candidate_count >= 3
+    can_offer = candidate_count >= 2
+    can_create = candidate_count >= 2
     format_label, return_slots = repechage_format_for_count(candidate_count)
     return {
         "can_offer": can_offer,
+        "can_create": can_offer and can_create,
         "candidate_count": candidate_count,
         "suggested_format": format_label if can_offer else "sin candidatos suficientes",
         "return_slots": return_slots if can_offer else 0,
@@ -204,7 +334,11 @@ def repechage_preview(repechable, recent_eliminated, eliminated):
             if can_offer
             else "No hay suficientes candidatos para sugerir repechaje en esta transicion."
         ),
-        "message": "Creacion real de repechaje proximamente",
+        "message": (
+            "Repechaje listo para crear con formato seguro."
+            if can_offer and can_create
+            else "Requiere configuracion manual para crear repechaje."
+        ),
         "candidates": [participant_preview_payload(state) for state in candidates[:12]],
         "overflow_count": max(candidate_count - 12, 0),
     }
@@ -229,6 +363,25 @@ def phase_plan_preview(recommendation):
     title = recommendation.get("title", "Revision manual")
     suggested_format = recommendation.get("suggested_format", "manual")
 
+    if recommended_type == "integration_preliminary":
+        duel_count = recommendation.get("participants_to_play_preliminary", 0) // 2
+        return {
+            "name": title,
+            "participant_count": recommendation.get("total_participants", participant_count),
+            "format": suggested_format,
+            "unit_count": duel_count,
+            "unit_label": "duelos",
+            "structure_label": f"{duel_count} duelo(s) previos + {recommendation.get('participants_with_bye', 0)} bye(s)",
+            "explanation": recommendation.get("explanation", ""),
+            "can_create": bool(recommendation.get("can_create")),
+            "integration_needed": True,
+            "target_bracket_size": recommendation.get("target_bracket_size", 0),
+            "participants_to_play_preliminary": recommendation.get("participants_to_play_preliminary", 0),
+            "participants_with_bye": recommendation.get("participants_with_bye", 0),
+            "winners_needed": recommendation.get("winners_needed", 0),
+            "creation_strategy": recommendation.get("creation_strategy", "manual_required"),
+        }
+
     if recommended_type in {
         CompetitionStage.ROUND_OF_32,
         CompetitionStage.ROUND_OF_16,
@@ -247,6 +400,12 @@ def phase_plan_preview(recommendation):
             "structure_label": f"{duel_count} duelo(s)",
             "explanation": recommendation.get("explanation", ""),
             "can_create": can_create,
+            "integration_needed": bool(recommendation.get("integration_needed")),
+            "target_bracket_size": recommendation.get("target_bracket_size", participant_count),
+            "participants_to_play_preliminary": 0,
+            "participants_with_bye": 0,
+            "winners_needed": 0,
+            "creation_strategy": recommendation.get("creation_strategy", "direct_bracket"),
         }
 
     if recommended_type == "two_triangulars":
@@ -285,6 +444,38 @@ def phase_plan_preview(recommendation):
     }
 
 
+def third_place_preview(competition, recommended_type):
+    if recommended_type != CompetitionStage.FINAL:
+        return {"can_create": False}
+    if not (competition.configuration or {}).get("enable_third_place", True):
+        return {"can_create": False}
+    semifinal_battles = list(
+        competition.battles.filter(
+            stage=CompetitionStage.SEMIFINAL,
+            status=MatchStatus.FINISHED,
+            winner__isnull=False,
+        ).prefetch_related("entries__team")
+    )
+    if len(semifinal_battles) != 2:
+        return {"can_create": False}
+    loser_ids = []
+    for battle in semifinal_battles:
+        entries = list(battle.entries.all())
+        if len(entries) != 2:
+            return {"can_create": False}
+        loser = next((entry.team for entry in entries if entry.team_id != battle.winner_id), None)
+        if loser is None:
+            return {"can_create": False}
+        loser_ids.append(loser.id)
+    return {
+        "can_create": len(loser_ids) == 2,
+        "title": "Tercer lugar",
+        "participant_count": len(loser_ids),
+        "suggested_format": "duelo por tercer lugar",
+        "explanation": "La semifinal tiene dos perdedores; se puede crear el duelo por tercer lugar junto con la gran final.",
+    }
+
+
 def next_phase_recommendation(competition):
     snapshot = participant_snapshot(competition)
     active = snapshot["active"]
@@ -302,9 +493,14 @@ def next_phase_recommendation(competition):
     if repechage_option:
         alternatives.append(repechage_option)
 
+    integration_plan = recommend_integration_plan(competition, active)
+    if integration_plan:
+        recommendation = integration_plan
+        alternatives.extend(integration_plan.get("alternatives", []))
+
     if active_count == 0:
         warnings.append("No hay participantes activos detectados; revisa resultados o estados manuales.")
-    if len(stage_counts(active)) > 1:
+    if len(stage_counts(active)) > 1 and not integration_plan:
         warnings.append("Los participantes vivos aparecen distribuidos en mas de una fase; revisa consistencia.")
     if active_count % 2 == 1 and active_count not in {3}:
         alternatives.append(
@@ -324,7 +520,7 @@ def next_phase_recommendation(competition):
             "active_count": active_count,
         }
     )
-    if warnings:
+    if warnings and not preview.get("integration_needed"):
         preview["can_create"] = False
     result = {
         **recommendation,
@@ -339,5 +535,7 @@ def next_phase_recommendation(competition):
         "mode": "diagnostic",
         "preview": preview,
         "repechage_preview": repechage,
+        "third_place_preview": third_place_preview(competition, recommendation.get("recommended_type")),
+        "integration_plan": integration_plan or {},
     }
     return result
