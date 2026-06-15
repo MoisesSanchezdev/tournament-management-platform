@@ -218,6 +218,11 @@ class SchoolRegistrationForm(BaseRegistrationForm):
 
 class UniversityRegistrationForm(BaseRegistrationForm):
     participant_model = UniversityParticipant
+    semester = forms.IntegerField(
+        label="Semestre actual",
+        min_value=1,
+        help_text="Solo pueden participar estudiantes de hasta cuarto semestre.",
+    )
 
     class Meta:
         model = UniversityRegistration
@@ -225,6 +230,7 @@ class UniversityRegistrationForm(BaseRegistrationForm):
             "institution_name",
             "responsible_name",
             "robot_name",
+            "semester",
             "contact_phone",
             "contact_email",
         ]
@@ -233,6 +239,7 @@ class UniversityRegistrationForm(BaseRegistrationForm):
         "institution_name",
         "responsible_name",
         "robot_name",
+        "semester",
         "leader_name",
         "contact_phone",
         "leader_document_number",
@@ -242,3 +249,13 @@ class UniversityRegistrationForm(BaseRegistrationForm):
         "member_three_name",
         "member_three_document_number",
     ]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        semester = cleaned_data.get("semester")
+        if semester is not None and semester > 4:
+            self.add_error(
+                "semester",
+                "Los equipos universitarios solo pueden participar hasta cuarto semestre.",
+            )
+        return cleaned_data

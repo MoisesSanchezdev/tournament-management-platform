@@ -67,6 +67,11 @@ class SchoolRegistration(RegistrationBase):
 
 
 class UniversityRegistration(RegistrationBase):
+    semester = models.PositiveSmallIntegerField(
+        default=1,
+        help_text="Semestre actual del equipo universitario. Solo participan estudiantes hasta cuarto semestre.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
