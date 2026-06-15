@@ -23,7 +23,9 @@ from .services import (
     competition_stage_navigation,
     initialize_competition,
     ManualCorrectionRequired,
+    materialize_manual_duel_stage,
     materialize_recommended_duel_stage,
+    materialize_repechage_stage,
     participant_modal_payload,
     reset_competition_state,
     set_battle_winner,
@@ -388,7 +390,7 @@ def control_division_stage(request, competition_id, stage_key):
     if stage_key not in valid_stages:
         return redirect("tournament:control_division", competition_id=competition.id)
     post_action = request.POST.get("action") if request.method == "POST" else ""
-    if post_action != "create_recommended_phase":
+    if post_action not in {"create_recommended_phase", "create_repechage_phase", "create_manual_duel_phase"}:
         sync_competition(competition)
 
     if request.method == "POST":
@@ -465,6 +467,43 @@ def control_division_stage(request, competition_id, stage_key):
                 messages.info(request, result["message"])
             else:
                 messages.success(request, result["message"])
+            return redirect(
+                "tournament:control_division_stage",
+                competition_id=competition.id,
+                stage_key=result["stage"],
+            )
+
+        if action == "create_repechage_phase":
+            if not stage_is_closed(competition, stage_key):
+                messages.error(request, "Completa y guarda todos los resultados antes de abrir repechaje.")
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            try:
+                result = materialize_repechage_stage(competition)
+            except ValueError as error:
+                messages.error(request, str(error))
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            messages.info(request, result["message"]) if result.get("existing") else messages.success(request, result["message"])
+            return redirect(
+                "tournament:control_division_stage",
+                competition_id=competition.id,
+                stage_key=result["stage"],
+            )
+
+        if action == "create_manual_duel_phase":
+            if not stage_is_closed(competition, stage_key):
+                messages.error(request, "Completa y guarda todos los resultados antes de crear una fase manual.")
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            try:
+                participant_count = int(request.POST.get("manual_participant_count", "0"))
+                result = materialize_manual_duel_stage(
+                    competition,
+                    name=request.POST.get("manual_phase_name", ""),
+                    participant_count=participant_count,
+                )
+            except (TypeError, ValueError) as error:
+                messages.error(request, str(error))
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            messages.success(request, result["message"])
             return redirect(
                 "tournament:control_division_stage",
                 competition_id=competition.id,

@@ -1,6 +1,50 @@
 document.addEventListener("DOMContentLoaded", () => {
     const header = document.querySelector(".site-header");
     const hero = document.querySelector(".hero-shell");
+    const themeToggles = document.querySelectorAll("[data-theme-toggle]");
+    const themeLabels = document.querySelectorAll("[data-theme-label]");
+    const themeStorageKey = "preExplotaGlobosTheme";
+
+    const setTheme = (theme) => {
+        const normalizedTheme = theme === "light" ? "light" : "dark";
+        document.documentElement.dataset.theme = normalizedTheme;
+        themeLabels.forEach((label) => {
+            label.textContent = normalizedTheme === "light" ? "Modo oscuro" : "Modo claro";
+        });
+        themeToggles.forEach((toggle) => {
+            toggle.setAttribute("aria-pressed", normalizedTheme === "light" ? "true" : "false");
+            toggle.setAttribute(
+                "aria-label",
+                normalizedTheme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"
+            );
+        });
+    };
+
+    const getStoredTheme = () => {
+        try {
+            return localStorage.getItem(themeStorageKey);
+        } catch (error) {
+            return null;
+        }
+    };
+
+    const storeTheme = (theme) => {
+        try {
+            localStorage.setItem(themeStorageKey, theme);
+        } catch (error) {
+            return;
+        }
+    };
+
+    setTheme(getStoredTheme());
+
+    themeToggles.forEach((toggle) => {
+        toggle.addEventListener("click", () => {
+            const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+            storeTheme(nextTheme);
+            setTheme(nextTheme);
+        });
+    });
 
     const syncHeaderState = () => {
         if (!header) {
