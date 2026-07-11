@@ -139,6 +139,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="save_group_qualifiers">
                     <input type="hidden" name="group_id" value="{{ group_data.group.id }}">
+                    <p class="muted-text result-selection-counter" data-result-counter>Seleccionados: 0 / {{ profile.qualifiers_per_group }}</p>
                     <div class="slot-list">
                         {% for item in group_data.entries %}
                             <div class="qualifier-row result-choice-card entry-card {% if item.entry.qualified_from_group %}is-winner entry-card--winner{% else %}is-pending entry-card--pending{% endif %}" data-result-card>
@@ -235,11 +236,11 @@
         <section class="result-save-bar">
             <div>
                 <p class="eyebrow">Guardado operativo</p>
-                <strong>Ganadores visibles</strong>
+                <strong>Resultados visibles</strong>
                 <span>Editable después de guardar</span>
             </div>
             <button class="button primary" type="button" data-save-all-results>
-                Guardar todos los ganadores
+                Guardar todos los resultados
             </button>
         </section>
     {% endif %}
@@ -257,6 +258,9 @@
                             <div class="group-tags">
                                 <span>{{ battle_data.battle.get_status_display }}</span>
                                 <span>{{ battle_data.entries|length }} participante(s)</span>
+                                {% if battle_data.multi_qualifier %}
+                                    <span>Clasifican {{ battle_data.qualifier_target }}</span>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -264,35 +268,52 @@
                             method="post"
                             class="battle-form result-form"
                             data-result-form
-                            data-result-kind="battle"
+                            data-result-kind="{% if battle_data.multi_qualifier %}battle-qualifiers{% else %}battle{% endif %}"
                             data-result-label="{{ battle_data.battle.name }}"
-                            data-required-selections="1"
+                            data-required-selections="{% if battle_data.multi_qualifier %}{{ battle_data.qualifier_target }}{% else %}1{% endif %}"
                         >
                             {% csrf_token %}
-                            <input type="hidden" name="action" value="save_battle_winner">
+                            <input type="hidden" name="action" value="{% if battle_data.multi_qualifier %}save_battle_qualifiers{% else %}save_battle_winner{% endif %}">
                             <input type="hidden" name="battle_id" value="{{ battle_data.battle.id }}">
+                            {% if battle_data.multi_qualifier %}
+                                <p class="muted-text result-selection-counter" data-result-counter>Seleccionados: 0 / {{ battle_data.qualifier_target }}</p>
+                            {% endif %}
                             <div class="battle-entry-list result-choice-list" id="winner_{{ battle_data.battle.id }}">
                                 {% for item in battle_data.entries %}
-                                    <div class="winner-choice-card entry-card {% if battle_data.battle.winner_id == item.state.team_id %}is-winner entry-card--winner{% elif battle_data.battle.winner_id %}is-loser entry-card--loser{% else %}is-pending entry-card--pending{% endif %}" data-result-card>
-                                        <input
-                                            class="result-choice-input"
-                                            type="radio"
-                                            name="winner_team_id"
-                                            value="{{ item.state.team_id }}"
-                                            {% if battle_data.battle.winner_id == item.state.team_id %}checked{% endif %}
-                                        >
+                                    <div class="winner-choice-card entry-card {% if battle_data.multi_qualifier %}{% if item.state.team_id in battle_data.qualified_team_ids %}is-winner entry-card--winner{% elif battle_data.qualified_team_ids %}is-loser entry-card--loser{% else %}is-pending entry-card--pending{% endif %}{% else %}{% if battle_data.battle.winner_id == item.state.team_id %}is-winner entry-card--winner{% elif battle_data.battle.winner_id %}is-loser entry-card--loser{% else %}is-pending entry-card--pending{% endif %}{% endif %}" data-result-card>
+                                        {% if battle_data.multi_qualifier %}
+                                            <input
+                                                class="result-choice-input"
+                                                type="checkbox"
+                                                name="qualified_team_ids"
+                                                value="{{ item.state.team_id }}"
+                                                {% if item.state.team_id in battle_data.qualified_team_ids %}checked{% endif %}
+                                            >
+                                        {% else %}
+                                            <input
+                                                class="result-choice-input"
+                                                type="radio"
+                                                name="winner_team_id"
+                                                value="{{ item.state.team_id }}"
+                                                {% if battle_data.battle.winner_id == item.state.team_id %}checked{% endif %}
+                                            >
+                                        {% endif %}
                                         <button class="winner-choice-main participant-trigger" type="button" data-participant-state-id="{{ item.state.id }}">
                                             <strong>{{ item.participant.robot_name }}</strong>
                                             <span>{{ item.battle_entry.origin_label|default:item.participant.institution_name }}</span>
                                         </button>
                                         <button class="result-select-button winner-action-button" type="button" data-result-select data-result-select-label>
-                                            {% if battle_data.battle.winner_id == item.state.team_id %}Ganador{% else %}Marcar ganador{% endif %}
+                                            {% if battle_data.multi_qualifier %}
+                                                {% if item.state.team_id in battle_data.qualified_team_ids %}Clasificado{% else %}Clasificar{% endif %}
+                                            {% else %}
+                                                {% if battle_data.battle.winner_id == item.state.team_id %}Ganador{% else %}Marcar ganador{% endif %}
+                                            {% endif %}
                                         </button>
                                     </div>
                                 {% endfor %}
                             </div>
                             <div class="form-actions">
-                                <button class="button secondary" type="submit">Guardar este ganador</button>
+                                <button class="button secondary" type="submit">{% if battle_data.multi_qualifier %}Guardar clasificados{% else %}Guardar este ganador{% endif %}</button>
                             </div>
                         </form>
                     </article>
@@ -374,6 +395,53 @@
             </article>
         </aside>
     </section>
+
+    {% if final_podium %}
+        <section class="card final-podium-card">
+            <div class="section-head compact-head">
+                <div>
+                    <p class="eyebrow">Resultado final</p>
+                    <h2>Podio del torneo</h2>
+                </div>
+            </div>
+            <form method="post" class="config-form-grid" onsubmit="return confirm('Se guardar&aacute; el podio final y el torneo quedar&aacute; completado. &iquest;Deseas continuar?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_final_podium">
+                <div class="field">
+                    <label for="champion_team_id">Campeon</label>
+                    <select id="champion_team_id" name="champion_team_id" required>
+                        <option value="">Seleccionar campeon</option>
+                        {% for participant in final_podium.participants %}
+                            <option value="{{ participant.team_id }}" {% if participant.team_id == final_podium.champion_team_id %}selected{% endif %}>{{ participant.robot_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="second_team_id">Segundo lugar</label>
+                    <select id="second_team_id" name="second_team_id" required>
+                        <option value="">Seleccionar segundo</option>
+                        {% for participant in final_podium.participants %}
+                            <option value="{{ participant.team_id }}" {% if participant.team_id == final_podium.second_team_id %}selected{% endif %}>{{ participant.robot_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if final_podium.participants|length > 2 %}
+                    <div class="field">
+                        <label for="third_team_id">Tercer lugar</label>
+                        <select id="third_team_id" name="third_team_id" required>
+                            <option value="">Seleccionar tercero</option>
+                            {% for participant in final_podium.participants %}
+                                <option value="{{ participant.team_id }}" {% if participant.team_id == final_podium.third_team_id %}selected{% endif %}>{{ participant.robot_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+                <div class="form-actions">
+                    <button class="button primary" type="submit">{% if final_podium.is_saved %}Actualizar podio{% else %}Guardar podio final{% endif %}</button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
 {% endif %}
 
 {% if recommendation_ready %}
@@ -482,30 +550,6 @@
                     </div>
                     <p>{{ system_recommendation.preview.explanation }}</p>
 
-                    {% if system_recommendation.preview.integration_needed %}
-                        <div class="phase-integration-preview">
-                            <p class="eyebrow">Integracion post-repechaje</p>
-                            <div class="phase-decision-preview-grid">
-                                <article>
-                                    <span>Llave objetivo</span>
-                                    <strong>{{ system_recommendation.preview.target_bracket_size }}</strong>
-                                </article>
-                                <article>
-                                    <span>Juegan previa</span>
-                                    <strong>{{ system_recommendation.preview.participants_to_play_preliminary }}</strong>
-                                </article>
-                                <article>
-                                    <span>Esperan con bye</span>
-                                    <strong>{{ system_recommendation.preview.participants_with_bye }}</strong>
-                                </article>
-                                <article>
-                                    <span>Cupos de previa</span>
-                                    <strong>{{ system_recommendation.preview.winners_needed }}</strong>
-                                </article>
-                            </div>
-                        </div>
-                    {% endif %}
-
                     {% if system_recommendation.third_place_preview.can_create %}
                         <div class="phase-repechage-soon phase-third-place-preview">
                             <p class="eyebrow">Tercer lugar disponible</p>
@@ -516,23 +560,14 @@
 
                     <div class="phase-repechage-choice">
                         <div>
-                            {% if system_recommendation.integration_plan %}
-                                <p class="eyebrow">Decision de integracion</p>
-                                <h4>&iquest;Deseas continuar con la integracion recomendada?</h4>
-                            {% else %}
-                                <p class="eyebrow">Decision de repechaje</p>
-                                <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
-                            {% endif %}
+                            <p class="eyebrow">Decision de repechaje</p>
+                            <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
                         </div>
                         <div class="phase-repechage-actions">
                             <button class="button secondary" type="button" data-phase-repechage-skip>
-                                {% if system_recommendation.integration_plan %}Continuar con integracion recomendada{% else %}No, continuar con la fase recomendada{% endif %}
+                                No, continuar con la fase recomendada
                             </button>
-                            {% if system_recommendation.integration_plan %}
-                                <button class="button secondary" type="button" disabled>
-                                    Repechaje ya integrado
-                                </button>
-                            {% elif system_recommendation.repechage_preview.can_offer %}
+                            {% if system_recommendation.repechage_preview.can_offer %}
                                 <button class="button secondary" type="button" data-phase-repechage-open>
                                     Evaluar/Abrir repechaje
                                 </button>

@@ -28,6 +28,8 @@ from .services import (
     materialize_repechage_stage,
     participant_modal_payload,
     reset_competition_state,
+    save_final_podium,
+    set_battle_qualifiers,
     set_battle_winner,
     set_group_qualifiers,
     stage_summary,
@@ -133,7 +135,27 @@ def battle_stage_is_closed(competition, stage_key):
     active_battles = [battle for battle in battles if battle.entries.exists()]
     if not active_battles:
         return False
-    return all(battle.status == MatchStatus.FINISHED and battle.winner_id for battle in active_battles)
+    stage_config = next(
+        (item for item in (competition.configuration or {}).get("stages", []) if item.get("stage") == stage_key),
+        {},
+    )
+    qualifier_targets = stage_config.get("qualifier_targets") or []
+    stored_qualifiers = (competition.configuration or {}).get("battle_qualifiers", {})
+    for battle in active_battles:
+        target = 0
+        if stage_config.get("multi_qualifier_enabled"):
+            if battle.order - 1 < len(qualifier_targets):
+                target = int(qualifier_targets[battle.order - 1] or 0)
+            else:
+                target = int(stage_config.get("qualifiers_per_battle") or 0)
+        if target > 1:
+            selected = stored_qualifiers.get(str(battle.id), [])
+            if battle.status != MatchStatus.FINISHED or len(selected) != target:
+                return False
+            continue
+        if battle.status != MatchStatus.FINISHED or not battle.winner_id:
+            return False
+    return True
 
 
 def stage_is_closed(competition, stage_key):
@@ -443,6 +465,30 @@ def control_division_stage(request, competition_id, stage_key):
                 messages.error(request, message)
             return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
 
+        if action == "save_battle_qualifiers" and stage_key != CompetitionStage.GROUPS:
+            battle = get_object_or_404(competition.battles.prefetch_related("entries__team"), pk=request.POST.get("battle_id"))
+            try:
+                selected_team_ids = request.POST.getlist("qualified_team_ids")
+                result = set_battle_qualifiers(
+                    battle,
+                    selected_team_ids,
+                    manual_override=manual_override_requested(request),
+                )
+                message = correction_success_message(f"Se guardaron los clasificados de {battle.name}.", result)
+                if wants_json_response(request):
+                    return JsonResponse({"ok": True, "message": message})
+                messages.success(request, message)
+            except ManualCorrectionRequired as error:
+                if wants_json_response(request):
+                    return confirmation_required_response(error)
+                messages.warning(request, str(error))
+            except ValueError as error:
+                message = str(error)
+                if wants_json_response(request):
+                    return JsonResponse({"ok": False, "message": message}, status=400)
+                messages.error(request, message)
+            return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+
         if action == "reset_competition":
             if request.POST.get("confirm_reset") != "yes":
                 messages.error(request, "Debes confirmar explicitamente el reinicio destructivo del torneo.")
@@ -453,6 +499,20 @@ def control_division_stage(request, competition_id, stage_key):
                 f"Se reinicio el torneo de {competition.get_division_display()} y el flujo volvio a grupos.",
             )
             return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=CompetitionStage.GROUPS)
+
+        if action == "save_final_podium" and stage_key == CompetitionStage.FINAL:
+            try:
+                third_team_raw = request.POST.get("third_team_id") or "0"
+                result = save_final_podium(
+                    competition,
+                    champion_team_id=int(request.POST.get("champion_team_id", "0")),
+                    second_team_id=int(request.POST.get("second_team_id", "0")),
+                    third_team_id=int(third_team_raw) or None,
+                )
+                messages.success(request, result["message"])
+            except (TypeError, ValueError) as error:
+                messages.error(request, str(error))
+            return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
 
         if action == "create_recommended_phase":
             if not stage_is_closed(competition, stage_key):

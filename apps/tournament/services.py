@@ -83,15 +83,14 @@ SAFE_PROGRESSIVE_DUEL_STAGES = {
     4: CompetitionStage.SEMIFINAL,
     2: CompetitionStage.FINAL,
 }
-BRACKET_SIZES = [32, 16, 8, 4, 2]
 
 REPECHAGE_STAGES = [CompetitionStage.PURGATORY_1, CompetitionStage.PURGATORY_2]
-INTEGRATION_STAGE_POOL = [
-    CompetitionStage.PURGATORY_2,
+GROUP_ROUND_STAGE_POOL = [
     CompetitionStage.ROUND_OF_32,
     CompetitionStage.ROUND_OF_16,
     CompetitionStage.QUARTERFINAL,
-    CompetitionStage.SEMIFINAL,
+    CompetitionStage.PURGATORY_2,
+    CompetitionStage.PURGATORY_1,
 ]
 MANUAL_STAGE_POOL = [
     CompetitionStage.ROUND_OF_32,
@@ -148,6 +147,32 @@ def randomized_teams(edition, division: str):
             status="approved",
         ).select_related("institution")
     )
+
+
+def balanced_group_assignments(teams, group_sizes, rng):
+    buckets = defaultdict(list)
+    for team in teams:
+        institution_key = team.institution_id or f"team:{team.id}"
+        buckets[institution_key].append(team)
+    for bucket in buckets.values():
+        rng.shuffle(bucket)
+
+    grouped_teams = [[] for _ in group_sizes]
+    for institution_key, bucket in sorted(buckets.items(), key=lambda item: len(item[1]), reverse=True):
+        for team in bucket:
+            available = [index for index, size in enumerate(group_sizes) if len(grouped_teams[index]) < size]
+            if not available:
+                break
+            without_same_institution = [
+                index
+                for index in available
+                if all((member.institution_id or f"team:{member.id}") != institution_key for member in grouped_teams[index])
+            ]
+            candidates = without_same_institution or available
+            rng.shuffle(candidates)
+            target_index = min(candidates, key=lambda index: (len(grouped_teams[index]), index))
+            grouped_teams[target_index].append(team)
+    return grouped_teams
 
 
 def stage_battles(competition, stage):
@@ -368,6 +393,8 @@ def profile_configuration(competition, profile: dict, team_count: int, reset_pro
     configuration = {**profile}
     if reset_progressive_state:
         configuration.pop("pending_integration_plan", None)
+        configuration.pop("battle_qualifiers", None)
+        configuration.pop("final_podium", None)
         progressive_metadata_keys = {
             "progressive_created",
             "title",
@@ -377,6 +404,9 @@ def profile_configuration(competition, profile: dict, team_count: int, reset_pro
             "bye_count",
             "preliminary_players",
             "winners_needed",
+            "participant_count",
+            "group_sizes",
+            "finalist_count",
         }
         configuration["stages"] = [
             {key: value for key, value in stage_config.items() if key not in progressive_metadata_keys}
@@ -450,21 +480,17 @@ def rebuild_competition_scaffold(competition, teams, profile, reset_progressive_
         return competition
 
     rng = random.Random(competition.shuffle_seed)
-    rng.shuffle(teams)
-
     group_labels = GROUP_LABELS[:profile["group_count"]]
     group_sizes = balanced_group_sizes(len(teams), len(group_labels))
-    index = 0
-    for order, (label, expected_size) in enumerate(zip(group_labels, group_sizes), start=1):
+    grouped_teams = balanced_group_assignments(teams, group_sizes, rng)
+    for order, (label, expected_size, assigned_teams) in enumerate(zip(group_labels, group_sizes, grouped_teams), start=1):
         group = DivisionGroup.objects.create(
             competition=competition,
             label=label,
             order=order,
             expected_size=expected_size,
         )
-        for slot_order in range(1, expected_size + 1):
-            team = teams[index]
-            index += 1
+        for slot_order, team in enumerate(assigned_teams, start=1):
             DivisionGroupEntry.objects.create(group=group, team=team, slot_order=slot_order)
 
     if not progressive_flow_enabled(competition):
@@ -724,6 +750,8 @@ def update_group_layout(competition, assignments_by_entry_id: dict[int, int]):
 
 @transaction.atomic
 def set_battle_winner(battle, winner_team_id: int, manual_override: bool = False):
+    if _battle_qualifier_target(battle) > 1:
+        raise ValueError("Esta fase permite multiples clasificados. Usa el guardado de clasificados del grupo.")
     team_ids = list(battle.entries.values_list("team_id", flat=True))
     if winner_team_id not in team_ids:
         raise ValueError("El ganador debe pertenecer a la batalla.")
@@ -752,6 +780,51 @@ def set_battle_winner(battle, winner_team_id: int, manual_override: bool = False
             status=ParticipantStatus.ACTIVE if won else ParticipantStatus.ELIMINATED,
             battle=battle,
             metadata={"winner": won},
+        )
+    sync_competition(battle.competition)
+    return {"manual_correction_applied": manual_correction_applied}
+
+
+@transaction.atomic
+def set_battle_qualifiers(battle, qualified_team_ids: list[int], manual_override: bool = False):
+    target = _battle_qualifier_target(battle)
+    if target < 1:
+        raise ValueError("Esta batalla no esta configurada para multiples clasificados.")
+
+    submitted_ids = [int(team_id) for team_id in qualified_team_ids]
+    if len(submitted_ids) != len(set(submitted_ids)):
+        raise ValueError("No puedes enviar clasificados duplicados.")
+    team_ids = list(battle.entries.values_list("team_id", flat=True))
+    if any(team_id not in team_ids for team_id in submitted_ids):
+        raise ValueError("Todos los clasificados deben pertenecer a este grupo/campal.")
+    if len(submitted_ids) != target:
+        raise ValueError(f"Debes seleccionar exactamente {target} clasificado(s).")
+
+    current_ids = set(_battle_qualified_team_ids(battle.competition, battle))
+    manual_correction_applied = False
+    if current_ids and current_ids != set(submitted_ids) and later_stages_have_started(battle.competition, battle.stage):
+        if not manual_override:
+            raise ManualCorrectionRequired()
+        manual_correction_applied = True
+
+    _set_battle_qualified_team_ids(battle.competition, battle, submitted_ids)
+    battle.winner_id = submitted_ids[0]
+    battle.status = MatchStatus.FINISHED
+    battle.save(update_fields=["winner", "status", "updated_at"])
+
+    selected = set(submitted_ids)
+    for entry in battle.entries.select_related("team"):
+        qualified = entry.team_id in selected
+        record_history(
+            competition=battle.competition,
+            team=entry.team,
+            action_type=HistoryActionType.BATTLE_RESULT,
+            title="Clasifico en grupo/campal" if qualified else "No clasifico en grupo/campal",
+            description=battle.name,
+            stage=battle.stage,
+            status=ParticipantStatus.ACTIVE if qualified else ParticipantStatus.ELIMINATED,
+            battle=battle,
+            metadata={"qualified": qualified, "multi_qualifier": True, "target": target},
         )
     sync_competition(battle.competition)
     return {"manual_correction_applied": manual_correction_applied}
@@ -802,7 +875,7 @@ def _ensure_stage_in_configuration(competition, stage, battle_count, **metadata)
         if stage_config.get("stage") != stage:
             continue
         found = True
-        stage_config["count"] = max(int(stage_config.get("count") or 0), battle_count)
+        stage_config["count"] = battle_count if metadata.get("kind") else max(int(stage_config.get("count") or 0), battle_count)
         stage_config["progressive_created"] = True
         stage_config.update(metadata)
         break
@@ -937,6 +1010,30 @@ def _stage_has_entries(competition, stage):
     return CompetitionBattleEntry.objects.filter(battle__competition=competition, battle__stage=stage).exists()
 
 
+def _battle_qualifier_target(battle):
+    stage_config = _stage_config(battle.competition, battle.stage)
+    if not stage_config.get("multi_qualifier_enabled"):
+        return 0
+    targets = stage_config.get("qualifier_targets") or []
+    if battle.order - 1 >= len(targets):
+        return int(stage_config.get("qualifiers_per_battle") or 0)
+    return int(targets[battle.order - 1] or 0)
+
+
+def _battle_qualified_team_ids(competition, battle):
+    configured = (competition.configuration or {}).get("battle_qualifiers", {})
+    return [int(team_id) for team_id in configured.get(str(battle.id), [])]
+
+
+def _set_battle_qualified_team_ids(competition, battle, team_ids):
+    configuration = {**(competition.configuration or {})}
+    configured = {**configuration.get("battle_qualifiers", {})}
+    configured[str(battle.id)] = [int(team_id) for team_id in team_ids]
+    configuration["battle_qualifiers"] = configured
+    competition.configuration = configuration
+    competition.save(update_fields=["configuration", "updated_at"])
+
+
 def _clear_pending_integration_plan(competition):
     configuration = {**(competition.configuration or {})}
     if "pending_integration_plan" not in configuration:
@@ -948,7 +1045,8 @@ def _clear_pending_integration_plan(competition):
 
 def _existing_open_repechage_stage(competition):
     for stage in REPECHAGE_STAGES:
-        if _stage_config(competition, stage).get("kind") == "integration_preliminary":
+        stage_kind = _stage_config(competition, stage).get("kind")
+        if stage_kind and stage_kind != "repechage":
             continue
         has_open_entries = CompetitionBattleEntry.objects.filter(
             battle__competition=competition,
@@ -977,64 +1075,66 @@ def _safe_repechage_plan(candidate_count):
     return None, 0, []
 
 
-def _lower_bracket_size(participant_count):
-    for size in BRACKET_SIZES:
-        if participant_count > size:
-            return size
-    return None
+def _balanced_group_round_count(participant_count):
+    if participant_count <= 6:
+        return 1
+    if participant_count <= 12:
+        return max(2, (participant_count + 3) // 4)
+    return max(2, (participant_count + 5) // 6)
 
 
-def _integration_plan_for_active_states(competition, active_states):
-    total = len(active_states)
-    if total in SAFE_PROGRESSIVE_DUEL_STAGES:
-        return {
-            "type": "direct_bracket",
-            "target_stage": SAFE_PROGRESSIVE_DUEL_STAGES[total],
-            "target_bracket_size": total,
-        }
-    target = _lower_bracket_size(total)
-    if not target:
+def _safe_group_round_plan(participant_count):
+    if participant_count <= 4:
         return None
-    excess = total - target
-    preliminary_players = excess * 2
-    bye_players = total - preliminary_players
-    if preliminary_players < 2 or preliminary_players > total or preliminary_players % 2 != 0 or bye_players < 0:
+    battle_count = _balanced_group_round_count(participant_count)
+    sizes = balanced_group_sizes(participant_count, battle_count)
+    qualifier_targets = _qualifier_targets_for_group_sizes(participant_count, sizes)
+    if not sizes or any(size < 1 for size in sizes) or sum(sizes) != participant_count:
         return None
-    target_stage = SAFE_PROGRESSIVE_DUEL_STAGES.get(target)
-    if not target_stage:
+    if (
+        not qualifier_targets
+        or len(qualifier_targets) != len(sizes)
+        or any(target < 1 or target > size for target, size in zip(qualifier_targets, sizes))
+    ):
         return None
     return {
-        "type": "preliminary_duels",
-        "target_stage": target_stage,
-        "target_bracket_size": target,
-        "excess": excess,
-        "preliminary_players": preliminary_players,
-        "preliminary_battles": preliminary_players // 2,
-        "bye_players": bye_players,
+        "battle_count": battle_count,
+        "sizes": sizes,
+        "qualifier_targets": qualifier_targets,
+        "total_qualifiers": sum(qualifier_targets),
     }
 
 
-def _active_states_need_integration(competition, active_states):
-    pending = (competition.configuration or {}).get("pending_integration_plan")
-    if pending:
-        return True
-    stages = {state.current_stage for state in active_states}
-    has_recovered = any(state.current_stage in REPECHAGE_STAGES for state in active_states)
-    return has_recovered or len(stages) > 1
+def _qualifier_targets_for_group_sizes(participant_count, group_sizes):
+    if not group_sizes:
+        return []
+    target_total = max(1, round(participant_count * 0.5))
+    if participant_count == 5:
+        target_total = 3
+    if participant_count == 8:
+        target_total = 4
+    target_total = min(target_total, participant_count)
+    base = target_total // len(group_sizes)
+    remainder = target_total % len(group_sizes)
+    targets = []
+    for index, size in enumerate(group_sizes):
+        target = base + (1 if index < remainder else 0)
+        targets.append(max(1, min(size, target)))
+    return targets
 
 
-def _next_available_integration_stage(competition, target_stage):
-    pool = [stage for stage in INTEGRATION_STAGE_POOL if stage != target_stage]
-    return _next_available_stage(competition, pool)
-
-
-def _ordered_integration_states(competition, active_states):
-    rng = random.Random(f"{competition.shuffle_seed}:integration:{len(active_states)}")
-    recovered = [state for state in active_states if state.current_stage in REPECHAGE_STAGES]
-    direct = [state for state in active_states if state.current_stage not in REPECHAGE_STAGES]
-    rng.shuffle(recovered)
-    rng.shuffle(direct)
-    return [*recovered, *direct]
+def _existing_open_group_round_stage(competition):
+    for stage_config in (competition.configuration or {}).get("stages", []):
+        if stage_config.get("kind") != "balanced_group_round":
+            continue
+        stage = stage_config.get("stage")
+        has_open_entries = CompetitionBattleEntry.objects.filter(
+            battle__competition=competition,
+            battle__stage=stage,
+        ).exclude(battle__status=MatchStatus.FINISHED).exists()
+        if has_open_entries:
+            return stage
+    return None
 
 
 def _record_phase_assignment(competition, state, stage, status, battle, title, metadata):
@@ -1136,6 +1236,76 @@ def _semifinal_losers_for_third_place(competition):
     return duel_losers(semifinal_battles)
 
 
+def _materialize_final_ranking_stage(competition, active_states):
+    finalist_count = len(active_states)
+    if finalist_count not in {3, 4}:
+        raise ValueError("La final de ranking requiere 3 o 4 participantes.")
+
+    final_stage = CompetitionStage.FINAL
+    final_title = f"Final de {finalist_count}"
+    existing_stage_entries = _stage_has_entries(competition, final_stage)
+    if existing_stage_entries:
+        _ensure_stage_in_configuration(
+            competition,
+            final_stage,
+            1,
+            title=final_title,
+            kind="final_ranking",
+            finalist_count=finalist_count,
+        )
+        return {
+            "created": False,
+            "existing": True,
+            "stage": final_stage,
+            "message": f"{final_title} ya existe. Se abrio la fase existente.",
+        }
+
+    format_type = BattleFormat.TRIANGULAR if finalist_count == 3 else BattleFormat.BATTLE_ROYALE
+    _ensure_stage_in_configuration(
+        competition,
+        final_stage,
+        1,
+        title=final_title,
+        kind="final_ranking",
+        finalist_count=finalist_count,
+    )
+    final_battle = _ensure_progressive_battles(
+        competition,
+        final_stage,
+        1,
+        format_type=format_type,
+        name_prefix=final_title,
+    )[0]
+    if battle_is_locked(final_battle) or final_battle.entries.exists():
+        raise ValueError("La final ya tiene progreso o entradas. Abre la fase existente para revisarla.")
+
+    rng = random.Random(f"{competition.shuffle_seed}:final-ranking:{finalist_count}")
+    finalists = list(active_states)
+    rng.shuffle(finalists)
+    set_battle_entries(final_battle, [(state.team, "Finalista") for state in finalists])
+    for state in finalists:
+        _record_phase_assignment(
+            competition=competition,
+            stage=final_stage,
+            status=ParticipantStatus.ACTIVE,
+            battle=final_battle,
+            state=state,
+            title=f"Asignado a {final_title}",
+            metadata={"progressive_final_ranking_creation": True},
+        )
+
+    competition.status = CompetitionStatus.IN_PROGRESS
+    competition.save(update_fields=["status", "updated_at"])
+    _clear_pending_integration_plan(competition)
+    sync_team_states(competition)
+    return {
+        "created": True,
+        "existing": False,
+        "stage": final_stage,
+        "message": f"Se creo {final_title} con {finalist_count} finalista(s).",
+    }
+
+
 def _materialize_final_and_optional_third_place(competition, active_states):
     profile = competition_profile_from_instance(competition)
     final_stage = CompetitionStage.FINAL
@@ -1201,6 +1371,70 @@ def _materialize_final_and_optional_third_place(competition, active_states):
     }
 
 
+@transaction.atomic
+def save_final_podium(competition, *, champion_team_id, second_team_id, third_team_id=None):
+    final_battle = (
+        competition.battles.filter(stage=CompetitionStage.FINAL)
+        .prefetch_related("entries__team")
+        .order_by("order")
+        .first()
+    )
+    if final_battle is None:
+        raise ValueError("No existe una final creada para guardar el podio.")
+
+    team_ids = list(final_battle.entries.values_list("team_id", flat=True))
+    finalist_count = len(team_ids)
+    podium_ids = [champion_team_id, second_team_id]
+    if finalist_count >= 3:
+        podium_ids.append(third_team_id)
+    elif third_team_id:
+        podium_ids.append(third_team_id)
+    if any(team_id not in team_ids for team_id in podium_ids):
+        raise ValueError("El podio solo puede incluir participantes de la final.")
+    if finalist_count >= 3 and not third_team_id:
+        raise ValueError("Debes seleccionar tercer lugar para una final de 3 o mas participantes.")
+    if len(set(podium_ids)) != len(podium_ids):
+        raise ValueError("Las posiciones del podio deben ser participantes distintos.")
+
+    set_battle_winner(final_battle, champion_team_id, manual_override=True)
+    teams_by_id = {entry.team_id: entry.team for entry in final_battle.entries.all()}
+    configuration = {**(competition.configuration or {})}
+    configuration["final_podium"] = {
+        "stage": CompetitionStage.FINAL,
+        "battle_id": final_battle.id,
+        "champion_team_id": champion_team_id,
+        "second_team_id": second_team_id,
+        "third_team_id": third_team_id or None,
+    }
+    competition.configuration = configuration
+    competition.status = CompetitionStatus.COMPLETED
+    competition.save(update_fields=["configuration", "status", "updated_at"])
+
+    labels = [
+        (champion_team_id, "Campeon"),
+        (second_team_id, "Segundo lugar"),
+    ]
+    if third_team_id:
+        labels.append((third_team_id, "Tercer lugar"))
+    for team_id, title in labels:
+        team = teams_by_id.get(team_id)
+        if not team:
+            continue
+        record_history(
+            competition=competition,
+            team=team,
+            action_type=HistoryActionType.BATTLE_RESULT,
+            title=title,
+            description="Podio final del torneo.",
+            stage=CompetitionStage.FINAL,
+            status=ParticipantStatus.QUALIFIED,
+            battle=final_battle,
+            metadata={"final_podium": True, "position": title},
+        )
+    sync_team_states(competition)
+    return {"message": "Podio final guardado correctamente."}
+
+
 def _create_single_duel_from_teams(competition, stage, teams, title, metadata_key):
     _ensure_stage_in_configuration(competition, stage, 1, title=title)
     battle = _ensure_progressive_duel_battles(competition, stage, 1)[0]
@@ -1226,61 +1460,67 @@ def _create_single_duel_from_teams(competition, stage, teams, title, metadata_ke
     return battle
 
 
-def _materialize_integration_preliminary(competition, active_states, plan):
-    stage = _next_available_integration_stage(competition, plan["target_stage"])
-    if stage is None:
-        raise ValueError("No hay una etapa tecnica disponible para crear la ronda previa de integracion sin migracion.")
+def _materialize_balanced_group_round(competition, active_states):
+    participant_count = len(active_states)
+    plan = _safe_group_round_plan(participant_count)
+    if not plan:
+        raise ValueError("No fue posible generar una ronda grupal segura con todos los vivos.")
 
-    ordered_states = _ordered_integration_states(competition, active_states)
-    preliminary_states = ordered_states[:plan["preliminary_players"]]
-    bye_states = ordered_states[plan["preliminary_players"]:]
-    title = "Ronda previa de integracion"
+    open_stage = _existing_open_group_round_stage(competition)
+    if open_stage:
+        existing_count = competition.battles.filter(stage=open_stage).count()
+        _ensure_stage_in_configuration(competition, open_stage, existing_count, title=_stage_config(competition, open_stage).get("title") or "Nueva ronda grupal")
+        return {
+            "created": False,
+            "existing": True,
+            "stage": open_stage,
+            "message": "La ronda grupal recomendada ya existe. Se abrio la fase existente.",
+        }
+
+    stage = _next_available_stage(competition, GROUP_ROUND_STAGE_POOL)
+    if stage is None:
+        raise ValueError("No hay una etapa tecnica disponible para crear otra ronda grupal sin migracion.")
+
+    title = "Nueva ronda grupal"
     _ensure_stage_in_configuration(
         competition,
         stage,
-        plan["preliminary_battles"],
+        plan["battle_count"],
         title=title,
-        kind="integration_preliminary",
-        target_stage=plan["target_stage"],
-        target_bracket_size=plan["target_bracket_size"],
-        bye_count=len(bye_states),
-        preliminary_players=len(preliminary_states),
-        winners_needed=plan["excess"],
+        kind="balanced_group_round",
+        participant_count=participant_count,
+        group_sizes=plan["sizes"],
+        qualifier_targets=plan["qualifier_targets"],
+        qualifiers_per_battle=plan["qualifier_targets"][0] if len(set(plan["qualifier_targets"])) == 1 else None,
+        total_qualifiers=plan["total_qualifiers"],
+        multi_qualifier_enabled=True,
     )
     battles = _ensure_progressive_battles(
         competition,
         stage,
-        plan["preliminary_battles"],
-        format_type=BattleFormat.DUEL,
+        plan["battle_count"],
+        format_type=BattleFormat.BATTLE_ROYALE,
         name_prefix=title,
     )
     if any(battle_is_locked(battle) or battle.entries.exists() for battle in battles):
-        raise ValueError("La ronda previa de integracion ya tiene progreso o entradas. Abre la fase existente para revisarla.")
+        raise ValueError("La ronda grupal recomendada ya tiene progreso o entradas. Abre la fase existente para revisarla.")
 
-    configuration = {**(competition.configuration or {})}
-    configuration["pending_integration_plan"] = {
-        "stage": stage,
-        "target_stage": plan["target_stage"],
-        "target_bracket_size": plan["target_bracket_size"],
-        "bye_team_ids": [state.team_id for state in bye_states],
-        "preliminary_team_ids": [state.team_id for state in preliminary_states],
-        "winners_needed": plan["excess"],
-        "source_total": len(active_states),
-    }
-    competition.configuration = configuration
-    competition.save(update_fields=["configuration", "updated_at"])
+    rng = random.Random(f"{competition.shuffle_seed}:group-round:{participant_count}:{stage}")
+    grouped_teams = balanced_group_assignments([state.team for state in active_states], plan["sizes"], rng)
+    states_by_team_id = {state.team_id: state for state in active_states}
+    assigned_team_ids = [team.id for group in grouped_teams for team in group]
+    if len(assigned_team_ids) != participant_count or len(set(assigned_team_ids)) != participant_count:
+        raise ValueError("La propuesta de ronda grupal contiene duplicados o participantes faltantes.")
+    if any(not group for group in grouped_teams):
+        raise ValueError("La propuesta de ronda grupal contiene grupos vacios.")
 
-    for battle_index, battle in enumerate(battles):
-        left = preliminary_states[battle_index * 2]
-        right = preliminary_states[battle_index * 2 + 1]
+    for battle, teams in zip(battles, grouped_teams):
         set_battle_entries(
             battle,
-            [
-                (left.team, "Integracion previa"),
-                (right.team, "Integracion previa"),
-            ],
+            [(team, "Participante vivo") for team in teams],
         )
-        for state in (left, right):
+        for team in teams:
+            state = states_by_team_id[team.id]
             _record_phase_assignment(
                 competition=competition,
                 stage=stage,
@@ -1288,35 +1528,20 @@ def _materialize_integration_preliminary(competition, active_states, plan):
                 battle=battle,
                 state=state,
                 title=f"Asignado a {title}",
-                metadata={"progressive_integration_preliminary": True},
+                metadata={"progressive_group_round_creation": True},
             )
-
-    for state in bye_states:
-        record_history(
-            competition=competition,
-            team=state.team,
-            action_type=HistoryActionType.AUTO_SYNC,
-            title="Bye de integracion",
-            description=f"Espera la llave limpia de {plan['target_bracket_size']} participantes.",
-            stage=stage,
-            status=ParticipantStatus.ACTIVE,
-            previous_stage=state.current_stage,
-            new_stage=state.current_stage,
-            previous_status=state.current_status,
-            new_status=ParticipantStatus.ACTIVE,
-            metadata={"progressive_integration_bye": True, "target_stage": plan["target_stage"]},
-        )
 
     competition.status = CompetitionStatus.IN_PROGRESS
     competition.save(update_fields=["status", "updated_at"])
+    _clear_pending_integration_plan(competition)
     sync_team_states(competition)
     return {
         "created": True,
         "existing": False,
         "stage": stage,
         "message": (
-            f"Se creo {title} con {plan['preliminary_battles']} duelo(s). "
-            f"{len(bye_states)} participante(s) esperan con bye."
+            f"Se creo {title} con {plan['battle_count']} grupo(s). "
+            f"Todos los vivos fueron asignados y clasificaran {plan['total_qualifiers']}."
         ),
     }
 
@@ -1326,37 +1551,20 @@ def materialize_recommended_duel_stage(competition):
     sync_team_states(competition)
     active_states = _progressive_active_states(competition)
     active_count = len(active_states)
-    plan = _integration_plan_for_active_states(competition, active_states)
-    needs_integration = _active_states_need_integration(competition, active_states)
 
-    if needs_integration and plan and plan["type"] == "preliminary_duels":
-        pending = (competition.configuration or {}).get("pending_integration_plan") or {}
-        pending_stage = pending.get("stage")
-        if pending_stage and _stage_has_entries(competition, pending_stage):
-            open_entries = CompetitionBattleEntry.objects.filter(
-                battle__competition=competition,
-                battle__stage=pending_stage,
-            ).exclude(battle__status=MatchStatus.FINISHED).exists()
-            if open_entries:
-                _ensure_stage_in_configuration(competition, pending_stage, plan["preliminary_battles"], title="Ronda previa de integracion")
-                return {
-                    "created": False,
-                    "existing": True,
-                    "stage": pending_stage,
-                    "message": "La ronda previa de integracion ya existe. Se abrio la fase existente.",
-                }
-        return _materialize_integration_preliminary(competition, active_states, plan)
+    if active_count > 4:
+        return _materialize_balanced_group_round(competition, active_states)
 
     target_stage = SAFE_PROGRESSIVE_DUEL_STAGES.get(active_count)
-    if needs_integration and plan and plan["type"] == "direct_bracket":
-        target_stage = plan["target_stage"]
+    if active_count == 3:
+        target_stage = CompetitionStage.FINAL
     if target_stage is None:
         raise ValueError("Requiere configuracion manual proximamente.")
-    active_stage_keys = {state.current_stage for state in active_states}
-    if len(active_stage_keys) > 1 and not needs_integration:
-        raise ValueError("Los participantes activos aparecen en mas de una fase. Revisa la consistencia antes de crear otra fase.")
 
     battle_count = active_count // 2
+    if target_stage == CompetitionStage.FINAL and active_count == 3:
+        return _materialize_final_ranking_stage(competition, active_states)
+
     if target_stage == CompetitionStage.FINAL:
         result = _materialize_final_and_optional_third_place(competition, active_states)
         if result.get("created") or result.get("existing"):
@@ -1739,14 +1947,13 @@ def sync_team_states(competition):
             state.current_group = None
             state.current_battle = battle
             state.current_stage = battle.stage
-            stage_config = _stage_config(competition, battle.stage)
-            inferred_status = (
-                ParticipantStatus.ACTIVE
-                if progressive_flow and stage_config.get("kind") == "integration_preliminary"
-                else STAGE_STATUS_DEFAULTS.get(battle.stage, ParticipantStatus.ACTIVE)
-            )
+            inferred_status = STAGE_STATUS_DEFAULTS.get(battle.stage, ParticipantStatus.ACTIVE)
             if battle.status == MatchStatus.FINISHED:
-                if battle.winner_id == team_id:
+                qualifier_target = _battle_qualifier_target(battle)
+                if qualifier_target > 1:
+                    qualified_ids = set(_battle_qualified_team_ids(competition, battle))
+                    inferred_status = ParticipantStatus.ACTIVE if team_id in qualified_ids else ParticipantStatus.ELIMINATED
+                elif battle.winner_id == team_id:
                     if progressive_flow and battle.stage in REPECHAGE_STAGES:
                         inferred_status = ParticipantStatus.ACTIVE
                     else:
@@ -1894,6 +2101,16 @@ def participants_for_stage(competition, stage):
 def winners_for_stage(competition, stage):
     winners = []
     for battle in stage_battles(competition, stage):
+        qualifier_ids = _battle_qualified_team_ids(competition, battle) if _battle_qualifier_target(battle) > 1 else []
+        if qualifier_ids:
+            for team_id in qualifier_ids:
+                state = TeamCompetitionState.objects.filter(
+                    competition=competition,
+                    team_id=team_id,
+                ).select_related("team__institution", "current_group", "current_battle").first()
+                if state:
+                    winners.append(participant_row_payload(state))
+            continue
         if not battle.winner_id:
             continue
         state = TeamCompetitionState.objects.filter(
@@ -1903,6 +2120,35 @@ def winners_for_stage(competition, stage):
         if state:
             winners.append(participant_row_payload(state))
     return winners
+
+
+def final_podium_payload(competition):
+    final_battle = (
+        competition.battles.filter(stage=CompetitionStage.FINAL)
+        .prefetch_related("entries__team__institution")
+        .order_by("order")
+        .first()
+    )
+    if final_battle is None:
+        return None
+    participants = []
+    for entry in final_battle.entries.order_by("slot_order"):
+        state = TeamCompetitionState.objects.filter(competition=competition, team=entry.team).select_related(
+            "team__institution",
+            "current_group",
+            "current_battle",
+        ).first()
+        if state:
+            participants.append(participant_row_payload(state))
+    podium = (competition.configuration or {}).get("final_podium") or {}
+    return {
+        "battle": final_battle,
+        "participants": participants,
+        "champion_team_id": podium.get("champion_team_id") or final_battle.winner_id,
+        "second_team_id": podium.get("second_team_id"),
+        "third_team_id": podium.get("third_team_id"),
+        "is_saved": bool(podium),
+    }
 
 
 def build_stage_context(competition, stage):
@@ -1947,6 +2193,8 @@ def build_stage_context(competition, stage):
 
     battles_payload = []
     for battle in stage_battles(competition, stage):
+        qualifier_target = _battle_qualifier_target(battle)
+        qualified_team_ids = _battle_qualified_team_ids(competition, battle) if qualifier_target > 1 else []
         battle_entries = []
         for battle_entry in battle.entries.order_by("slot_order"):
             state = TeamCompetitionState.objects.filter(competition=competition, team=battle_entry.team).select_related(
@@ -1961,7 +2209,13 @@ def build_stage_context(competition, stage):
                     "participant": participant_row_payload(state) if state else None,
                 }
             )
-        battles_payload.append({"battle": battle, "entries": battle_entries})
+        battles_payload.append({
+            "battle": battle,
+            "entries": battle_entries,
+            "qualifier_target": qualifier_target,
+            "qualified_team_ids": qualified_team_ids,
+            "multi_qualifier": qualifier_target > 1,
+        })
 
     active_states = participants_for_stage(competition, stage)
     eliminated_states = [
@@ -1978,6 +2232,7 @@ def build_stage_context(competition, stage):
             "stage_participants": active_states,
             "winner_participants": winners_for_stage(competition, stage),
             "eliminated_participants": eliminated_states,
+            "final_podium": final_podium_payload(competition) if stage == CompetitionStage.FINAL else None,
         }
     )
     return base_context

@@ -187,9 +187,22 @@
 
         const selectLabel = card.querySelector("[data-result-select-label]");
         if (selectLabel) {
-            selectLabel.textContent = state === "winner" ? "Ganador" : "Marcar ganador";
+            const form = card.closest("[data-result-form]");
+            if (form?.dataset.resultKind === "battle-qualifiers") {
+                selectLabel.textContent = state === "winner" ? "Clasificado" : "Clasificar";
+            } else {
+                selectLabel.textContent = state === "winner" ? "Ganador" : "Marcar ganador";
+            }
         }
     };
+
+    const qualifierCheckboxSelectors = [
+        "input[type='checkbox'][name='qualified_entry_ids']",
+        "input[type='checkbox'][name='qualified_team_ids']",
+    ];
+    const qualifierCheckboxSelector = qualifierCheckboxSelectors.join(", ");
+    const checkedQualifierInputs = (root) =>
+        qualifierCheckboxSelectors.flatMap((selector) => Array.from(root.querySelectorAll(`${selector}:checked`)));
 
     const updateResultFormState = (form) => {
         const winnerInputs = Array.from(form.querySelectorAll("input[type='radio'][name='winner_team_id']"));
@@ -202,15 +215,19 @@
             return;
         }
 
-        const qualifierInputs = Array.from(
-            form.querySelectorAll("input[type='checkbox'][name='qualified_entry_ids']")
-        );
+        const qualifierInputs = Array.from(form.querySelectorAll(qualifierCheckboxSelector));
         if (qualifierInputs.length) {
             const hasSelection = qualifierInputs.some((input) => input.checked);
             qualifierInputs.forEach((input) => {
                 const state = input.checked ? "winner" : hasSelection ? "loser" : "pending";
                 setResultCardState(input.closest("[data-result-card]"), state);
             });
+            const counter = form.querySelector("[data-result-counter]");
+            if (counter) {
+                const requiredSelections = Number(form.dataset.requiredSelections || "0");
+                const selectedCount = qualifierInputs.filter((input) => input.checked).length;
+                counter.textContent = `Seleccionados: ${selectedCount} / ${requiredSelections}`;
+            }
         }
     };
 
@@ -222,15 +239,14 @@
             return `winner:${winnerInput.value}`;
         }
 
-        const qualifiedIds = Array.from(
-            form.querySelectorAll("input[type='checkbox'][name='qualified_entry_ids']:checked")
-        )
+        const qualifiedIds = checkedQualifierInputs(form)
             .map((input) => input.value)
             .sort();
         return `qualified:${qualifiedIds.join(",")}`;
     };
 
-    const resultFormChanged = (form) => resultFormSignature(form) !== (form.dataset.initialResultSignature || "");
+    const resultFormChanged = (form) =>
+        form.dataset.resultDirty === "true" || resultFormSignature(form) !== (form.dataset.initialResultSignature || "");
 
     const validateResultForm = (form) => {
         const label = resultFormLabel(form);
@@ -242,7 +258,7 @@
                 : `${label}: selecciona un ganador antes de guardar.`;
         }
 
-        const selectedCount = form.querySelectorAll("input[type='checkbox'][name='qualified_entry_ids']:checked").length;
+        const selectedCount = checkedQualifierInputs(form).length;
         if (!selectedCount) {
             return `${label}: selecciona al menos un clasificado antes de guardar.`;
         }
@@ -271,7 +287,6 @@
         if (options.manualOverride) {
             formData.set("manual_override", "1");
         }
-        console.debug("[control] Guardando resultado", { label, action: actionUrl });
         const response = await fetch(actionUrl, {
             method: (form.method || "POST").toUpperCase(),
             headers: {
@@ -279,11 +294,6 @@
                 "X-Requested-With": "XMLHttpRequest",
             },
             body: formData,
-        });
-        console.debug("[control] Respuesta guardado resultado", {
-            label,
-            action: actionUrl,
-            status: response.status,
         });
         const contentType = response.headers.get("content-type") || "";
         let result = { ok: response.ok };
@@ -314,6 +324,7 @@
             throw new Error(`${label}: ${result.message || "No fue posible guardar esta seleccion."}`);
         }
         form.dataset.initialResultSignature = resultFormSignature(form);
+        form.dataset.resultDirty = "false";
         return result;
     };
 
@@ -504,18 +515,21 @@
     const bindResultControls = () => {
         document.querySelectorAll("[data-result-form]").forEach((form) => {
             updateResultFormState(form);
-            form.dataset.initialResultSignature = resultFormSignature(form);
             if (form.dataset.resultFormBound === "true") {
                 return;
             }
             form.dataset.resultFormBound = "true";
+            form.dataset.initialResultSignature = resultFormSignature(form);
+            form.dataset.resultDirty = "false";
             form.querySelectorAll("[data-result-select]").forEach((button) => {
                 button.addEventListener("click", (event) => {
                     event.preventDefault();
                     event.stopPropagation();
 
                     const card = button.closest("[data-result-card]");
-                    const input = card?.querySelector("input[name='qualified_entry_ids'], input[name='winner_team_id']");
+                    const input = card?.querySelector(
+                        "input[name='qualified_entry_ids'], input[name='qualified_team_ids'], input[name='winner_team_id']"
+                    );
                     if (!input) {
                         return;
                     }
@@ -529,7 +543,13 @@
                 });
             });
             form.addEventListener("change", (event) => {
-                if (event.target.matches("input[name='qualified_entry_ids'], input[name='winner_team_id']")) {
+                if (
+                    event.target.matches(
+                        "input[name='qualified_entry_ids'], input[name='qualified_team_ids'], input[name='winner_team_id']"
+                    )
+                ) {
+                    form.dataset.resultDirty =
+                        resultFormSignature(form) !== (form.dataset.initialResultSignature || "") ? "true" : "false";
                     updateResultFormState(form);
                 }
             });

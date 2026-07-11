@@ -212,30 +212,6 @@
                 </div>
                 <p>{{ system_recommendation.preview.explanation }}</p>
 
-                {% if system_recommendation.preview.integration_needed %}
-                    <div class="phase-integration-preview">
-                        <p class="eyebrow">Integracion post-repechaje</p>
-                        <div class="phase-decision-preview-grid">
-                            <article>
-                                <span>Llave objetivo</span>
-                                <strong>{{ system_recommendation.preview.target_bracket_size }}</strong>
-                            </article>
-                            <article>
-                                <span>Juegan previa</span>
-                                <strong>{{ system_recommendation.preview.participants_to_play_preliminary }}</strong>
-                            </article>
-                            <article>
-                                <span>Esperan con bye</span>
-                                <strong>{{ system_recommendation.preview.participants_with_bye }}</strong>
-                            </article>
-                            <article>
-                                <span>Cupos de previa</span>
-                                <strong>{{ system_recommendation.preview.winners_needed }}</strong>
-                            </article>
-                        </div>
-                    </div>
-                {% endif %}
-
                 {% if system_recommendation.third_place_preview.can_create %}
                     <div class="phase-repechage-soon phase-third-place-preview">
                         <p class="eyebrow">Tercer lugar disponible</p>
@@ -246,23 +222,14 @@
 
                 <div class="phase-repechage-choice">
                     <div>
-                        {% if system_recommendation.integration_plan %}
-                            <p class="eyebrow">Decision de integracion</p>
-                            <h4>&iquest;Deseas continuar con la integracion recomendada?</h4>
-                        {% else %}
-                            <p class="eyebrow">Decision de repechaje</p>
-                            <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
-                        {% endif %}
+                        <p class="eyebrow">Decision de repechaje</p>
+                        <h4>&iquest;Deseas abrir repechaje antes de la siguiente ronda?</h4>
                     </div>
                     <div class="phase-repechage-actions">
                         <button class="button secondary" type="button" data-phase-repechage-skip>
-                            {% if system_recommendation.integration_plan %}Continuar con integracion recomendada{% else %}No, continuar con la fase recomendada{% endif %}
+                            No, continuar con la fase recomendada
                         </button>
-                        {% if system_recommendation.integration_plan %}
-                            <button class="button secondary" type="button" disabled>
-                                Repechaje ya integrado
-                            </button>
-                        {% elif system_recommendation.repechage_preview.can_offer %}
+                        {% if system_recommendation.repechage_preview.can_offer %}
                             <button class="button secondary" type="button" data-phase-repechage-open>
                                 Evaluar/Abrir repechaje
                             </button>

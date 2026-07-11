@@ -31,7 +31,6 @@ SAFE_DUEL_STAGE_COUNTS = {
     CompetitionStage.SEMIFINAL: 4,
     CompetitionStage.FINAL: 2,
 }
-BRACKET_SIZES = [32, 16, 8, 4, 2]
 REPECHAGE_STAGES = {CompetitionStage.PURGATORY_1, CompetitionStage.PURGATORY_2}
 
 
@@ -84,9 +83,6 @@ def stage_counts(states):
 
 def bracket_stage_for_count(participant_count):
     return {
-        32: CompetitionStage.ROUND_OF_32,
-        16: CompetitionStage.ROUND_OF_16,
-        8: CompetitionStage.QUARTERFINAL,
         4: CompetitionStage.SEMIFINAL,
         2: CompetitionStage.FINAL,
     }.get(participant_count)
@@ -94,19 +90,41 @@ def bracket_stage_for_count(participant_count):
 
 def bracket_title_for_count(participant_count):
     return {
-        32: "Ronda de 32",
-        16: "Octavos",
-        8: "Cuartos",
         4: "Semifinal",
         2: "Gran final",
     }.get(participant_count, "Llave eliminatoria")
 
 
-def lower_bracket_size(participant_count):
-    for size in BRACKET_SIZES:
-        if participant_count > size:
-            return size
-    return None
+def balanced_group_count(participant_count):
+    if participant_count <= 6:
+        return 1
+    if participant_count <= 12:
+        return max(2, (participant_count + 3) // 4)
+    return max(2, (participant_count + 5) // 6)
+
+
+def balanced_group_sizes_for_count(participant_count, group_count):
+    base_size = participant_count // group_count
+    remainder = participant_count % group_count
+    return [base_size + (1 if index < remainder else 0) for index in range(group_count)]
+
+
+def qualifier_targets_for_group_sizes(participant_count, group_sizes):
+    if not group_sizes:
+        return []
+    target_total = max(1, round(participant_count * 0.5))
+    if participant_count == 5:
+        target_total = 3
+    if participant_count == 8:
+        target_total = 4
+    target_total = min(target_total, participant_count)
+    base = target_total // len(group_sizes)
+    remainder = target_total % len(group_sizes)
+    targets = []
+    for index, size in enumerate(group_sizes):
+        target = base + (1 if index < remainder else 0)
+        targets.append(max(1, min(size, target)))
+    return targets
 
 
 def build_progressive_pool(active):
@@ -122,113 +140,53 @@ def build_progressive_pool(active):
     }
 
 
-def recommend_integration_plan(competition, active):
+def recommend_group_round_plan(active):
     pool = build_progressive_pool(active)
     total = pool["total"]
-    has_recovered = pool["recovered_count"] > 0
-    has_pending_integration = bool((competition.configuration or {}).get("pending_integration_plan"))
-    mixed_active_paths = len(stage_counts(active)) > 1
-
-    if not (has_recovered or has_pending_integration or mixed_active_paths):
+    if total <= 4:
         return None
-
-    exact_stage = bracket_stage_for_count(total)
-    if exact_stage:
-        title = bracket_title_for_count(total)
-        return {
-            "total_participants": total,
-            "target_bracket_size": total,
-            "direct_slots": pool["direct_count"],
-            "recovered_slots": pool["recovered_count"],
-            "integration_needed": False,
-            "recommended_type": exact_stage,
-            "title": title,
-            "suggested_format": "duelos",
-            "participants_to_play_preliminary": 0,
-            "participants_with_bye": 0,
-            "winners_needed": 0,
-            "explanation": (
-                f"Hay {total} participantes vivos consolidados entre clasificados directos y recuperados. "
-                f"La cantidad ya permite crear {title} sin ronda previa."
-            ),
-            "alternatives": [],
-            "warnings": [],
-            "can_create": True,
-            "creation_strategy": "direct_bracket",
-        }
-
-    target = lower_bracket_size(total)
-    if not target:
-        return None
-
-    excess = total - target
-    preliminary_players = excess * 2
-    bye_players = total - preliminary_players
-    target_stage = bracket_stage_for_count(target)
-    can_create = bool(
-        target_stage
-        and preliminary_players >= 2
-        and preliminary_players <= total
-        and preliminary_players % 2 == 0
-        and bye_players >= 0
-    )
+    group_count = balanced_group_count(total)
+    group_sizes = balanced_group_sizes_for_count(total, group_count)
+    qualifier_targets = qualifier_targets_for_group_sizes(total, group_sizes)
+    total_qualifiers = sum(qualifier_targets)
     return {
         "total_participants": total,
-        "target_bracket_size": target,
         "direct_slots": pool["direct_count"],
         "recovered_slots": pool["recovered_count"],
-        "integration_needed": True,
-        "recommended_type": "integration_preliminary",
-        "title": "Ronda previa de integracion",
-        "suggested_format": f"{preliminary_players // 2} duelo(s) de integracion",
-        "participants_to_play_preliminary": preliminary_players,
-        "participants_with_bye": bye_players,
-        "winners_needed": excess,
+        "recommended_type": "balanced_group_round",
+        "title": "Nueva ronda grupal",
+        "suggested_format": f"{group_count} grupo(s)/campal(es) balanceado(s)",
+        "group_count": group_count,
+        "group_sizes": group_sizes,
+        "qualifier_targets": qualifier_targets,
+        "total_qualifiers": total_qualifiers,
         "explanation": (
-            f"Hay {total} participantes vivos. Para llegar a un cuadro limpio de {target}, "
-            f"se propone una ronda previa con {preliminary_players} participantes y {excess} cupo(s). "
-            f"Los otros {bye_players} participante(s) esperan con bye para integrarse a la llave."
+            "Despues de consolidar los participantes vivos, se generara una nueva fase grupal. "
+            f"Todos jugaran y clasificaran {total_qualifiers} participante(s). "
+            "El sistema no usara byes ni pases directos."
         ),
         "alternatives": [
             {
-                "type": "manual_integration",
-                "title": "Integracion manual",
-                "suggested_format": "seleccion manual de previa y byes",
+                "type": "manual_group_round",
+                "title": "Configurar grupos manualmente",
+                "suggested_format": "ajuste manual de grupos/campales",
                 "participant_count": total,
-                "explanation": "El organizador puede ajustar manualmente quienes juegan la previa y quienes esperan con bye.",
+                "explanation": "El administrador puede ajustar cantidad de grupos o mover participantes antes de operar la fase.",
             }
         ],
         "warnings": [],
-        "can_create": can_create,
-        "creation_strategy": "preliminary_duels" if can_create else "manual_required",
+        "can_create": True,
+        "creation_strategy": "balanced_group_round",
     }
 
 
 def base_recommendation(active_count):
     exact_rules = {
-        32: {
-            "recommended_type": CompetitionStage.ROUND_OF_32,
-            "title": "Ronda de 32",
-            "suggested_format": "duelos",
-            "explanation": "Hay 32 participantes vivos; el cuadro puede continuar con 16 duelos directos.",
-        },
-        16: {
-            "recommended_type": CompetitionStage.ROUND_OF_16,
-            "title": "Octavos",
-            "suggested_format": "duelos",
-            "explanation": "Hay 16 participantes vivos; corresponde una ronda de octavos con 8 duelos.",
-        },
-        8: {
-            "recommended_type": CompetitionStage.QUARTERFINAL,
-            "title": "Cuartos",
-            "suggested_format": "duelos",
-            "explanation": "Hay 8 participantes vivos; corresponde una fase de cuartos con 4 duelos.",
-        },
         4: {
             "recommended_type": CompetitionStage.SEMIFINAL,
             "title": "Semifinal",
-            "suggested_format": "duelos",
-            "explanation": "Hay 4 participantes vivos; corresponde una semifinal con 2 duelos.",
+            "suggested_format": "2 duelos",
+            "explanation": "Hay 4 participantes vivos; corresponde crear semifinal con 2 batallas de 2.",
         },
         2: {
             "recommended_type": CompetitionStage.FINAL,
@@ -237,38 +195,33 @@ def base_recommendation(active_count):
             "explanation": "Hay 2 participantes vivos; corresponde generar la gran final.",
         },
         3: {
-            "recommended_type": "triangular_final",
-            "title": "Triangular final",
+            "recommended_type": CompetitionStage.FINAL,
+            "title": "Final de 3",
             "suggested_format": "triangular",
-            "explanation": "Hay 3 participantes vivos; una triangular final evita byes y resuelve el cierre.",
-        },
-        6: {
-            "recommended_type": "two_triangulars",
-            "title": "2 triangulares",
-            "suggested_format": "2 triangulares de 3",
-            "explanation": "Hay 6 participantes vivos; dos triangulares permiten clasificar sin byes.",
+            "explanation": "Hay 3 participantes vivos; una final triangular permite definir primero, segundo y tercero.",
         },
     }
     if active_count in exact_rules:
         return exact_rules[active_count]
-    if active_count % 2 == 1:
+    if active_count > 4:
+        group_count = balanced_group_count(active_count)
+        group_sizes = balanced_group_sizes_for_count(active_count, group_count)
+        qualifier_targets = qualifier_targets_for_group_sizes(active_count, group_sizes)
+        total_qualifiers = sum(qualifier_targets)
         return {
-            "recommended_type": "manual_review",
-            "title": "Revision manual",
-            "suggested_format": "triangular o ronda previa",
+            "recommended_type": "balanced_group_round",
+            "title": "Nueva ronda grupal",
+            "suggested_format": f"{group_count} grupo(s)/campal(es) balanceado(s)",
+            "group_count": group_count,
+            "group_sizes": group_sizes,
+            "qualifier_targets": qualifier_targets,
+            "total_qualifiers": total_qualifiers,
+            "can_create": True,
+            "creation_strategy": "balanced_group_round",
             "explanation": (
-                "La cantidad de participantes vivos es impar; conviene revisar si usar triangular, "
-                "ronda previa o ajuste manual."
-            ),
-        }
-    if active_count > 32:
-        return {
-            "recommended_type": "manual_review",
-            "title": "Revision manual",
-            "suggested_format": "grupos, ronda previa o repechaje",
-            "explanation": (
-                "Hay mas de 32 participantes vivos; el sistema recomienda revisar una fase previa "
-                "antes de entrar al cuadro principal."
+                "Despues de consolidar los participantes vivos, se generara una nueva fase grupal. "
+                f"Todos jugaran y clasificaran {total_qualifiers} participante(s). "
+                "El sistema no usara byes ni pases directos."
             ),
         }
     return {
@@ -363,23 +316,38 @@ def phase_plan_preview(recommendation):
     title = recommendation.get("title", "Revision manual")
     suggested_format = recommendation.get("suggested_format", "manual")
 
-    if recommended_type == "integration_preliminary":
-        duel_count = recommendation.get("participants_to_play_preliminary", 0) // 2
+    if recommended_type == "balanced_group_round":
+        group_count = recommendation.get("group_count") or balanced_group_count(participant_count)
+        qualifier_targets = recommendation.get("qualifier_targets") or []
+        total_qualifiers = recommendation.get("total_qualifiers") or sum(qualifier_targets)
         return {
             "name": title,
             "participant_count": recommendation.get("total_participants", participant_count),
             "format": suggested_format,
-            "unit_count": duel_count,
-            "unit_label": "duelos",
-            "structure_label": f"{duel_count} duelo(s) previos + {recommendation.get('participants_with_bye', 0)} bye(s)",
+            "unit_count": group_count,
+            "unit_label": "grupos",
+            "structure_label": f"{group_count} grupo(s)/campal(es), clasifican {total_qualifiers}",
             "explanation": recommendation.get("explanation", ""),
             "can_create": bool(recommendation.get("can_create")),
-            "integration_needed": True,
-            "target_bracket_size": recommendation.get("target_bracket_size", 0),
-            "participants_to_play_preliminary": recommendation.get("participants_to_play_preliminary", 0),
-            "participants_with_bye": recommendation.get("participants_with_bye", 0),
-            "winners_needed": recommendation.get("winners_needed", 0),
-            "creation_strategy": recommendation.get("creation_strategy", "manual_required"),
+            "group_round_needed": True,
+            "group_count": group_count,
+            "qualifier_targets": qualifier_targets,
+            "total_qualifiers": total_qualifiers,
+            "all_alive_play": True,
+            "creation_strategy": recommendation.get("creation_strategy", "balanced_group_round"),
+        }
+
+    if recommended_type == CompetitionStage.FINAL and participant_count == 3:
+        return {
+            "name": title,
+            "participant_count": participant_count,
+            "format": "triangular final",
+            "unit_count": 1,
+            "unit_label": "final",
+            "structure_label": "1 final triangular de 3 participante(s)",
+            "explanation": recommendation.get("explanation", ""),
+            "can_create": True,
+            "creation_strategy": recommendation.get("creation_strategy", "final_ranking"),
         }
 
     if recommended_type in {
@@ -400,36 +368,7 @@ def phase_plan_preview(recommendation):
             "structure_label": f"{duel_count} duelo(s)",
             "explanation": recommendation.get("explanation", ""),
             "can_create": can_create,
-            "integration_needed": bool(recommendation.get("integration_needed")),
-            "target_bracket_size": recommendation.get("target_bracket_size", participant_count),
-            "participants_to_play_preliminary": 0,
-            "participants_with_bye": 0,
-            "winners_needed": 0,
             "creation_strategy": recommendation.get("creation_strategy", "direct_bracket"),
-        }
-
-    if recommended_type == "two_triangulars":
-        return {
-            "name": title,
-            "participant_count": participant_count,
-            "format": suggested_format,
-            "unit_count": 2,
-            "unit_label": "triangulares",
-            "structure_label": "2 triangulares de 3 participantes",
-            "explanation": recommendation.get("explanation", ""),
-            "can_create": False,
-        }
-
-    if recommended_type == "triangular_final":
-        return {
-            "name": title,
-            "participant_count": participant_count,
-            "format": suggested_format,
-            "unit_count": 1,
-            "unit_label": "triangular",
-            "structure_label": "1 triangular final de 3 participantes",
-            "explanation": recommendation.get("explanation", ""),
-            "can_create": False,
         }
 
     return {
@@ -493,23 +432,18 @@ def next_phase_recommendation(competition):
     if repechage_option:
         alternatives.append(repechage_option)
 
-    integration_plan = recommend_integration_plan(competition, active)
-    if integration_plan:
-        recommendation = integration_plan
-        alternatives.extend(integration_plan.get("alternatives", []))
-
     if active_count == 0:
         warnings.append("No hay participantes activos detectados; revisa resultados o estados manuales.")
-    if len(stage_counts(active)) > 1 and not integration_plan:
+    if len(stage_counts(active)) > 1 and active_count <= 4:
         warnings.append("Los participantes vivos aparecen distribuidos en mas de una fase; revisa consistencia.")
-    if active_count % 2 == 1 and active_count not in {3}:
+    if active_count % 2 == 1 and active_count > 4:
         alternatives.append(
             {
-                "type": "manual_triangular",
-                "title": "Triangular o ronda previa",
+                "type": "manual_group_round",
+                "title": "Ajustar ronda grupal",
                 "suggested_format": "manual",
                 "participant_count": active_count,
-                "explanation": "La cantidad impar puede resolverse con triangulares, ronda previa o ajuste manual.",
+                "explanation": "La cantidad impar se puede organizar en grupos/campales balanceados sin dejar participantes descansando.",
             }
         )
 
@@ -520,7 +454,7 @@ def next_phase_recommendation(competition):
             "active_count": active_count,
         }
     )
-    if warnings and not preview.get("integration_needed"):
+    if warnings:
         preview["can_create"] = False
     result = {
         **recommendation,
@@ -536,6 +470,5 @@ def next_phase_recommendation(competition):
         "preview": preview,
         "repechage_preview": repechage,
         "third_place_preview": third_place_preview(competition, recommendation.get("recommended_type")),
-        "integration_plan": integration_plan or {},
     }
     return result

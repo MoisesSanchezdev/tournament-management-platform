@@ -1637,11 +1637,8 @@ html[data-theme="light"] .sponsor-details small {
     background: rgba(255, 207, 102, 0.08);
 }
 
-.phase-integration-preview {
-    border-radius: 16px;
-    border: 1px solid rgba(103, 236, 255, 0.24);
-    background: rgba(103, 236, 255, 0.08);
-    padding: 0.9rem;
+.final-podium-card {
+    margin-top: 1rem;
 }
 
 .phase-repechage-candidates {
