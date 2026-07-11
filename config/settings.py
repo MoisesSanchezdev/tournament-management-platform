@@ -144,7 +144,10 @@ LOGOUT_REDIRECT_URL = "/"
 
 EMAIL_BACKEND = os.getenv(
     "DJANGO_EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    os.getenv(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    ),
 )
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
@@ -154,6 +157,7 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
 EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", default=False)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@robotexplota.local")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+LIBREOFFICE_BINARY = os.getenv("LIBREOFFICE_BINARY", "")
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG

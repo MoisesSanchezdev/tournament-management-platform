@@ -1,5 +1,7 @@
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import unicodedata
 from dataclasses import dataclass
@@ -25,8 +27,17 @@ from .models import (
 
 MARKER_RE = re.compile(r"\{\{\s*[^{}]+\s*\}\}")
 SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-SMTP_BLOCKED_MESSAGE = "No hay configuracion SMTP completa. El envio real esta bloqueado por seguridad."
+SMTP_BLOCKED_MESSAGE = (
+    "No hay SMTP real configurado. Configura EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, "
+    "EMAIL_HOST_PASSWORD y DEFAULT_FROM_EMAIL en el archivo .env antes de enviar correos reales."
+)
 DEFAULT_EVENT_NAME = "Torneo Robot Explota Globos UTP"
+PDF_CONVERSION_ERROR_MESSAGE = "No fue posible generar el PDF. Instala LibreOffice o configura LIBREOFFICE_BINARY."
+DEFAULT_LIBREOFFICE_TIMEOUT = 60
+
+
+class PDFConversionError(Exception):
+    """Raised when a personalized DOCX cannot be converted to PDF."""
 
 
 @dataclass(frozen=True)
@@ -34,6 +45,25 @@ class EmailConfigurationStatus:
     can_send_real: bool
     backend: str
     message: str
+    from_email: str = ""
+
+
+def _looks_like_placeholder_secret(value):
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return True
+    placeholder_markers = (
+        "reemplazar",
+        "replace",
+        "app_password",
+        "clave_smtp",
+        "password_real",
+        "password-o",
+        "contrasena",
+        "contraseña",
+        "changeme",
+    )
+    return any(marker in normalized for marker in placeholder_markers)
 
 
 def marker_name(marker: str) -> str:
@@ -158,6 +188,75 @@ def render_docx_template(template_file, context, output_path=None):
     return output_path
 
 
+def sanitize_attachment_filename(value, suffix=".pdf"):
+    stem = sanitize_filename(value)
+    suffix = suffix if suffix.startswith(".") else f".{suffix}"
+    if stem.lower().endswith(suffix.lower()):
+        stem = stem[: -len(suffix)]
+    stem = stem.strip("._")[:90] or "Invitacion"
+    return f"{stem}{suffix}"
+
+
+def resolve_libreoffice_binary():
+    configured_binary = str(getattr(settings, "LIBREOFFICE_BINARY", "") or os.getenv("LIBREOFFICE_BINARY", "")).strip()
+    candidates = []
+    if configured_binary:
+        candidates.append(configured_binary)
+    candidates.extend(
+        [
+            "libreoffice",
+            "soffice",
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+        ]
+    )
+    for candidate in candidates:
+        candidate_path = Path(candidate)
+        if candidate_path.is_absolute() and candidate_path.exists():
+            return str(candidate_path)
+        discovered = shutil.which(candidate)
+        if discovered:
+            return discovered
+    raise PDFConversionError(PDF_CONVERSION_ERROR_MESSAGE)
+
+
+def convert_docx_to_pdf(docx_path, output_dir, timeout=DEFAULT_LIBREOFFICE_TIMEOUT):
+    docx_path = Path(docx_path).resolve()
+    output_dir = Path(output_dir).resolve()
+    if docx_path.suffix.lower() != ".docx" or not docx_path.exists():
+        raise PDFConversionError(PDF_CONVERSION_ERROR_MESSAGE)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    binary = resolve_libreoffice_binary()
+    command = [
+        binary,
+        "--headless",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        str(output_dir),
+        str(docx_path),
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise PDFConversionError(f"{PDF_CONVERSION_ERROR_MESSAGE} La conversion excedio el tiempo limite.") from error
+    except OSError as error:
+        raise PDFConversionError(PDF_CONVERSION_ERROR_MESSAGE) from error
+
+    if result.returncode != 0:
+        raise PDFConversionError(PDF_CONVERSION_ERROR_MESSAGE)
+
+    pdf_path = output_dir / f"{docx_path.stem}.pdf"
+    if not pdf_path.exists() or pdf_path.suffix.lower() != ".pdf":
+        raise PDFConversionError(f"{PDF_CONVERSION_ERROR_MESSAGE} LibreOffice no genero el archivo PDF esperado.")
+    return str(pdf_path)
+
+
 def build_invitation_context(recipient, extra_data=None):
     extra_data = extra_data or {}
     if isinstance(recipient, dict):
@@ -188,27 +287,31 @@ def is_real_email_configured():
         return EmailConfigurationStatus(
             can_send_real=False,
             backend=backend,
-            message="Backend de correo en modo consola/desarrollo. El envio real esta bloqueado.",
+            message=SMTP_BLOCKED_MESSAGE,
         )
 
     required_values = {
-        "EMAIL_HOST": getattr(settings, "EMAIL_HOST", ""),
-        "EMAIL_PORT": getattr(settings, "EMAIL_PORT", ""),
-        "EMAIL_HOST_USER": getattr(settings, "EMAIL_HOST_USER", ""),
-        "EMAIL_HOST_PASSWORD": getattr(settings, "EMAIL_HOST_PASSWORD", ""),
-        "DEFAULT_FROM_EMAIL": getattr(settings, "DEFAULT_FROM_EMAIL", ""),
+        "EMAIL_HOST": os.getenv("EMAIL_HOST", ""),
+        "EMAIL_PORT": os.getenv("EMAIL_PORT", ""),
+        "EMAIL_HOST_USER": os.getenv("EMAIL_HOST_USER", ""),
+        "EMAIL_HOST_PASSWORD": os.getenv("EMAIL_HOST_PASSWORD", ""),
+        "DEFAULT_FROM_EMAIL": os.getenv("DEFAULT_FROM_EMAIL", ""),
     }
     missing = [name for name, value in required_values.items() if not str(value or "").strip()]
+    if _looks_like_placeholder_secret(required_values["EMAIL_HOST_PASSWORD"]):
+        missing.append("EMAIL_HOST_PASSWORD")
     if missing:
         return EmailConfigurationStatus(
             can_send_real=False,
             backend=backend,
-            message=f"{SMTP_BLOCKED_MESSAGE} Faltan: {', '.join(missing)}.",
+            message=SMTP_BLOCKED_MESSAGE,
+            from_email=str(required_values["DEFAULT_FROM_EMAIL"] or "").strip(),
         )
     return EmailConfigurationStatus(
         can_send_real=True,
         backend=backend,
-        message="SMTP configurado. El envio real requiere confirmacion explicita.",
+        message="SMTP real configurado. El envio real y la prueba controlada requieren confirmacion explicita.",
+        from_email=str(required_values["DEFAULT_FROM_EMAIL"]).strip(),
     )
 
 
@@ -464,9 +567,11 @@ def load_recipients_from_xlsx(file_or_path):
     return recipients
 
 
-def read_attachment_bytes(path):
+def build_pdf_attachment(path, download_name):
     path = Path(path)
-    return (path.name, path.read_bytes(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    if path.suffix.lower() != ".pdf" or not path.exists():
+        raise PDFConversionError(PDF_CONVERSION_ERROR_MESSAGE)
+    return (sanitize_attachment_filename(download_name, ".pdf"), path.read_bytes(), "application/pdf")
 
 
 def invitation_subject(communication_type):
@@ -501,10 +606,11 @@ def send_rendered_invitation(
     attachments = []
     try:
         with tempfile.TemporaryDirectory(prefix="communication_invitation_") as tmpdir:
-            filename = f"Invitacion_{sanitize_filename(recipient_name)}.docx"
-            output_path = os.path.join(tmpdir, filename)
-            render_docx_template(template.file, context, output_path=output_path)
-            attachments.append(read_attachment_bytes(output_path))
+            base_name = f"Invitacion_Explota_Globos_{sanitize_filename(recipient_name)}"
+            docx_path = os.path.join(tmpdir, sanitize_attachment_filename(base_name, ".docx"))
+            render_docx_template(template.file, context, output_path=docx_path)
+            pdf_path = convert_docx_to_pdf(docx_path, tmpdir)
+            attachments.append(build_pdf_attachment(pdf_path, base_name))
             return send_communication_email(
                 batch=batch,
                 recipient_name=recipient_name,

@@ -11,6 +11,21 @@
 
 {% include "invitations/_nav.html" %}
 
+<section class="card">
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Remitente y modos</p>
+            <h2>Configuracion de envio</h2>
+        </div>
+    </div>
+    <p>El correo remitente se configura en el archivo .env con EMAIL_HOST_USER y DEFAULT_FROM_EMAIL. Este formulario no define el remitente.</p>
+    <p><strong>Remitente configurado:</strong> {{ email_status.from_email|default:"No configurado" }}</p>
+    <p class="muted-text">{{ email_status.message }}</p>
+    <p><strong>Simulacion segura:</strong> este modo no envia correos. Solo valida y registra una simulacion.</p>
+    <p><strong>Prueba controlada:</strong> envia correos reales, pero todos llegan al correo receptor de prueba controlada.</p>
+    <p><strong>Envio real:</strong> enviara correos reales a los destinatarios del Excel o registro manual. Usalo solo si la plantilla y la lista ya fueron revisadas.</p>
+</section>
+
 <section class="grid two">
     <article class="card">
         <div class="section-head">
@@ -19,7 +34,7 @@
                 <h2>Procesar invitaciones</h2>
             </div>
         </div>
-        <p class="muted-text">{{ email_status.message }}</p>
+        <p class="muted-text">El campo correo receptor de prueba controlada no es el remitente. En modo prueba controlada, todos los correos se enviaran a ese correo aunque el Excel tenga otros destinatarios.</p>
         <form method="post" enctype="multipart/form-data" class="form-grid">
             {% csrf_token %}
             {{ invitation_form.non_field_errors }}
@@ -28,6 +43,9 @@
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
                     {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                    {% if field.name == "template" %}
+                        <small class="error" data-template-empty-message hidden>No hay plantillas activas para este tipo de invitación. Crea o activa una plantilla primero.</small>
+                    {% endif %}
                     {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
                 </div>
             {% endfor %}
@@ -95,4 +113,42 @@
         </table>
     </div>
 </section>
+<script>
+    (() => {
+        const typeSelect = document.getElementById("id_communication_type");
+        const templateSelect = document.getElementById("id_template");
+        const emptyMessage = document.querySelector("[data-template-empty-message]");
+        if (!typeSelect || !templateSelect || !emptyMessage) {
+            return;
+        }
+
+        const options = Array.from(templateSelect.options).map((option) => option.cloneNode(true));
+
+        const syncTemplateOptions = () => {
+            const selectedType = typeSelect.value;
+            const currentValue = templateSelect.value;
+            let activeOptions = 0;
+            templateSelect.replaceChildren();
+
+            options.forEach((option) => {
+                const optionType = option.dataset.templateType;
+                if (!optionType || optionType === selectedType) {
+                    const clone = option.cloneNode(true);
+                    templateSelect.appendChild(clone);
+                    if (optionType) {
+                        activeOptions += 1;
+                    }
+                }
+            });
+
+            const selectedOption = Array.from(templateSelect.options).some((option) => option.value === currentValue);
+            templateSelect.value = selectedOption ? currentValue : "";
+            emptyMessage.hidden = activeOptions > 0;
+            templateSelect.disabled = activeOptions === 0;
+        };
+
+        typeSelect.addEventListener("change", syncTemplateOptions);
+        syncTemplateOptions();
+    })();
+</script>
 {% endblock %}

@@ -15,7 +15,6 @@ from .models import (
     CommunicationTemplate,
 )
 from .services import (
-    active_template_for,
     create_communication_batch,
     extract_docx_text_markers,
     is_real_email_configured,
@@ -120,12 +119,12 @@ def invitations(request):
         recipient_form = CommunicationRecipientForm()
         if invitation_form.is_valid():
             communication_type = invitation_form.cleaned_data["communication_type"]
-            template = invitation_form.cleaned_data.get("template") or active_template_for(communication_type)
+            template = invitation_form.cleaned_data["template"]
             send_mode = invitation_form.cleaned_data.get("send_mode")
             dry_run = send_mode == CommunicationSendMode.DRY_RUN
             test_recipient = invitation_form.cleaned_data.get("test_recipient", "").strip()
             if not template:
-                messages.error(request, "No hay plantilla activa o seleccionada para ese tipo.")
+                messages.error(request, "Debes seleccionar una plantilla activa para procesar invitaciones.")
             else:
                 recipients_file = invitation_form.cleaned_data.get("recipients_file")
                 try:
@@ -178,7 +177,7 @@ def invitations(request):
                     elif dry_run:
                         messages.success(request, "Lote procesado en simulacion segura.")
                     else:
-                        messages.success(request, "Lote procesado como envio real oficial.")
+                        messages.success(request, "Lote procesado como envio real.")
                     return redirect("invitations:history")
                 else:
                     messages.warning(request, "No hay destinatarios para procesar.")
@@ -219,13 +218,18 @@ def confirmations(request):
         dry_run = send_mode == CommunicationSendMode.DRY_RUN
         test_recipient = request.POST.get("test_recipient", "").strip()
         if send_mode == CommunicationSendMode.TEST and not test_recipient:
-            messages.error(request, "Debes indicar el correo de prueba.")
+            messages.error(request, "Debes indicar el correo receptor de prueba controlada.")
             return redirect("invitations:confirmations")
         if send_mode in {CommunicationSendMode.TEST, CommunicationSendMode.OFFICIAL} and request.POST.get(
             "confirm_real_send"
         ) != "yes":
             messages.error(request, "Debes confirmar explicitamente el envio real.")
             return redirect("invitations:confirmations")
+        if send_mode in {CommunicationSendMode.TEST, CommunicationSendMode.OFFICIAL}:
+            email_status = is_real_email_configured()
+            if not email_status.can_send_real:
+                messages.error(request, email_status.message)
+                return redirect("invitations:confirmations")
 
         Model = SchoolRegistration if model_name == "school" else UniversityRegistration
         registration_type = "colegio" if model_name == "school" else "universidad"
@@ -259,7 +263,7 @@ def confirmations(request):
         elif dry_run:
             messages.success(request, "Solicitud simulada.")
         else:
-            messages.success(request, "Solicitud enviada oficialmente.")
+            messages.success(request, "Solicitud enviada como envio real.")
         return redirect("invitations:confirmations")
 
     return render(

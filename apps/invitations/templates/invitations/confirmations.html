@@ -19,6 +19,11 @@
         </div>
     </div>
     <p>{{ email_status.message }}</p>
+    <p>El correo remitente se configura en el archivo .env con EMAIL_HOST_USER y DEFAULT_FROM_EMAIL. Este formulario no define el remitente.</p>
+    <p><strong>Remitente configurado:</strong> {{ email_status.from_email|default:"No configurado" }}</p>
+    <p><strong>Simulacion segura:</strong> no envia correos. Solo valida y registra una simulacion.</p>
+    <p><strong>Prueba controlada:</strong> envia la solicitud real al correo receptor de prueba controlada, no al responsable original.</p>
+    <p><strong>Envio real:</strong> enviara la solicitud al responsable real. Usalo solo si el registro ya fue revisado.</p>
 </section>
 
 <section class="card">
@@ -75,8 +80,8 @@
                                 {% if item.registration.attendance_request_sent_at %}
                                     <input type="hidden" name="resend" value="yes">
                                 {% endif %}
-                                <label class="mini-confirm" for="test_recipient_{{ item.model }}_{{ item.registration.id }}">Prueba</label>
-                                <input class="compact-input" id="test_recipient_{{ item.model }}_{{ item.registration.id }}" type="email" name="test_recipient" placeholder="correo@prueba.com" required>
+                                <label class="mini-confirm" for="test_recipient_{{ item.model }}_{{ item.registration.id }}">Correo receptor de prueba controlada</label>
+                                <input class="compact-input" id="test_recipient_{{ item.model }}_{{ item.registration.id }}" type="email" name="test_recipient" placeholder="correo@prueba.com" title="En modo prueba controlada, todos los correos se enviaran a este correo." required>
                                 <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo prueba</label>
                                 <button class="button secondary button-compact" type="submit">Enviar prueba</button>
                             </form>
@@ -86,7 +91,7 @@
                                     <input type="hidden" name="model" value="{{ item.model }}">
                                     <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
                                     <input type="hidden" name="send_mode" value="official">
-                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo envio real</label>
+                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo envio real a responsable</label>
                                     <button class="button primary button-compact" type="submit">Enviar</button>
                                 </form>
                             {% else %}
@@ -96,7 +101,7 @@
                                     <input type="hidden" name="registration_id" value="{{ item.registration.id }}">
                                     <input type="hidden" name="send_mode" value="official">
                                     <input type="hidden" name="resend" value="yes">
-                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo reenvio</label>
+                                    <label class="mini-confirm"><input type="checkbox" name="confirm_real_send" value="yes" required> Confirmo reenvio real a responsable</label>
                                     <button class="button secondary button-compact danger-outline" type="submit">Reenviar</button>
                                 </form>
                             {% endif %}

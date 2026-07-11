@@ -6,7 +6,7 @@
 <section class="page-header">
     <p class="eyebrow">Auditoria</p>
     <h1>Historial</h1>
-    <p class="lead">Registro de lotes, simulaciones, envios reales, omisiones y errores por destinatario.</p>
+    <p class="lead">Registro de lotes en simulacion segura, prueba controlada, envio real, omisiones y errores por destinatario.</p>
 </section>
 
 {% include "invitations/_nav.html" %}
@@ -26,7 +26,7 @@
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Modo</th>
-                    <th>Correo prueba</th>
+                    <th>Correo receptor de prueba</th>
                     <th>Logs</th>
                     <th>Fecha</th>
                 </tr>
@@ -37,7 +37,9 @@
                         <td>{{ batch.name }}</td>
                         <td>{{ batch.get_communication_type_display }}</td>
                         <td>{{ batch.get_status_display }}</td>
-                        <td>{{ batch.get_send_mode_display }}</td>
+                        <td>
+                            {% if batch.send_mode == "dry_run" %}Simulacion segura{% elif batch.send_mode == "test" %}Prueba controlada{% elif batch.send_mode == "official" %}Envio real{% else %}{{ batch.get_send_mode_display }}{% endif %}
+                        </td>
                         <td>{{ batch.test_recipient|default:"-" }}</td>
                         <td>{{ batch.logs.count }}</td>
                         <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>

@@ -16,6 +16,7 @@
         <p class="eyebrow">SMTP</p>
         <h2>{% if email_status.can_send_real %}Configurado{% else %}Bloqueado{% endif %}</h2>
         <p>{{ email_status.message }}</p>
+        <p>Remitente configurado: {{ email_status.from_email|default:"No configurado" }}</p>
     </article>
     <article class="card stat-card">
         <p class="eyebrow">Plantillas activas</p>
@@ -77,7 +78,9 @@
                         <td>{{ batch.name }}</td>
                         <td>{{ batch.get_communication_type_display }}</td>
                         <td>{{ batch.get_status_display }}</td>
-                        <td>{{ batch.get_send_mode_display }}</td>
+                        <td>
+                            {% if batch.send_mode == "dry_run" %}Simulacion segura{% elif batch.send_mode == "test" %}Prueba controlada{% elif batch.send_mode == "official" %}Envio real{% else %}{{ batch.get_send_mode_display }}{% endif %}
+                        </td>
                         <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
                     </tr>
                 {% empty %}

@@ -282,6 +282,18 @@ python manage.py send_attendance_requests --base-url https://dominio-oficial.com
 
 No subas listados reales de destinatarios. Usa `docs/correos/listado_invitaciones.example.xlsx` como formato seguro.
 
+Las plantillas de invitacion se cargan como DOCX para que el equipo pueda editarlas desde Word o LibreOffice. Al enviar,
+el sistema genera un DOCX temporal personalizado, lo convierte a PDF con LibreOffice en modo headless y adjunta solo el
+PDF al correo.
+
+Configura `LIBREOFFICE_BINARY` si el ejecutable no esta en el PATH:
+
+```env
+LIBREOFFICE_BINARY=C:\Program Files\LibreOffice\program\soffice.exe
+# o en Linux:
+# LIBREOFFICE_BINARY=/usr/bin/libreoffice
+```
+
 ## Seguridad y privacidad
 
 Este proyecto está preparado para mantener fuera del repositorio archivos sensibles o locales:
