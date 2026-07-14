@@ -51,6 +51,8 @@
     const controlMain = document.querySelector("[data-control-main]");
     const resultConfirmMessage =
         "¿Seguro que deseas guardar estas selecciones? Podrás editarlas después, pero verifica bien antes de continuar.";
+    let phaseDecisionLastTrigger = null;
+    let saveAllResultsInProgress = false;
 
     if (!modalShell || !modalContent || !controlMain) {
         return;
@@ -76,16 +78,20 @@
         document.body.classList.remove("modal-open");
     };
 
-    const openPhaseDecisionModal = (modal) => {
+    const openPhaseDecisionModal = (modal, trigger = null) => {
         if (!modal) {
             return;
         }
         console.debug("[phase-decision] opening", {
             path: window.location.pathname,
         });
+        phaseDecisionLastTrigger = trigger;
         modal.hidden = false;
         modal.classList.add("is-active");
         document.body.classList.add("modal-open");
+        requestAnimationFrame(() => {
+            modal.querySelector("button[data-phase-decision-close]")?.focus({ preventScroll: true });
+        });
     };
 
     const closePhaseDecisionModal = (modal) => {
@@ -98,6 +104,10 @@
         modal.hidden = true;
         modal.classList.remove("is-active");
         document.body.classList.remove("modal-open");
+        if (phaseDecisionLastTrigger && document.body.contains(phaseDecisionLastTrigger)) {
+            phaseDecisionLastTrigger.focus({ preventScroll: true });
+        }
+        phaseDecisionLastTrigger = null;
     };
 
     const resetPhaseDecisionModal = (modal) => {
@@ -326,6 +336,18 @@
         form.dataset.initialResultSignature = resultFormSignature(form);
         form.dataset.resultDirty = "false";
         return result;
+    };
+
+    const saveAllButtons = () => Array.from(document.querySelectorAll("[data-save-all-results]"));
+
+    const setSaveAllButtonsSaving = (isSaving) => {
+        saveAllButtons().forEach((saveButton) => {
+            if (!saveButton.dataset.saveAllOriginalText) {
+                saveButton.dataset.saveAllOriginalText = saveButton.textContent.trim();
+            }
+            saveButton.disabled = isSaving;
+            saveButton.textContent = isSaving ? "Guardando..." : saveButton.dataset.saveAllOriginalText;
+        });
     };
 
     const renderParticipantModal = (payload) => {
@@ -588,12 +610,15 @@
             });
         });
 
-        document.querySelectorAll("[data-save-all-results]").forEach((button) => {
+        saveAllButtons().forEach((button) => {
             if (button.dataset.saveAllBound === "true") {
                 return;
             }
             button.dataset.saveAllBound = "true";
             button.addEventListener("click", async () => {
+                if (saveAllResultsInProgress) {
+                    return;
+                }
                 const forms = visibleResultForms();
                 if (!forms.length) {
                     alert("No hay cambios nuevos para guardar.");
@@ -609,9 +634,8 @@
                     return;
                 }
 
-                const originalText = button.textContent;
-                button.disabled = true;
-                button.textContent = "Guardando...";
+                saveAllResultsInProgress = true;
+                setSaveAllButtonsSaving(true);
                 try {
                     const savedLabels = [];
                     for (const form of forms) {
@@ -629,12 +653,149 @@
                 } catch (error) {
                     alert(error.message || "No fue posible guardar todas las selecciones.");
                 } finally {
-                    if (document.body.contains(button)) {
-                        button.disabled = false;
-                        button.textContent = originalText;
-                    }
+                    saveAllResultsInProgress = false;
+                    setSaveAllButtonsSaving(false);
                 }
             });
+        });
+    };
+
+    const balancedSizes = (total, groupCount) => {
+        const base = Math.floor(total / groupCount);
+        const remainder = total % groupCount;
+        return Array.from({ length: groupCount }, (_item, index) => base + (index < remainder ? 1 : 0));
+    };
+
+    const manualPhaseName = (operation, groupSizes) => {
+        const firstSize = groupSizes[0] || 0;
+        if (operation === "repechage") {
+            if (firstSize === 2) {
+                return "Repechaje de duelos";
+            }
+            if (firstSize === 3) {
+                return "Repechaje de trios";
+            }
+            return "Repechaje grupal";
+        }
+        if (firstSize === 2) {
+            return "Ronda de duelos";
+        }
+        if (firstSize === 3) {
+            return "Fase de trios";
+        }
+        return firstSize ? `Ronda grupal de ${firstSize}` : "Ronda grupal manual";
+    };
+
+    const updateManualPhaseForm = (form) => {
+        const operation = form.querySelector("[data-manual-operation]:checked")?.value || "normal";
+        const total = Number(operation === "repechage" ? form.dataset.repechageCount : form.dataset.normalCount) || 0;
+        const distribution = form.querySelector("[data-manual-distribution]");
+        const customWrap = form.querySelector("[data-manual-custom-groups]");
+        const customInput = form.querySelector("[data-manual-custom-group-count]");
+        const qualifiersInput = form.querySelector("[data-manual-qualifiers]");
+        const nameInput = form.querySelector("[data-manual-phase-name]");
+        const warning = form.querySelector("[data-manual-balanced-warning]");
+        const submitButton = form.querySelector("button[type='submit']");
+
+        if (!distribution || !qualifiersInput) {
+            return;
+        }
+
+        const options = Array.from(distribution.options);
+        options.forEach((option) => {
+            const matches = option.dataset.operation === operation;
+            option.hidden = !matches;
+            option.disabled = !matches;
+        });
+        if (!distribution.selectedOptions.length || distribution.selectedOptions[0].disabled) {
+            const firstAvailable = options.find((option) => !option.disabled);
+            if (firstAvailable) {
+                distribution.value = firstAvailable.value;
+            }
+        }
+
+        const isCustom = distribution.value === "custom";
+        if (customWrap) {
+            customWrap.hidden = !isCustom;
+        }
+        if (customInput) {
+            customInput.max = String(Math.max(total, 1));
+            if (Number(customInput.value || "0") < 1) {
+                customInput.value = "1";
+            }
+            if (Number(customInput.value || "0") > total && total > 0) {
+                customInput.value = String(total);
+            }
+        }
+
+        let groupSizes = [];
+        if (isCustom) {
+            const groupCount = Math.max(1, Math.min(Number(customInput?.value || "1"), Math.max(total, 1)));
+            groupSizes = total ? balancedSizes(total, groupCount) : [];
+        } else {
+            const selected = distribution.selectedOptions[0];
+            const groupCount = Number(selected?.dataset.groupCount || "0");
+            const groupSize = Number(selected?.dataset.groupSize || "0");
+            groupSizes = groupCount && groupSize ? Array.from({ length: groupCount }, () => groupSize) : [];
+        }
+
+        const groupCount = groupSizes.length;
+        const minSize = groupSizes.length ? Math.min(...groupSizes) : 0;
+        const maxQualifiers = Math.max(minSize - 1, 0);
+        qualifiersInput.max = String(maxQualifiers || 1);
+        if (Number(qualifiersInput.value || "0") < 1) {
+            qualifiersInput.value = "1";
+        }
+        if (maxQualifiers && Number(qualifiersInput.value || "0") > maxQualifiers) {
+            qualifiersInput.value = String(maxQualifiers);
+        }
+        const qualifiersPerGroup = Number(qualifiersInput.value || "0");
+        const totalQualifiers = qualifiersPerGroup * groupCount;
+
+        const participantsNode = form.querySelector("[data-manual-summary-participants]");
+        const groupsNode = form.querySelector("[data-manual-summary-groups]");
+        const qualifiersNode = form.querySelector("[data-manual-summary-qualifiers]");
+        const eliminatedNode = form.querySelector("[data-manual-summary-eliminated]");
+        if (participantsNode) {
+            participantsNode.textContent = String(total);
+        }
+        if (groupsNode) {
+            groupsNode.textContent = groupSizes.length ? groupSizes.join(" / ") : "-";
+        }
+        if (qualifiersNode) {
+            qualifiersNode.textContent = groupSizes.length ? String(totalQualifiers) : "-";
+        }
+        if (eliminatedNode) {
+            eliminatedNode.textContent = groupSizes.length ? String(Math.max(total - totalQualifiers, 0)) : "-";
+        }
+        if (warning) {
+            warning.hidden = !isCustom || new Set(groupSizes).size <= 1;
+        }
+        if (nameInput && (!nameInput.dataset.touched || nameInput.value.trim() === "")) {
+            nameInput.value = manualPhaseName(operation, groupSizes);
+        }
+        if (submitButton) {
+            submitButton.disabled = total < 2 || !groupSizes.length || maxQualifiers < 1;
+        }
+    };
+
+    const bindManualPhaseAssistant = () => {
+        document.querySelectorAll("[data-manual-phase-form]").forEach((form) => {
+            updateManualPhaseForm(form);
+            if (form.dataset.manualPhaseBound === "true") {
+                return;
+            }
+            form.dataset.manualPhaseBound = "true";
+            form.querySelectorAll("[data-manual-operation], [data-manual-distribution], [data-manual-custom-group-count], [data-manual-qualifiers]").forEach((input) => {
+                input.addEventListener("change", () => updateManualPhaseForm(form));
+                input.addEventListener("input", () => updateManualPhaseForm(form));
+            });
+            const nameInput = form.querySelector("[data-manual-phase-name]");
+            if (nameInput) {
+                nameInput.addEventListener("input", () => {
+                    nameInput.dataset.touched = "true";
+                });
+            }
         });
     };
 
@@ -699,7 +860,7 @@
                     return;
                 }
                 resetPhaseDecisionModal(modal);
-                openPhaseDecisionModal(modal);
+                openPhaseDecisionModal(modal, button);
             });
         });
     };
@@ -707,6 +868,7 @@
     const bindDynamicControls = () => {
         bindTriggers();
         bindResultControls();
+        bindManualPhaseAssistant();
         bindPhaseDecisionModal();
     };
 

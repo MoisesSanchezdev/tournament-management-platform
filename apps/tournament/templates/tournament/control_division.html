@@ -315,38 +315,7 @@
                 </div>
             </section>
 
-            <section class="phase-decision-manual-panel" data-phase-decision-manual-panel hidden>
-                <div class="section-head compact-head">
-                    <div>
-                        <p class="eyebrow">Configuracion manual proximamente</p>
-                        <h3>Preparar fase personalizada</h3>
-                    </div>
-                </div>
-                <form
-                    method="post"
-                    action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
-                    class="config-form-grid"
-                    onsubmit="return confirm('Se crear&aacute; una fase manual por duelos con participantes activos seleccionados autom&aacute;ticamente. &iquest;Deseas continuar?');"
-                >
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="create_manual_duel_phase">
-                    <div class="field">
-                        <label for="manual_phase_name">Nombre de fase</label>
-                        <input id="manual_phase_name" name="manual_phase_name" type="text" maxlength="80" value="Fase manual">
-                    </div>
-                    <div class="field">
-                        <label for="manual_phase_type">Tipo de fase</label>
-                        <input id="manual_phase_type" type="text" value="Duelos" disabled>
-                    </div>
-                    <div class="field">
-                        <label for="manual_participant_count">Participantes</label>
-                        <input id="manual_participant_count" name="manual_participant_count" type="number" min="2" max="{{ system_recommendation.participant_count }}" step="2" value="{{ system_recommendation.participant_count }}">
-                    </div>
-                    <div class="form-actions">
-                        <button class="button primary" type="submit">Crear fase manual</button>
-                    </div>
-                </form>
-            </section>
+            {% include "tournament/_manual_phase_assistant.html" %}
         </div>
     </section>
 </div>

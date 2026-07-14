@@ -19,13 +19,17 @@ from .models import (
 )
 from .services import (
     build_stage_context,
+    cancel_manual_phase_proposal,
     competition_profile_from_instance,
     competition_stage_navigation,
+    confirm_manual_phase_proposal,
+    generate_manual_phase_proposal,
     initialize_competition,
     ManualCorrectionRequired,
     materialize_manual_duel_stage,
     materialize_recommended_duel_stage,
     materialize_repechage_stage,
+    manual_phase_context,
     participant_modal_payload,
     reset_competition_state,
     save_final_podium,
@@ -386,6 +390,7 @@ def control_division(request, competition_id):
             "system_recommendation": system_recommendation,
             "recommendation_ready": recommendation_ready,
             "recommendation_stage_key": current_stage_key,
+            "manual_phase": manual_phase_context(competition, current_stage_key),
             "auto_suggestion": auto_suggestion,
             "edition": competition.edition,
             "groups": groups,
@@ -412,7 +417,14 @@ def control_division_stage(request, competition_id, stage_key):
     if stage_key not in valid_stages:
         return redirect("tournament:control_division", competition_id=competition.id)
     post_action = request.POST.get("action") if request.method == "POST" else ""
-    if post_action not in {"create_recommended_phase", "create_repechage_phase", "create_manual_duel_phase"}:
+    if post_action not in {
+        "create_recommended_phase",
+        "create_repechage_phase",
+        "create_manual_duel_phase",
+        "generate_manual_phase_proposal",
+        "confirm_manual_phase_proposal",
+        "cancel_manual_phase_proposal",
+    }:
         sync_competition(competition)
 
     if request.method == "POST":
@@ -570,6 +582,38 @@ def control_division_stage(request, competition_id, stage_key):
                 stage_key=result["stage"],
             )
 
+        if action == "generate_manual_phase_proposal":
+            if not stage_is_closed(competition, stage_key):
+                messages.error(request, "Completa y guarda todos los resultados antes de preparar una fase manual.")
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            try:
+                result = generate_manual_phase_proposal(competition, stage_key, request.POST)
+                messages.success(request, result["message"])
+            except (TypeError, ValueError) as error:
+                messages.error(request, str(error))
+            return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+
+        if action == "cancel_manual_phase_proposal":
+            result = cancel_manual_phase_proposal(competition)
+            messages.info(request, result["message"])
+            return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+
+        if action == "confirm_manual_phase_proposal":
+            if not stage_is_closed(competition, stage_key):
+                messages.error(request, "Completa y guarda todos los resultados antes de confirmar una fase manual.")
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            try:
+                result = confirm_manual_phase_proposal(competition, stage_key, request.POST)
+            except (TypeError, ValueError) as error:
+                messages.error(request, str(error))
+                return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
+            messages.success(request, result["message"])
+            return redirect(
+                "tournament:control_division_stage",
+                competition_id=competition.id,
+                stage_key=result["stage"],
+            )
+
     context = build_stage_context(competition, stage_key)
     context["edition"] = competition.edition
     context["navigation"] = visible_stage_navigation(competition, current_stage=stage_key)
@@ -577,6 +621,7 @@ def control_division_stage(request, competition_id, stage_key):
     context["recommendation_ready"] = stage_is_closed(competition, stage_key)
     context["recommendation_wait_message"] = "Finaliza esta fase para calcular la recomendacion de avance."
     context["recommendation_stage_key"] = stage_key
+    context["manual_phase"] = manual_phase_context(competition, stage_key)
     return render(request, "tournament/control_stage.html", context)
 
 

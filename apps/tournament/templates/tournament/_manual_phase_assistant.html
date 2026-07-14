@@ -1,0 +1,212 @@
+<section class="phase-decision-manual-panel manual-phase-assistant" data-phase-decision-manual-panel data-manual-phase-assistant hidden>
+    <div class="section-head compact-head">
+        <div>
+            <p class="eyebrow">Configuracion manual de fase</p>
+            <h3>Preparar fase personalizada</h3>
+        </div>
+    </div>
+
+    <form
+        method="post"
+        class="manual-phase-form"
+        action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
+        data-manual-phase-form
+        data-normal-count="{{ manual_phase.normal_count }}"
+        data-repechage-count="{{ manual_phase.repechage_count }}"
+    >
+        {% csrf_token %}
+        <input type="hidden" name="action" value="generate_manual_phase_proposal">
+
+        <div class="manual-phase-steps">
+            <article class="manual-phase-step">
+                <p class="eyebrow">1. Tipo de operacion</p>
+                <div class="manual-option-grid">
+                    <label class="manual-option-card">
+                        <input type="radio" name="manual_operation" value="normal" checked data-manual-operation>
+                        <strong>Fase normal</strong>
+                        <span>Participantes vivos disponibles: {{ manual_phase.normal_count }}</span>
+                    </label>
+                    <label class="manual-option-card">
+                        <input type="radio" name="manual_operation" value="repechage" data-manual-operation>
+                        <strong>Repechaje</strong>
+                        <span>Eliminados disponibles para repechaje: {{ manual_phase.repechage_count }}</span>
+                    </label>
+                </div>
+            </article>
+
+            <article class="manual-phase-step">
+                <p class="eyebrow">2. Formato y distribucion</p>
+                <div class="config-form-grid">
+                    <div class="field">
+                        <label for="manual_distribution_{{ recommendation_stage_key }}">Selecciona una distribucion</label>
+                        <select id="manual_distribution_{{ recommendation_stage_key }}" name="manual_distribution" data-manual-distribution required>
+                            {% for option in manual_phase.normal_distributions %}
+                                <option
+                                    value="exact:{{ option.group_count }}:{{ option.group_size }}"
+                                    data-operation="normal"
+                                    data-group-count="{{ option.group_count }}"
+                                    data-group-size="{{ option.group_size }}"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            {% endfor %}
+                            <option value="custom" data-operation="normal">Grupos balanceados personalizados</option>
+                            {% for option in manual_phase.repechage_distributions %}
+                                <option
+                                    value="exact:{{ option.group_count }}:{{ option.group_size }}"
+                                    data-operation="repechage"
+                                    data-group-count="{{ option.group_count }}"
+                                    data-group-size="{{ option.group_size }}"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            {% endfor %}
+                            <option value="custom" data-operation="repechage">Grupos balanceados personalizados</option>
+                        </select>
+                    </div>
+                    <div class="field" data-manual-custom-groups hidden>
+                        <label for="manual_custom_group_count_{{ recommendation_stage_key }}">Cantidad de grupos</label>
+                        <input id="manual_custom_group_count_{{ recommendation_stage_key }}" name="manual_custom_group_count" type="number" min="1" step="1" value="2" data-manual-custom-group-count>
+                    </div>
+                    <div class="field">
+                        <label for="manual_qualifiers_per_group_{{ recommendation_stage_key }}">Clasificados por grupo</label>
+                        <input id="manual_qualifiers_per_group_{{ recommendation_stage_key }}" name="manual_qualifiers_per_group" type="number" min="1" step="1" value="1" data-manual-qualifiers required>
+                    </div>
+                    <div class="field">
+                        <label for="manual_phase_name_{{ recommendation_stage_key }}">Nombre de fase</label>
+                        <input id="manual_phase_name_{{ recommendation_stage_key }}" name="manual_phase_name" type="text" maxlength="80" value="Ronda grupal manual" data-manual-phase-name required>
+                    </div>
+                </div>
+                <p class="muted-text" data-manual-balanced-warning hidden>
+                    Los grupos no tendran exactamente el mismo tamano, pero todos los participantes jugaran y la diferencia sera de maximo uno.
+                </p>
+            </article>
+
+            <article class="manual-phase-step">
+                <p class="eyebrow">3. Resumen</p>
+                <div class="phase-decision-preview-grid manual-phase-summary">
+                    <article>
+                        <span>Participantes disponibles</span>
+                        <strong data-manual-summary-participants>{{ manual_phase.normal_count }}</strong>
+                    </article>
+                    <article>
+                        <span>Grupos</span>
+                        <strong data-manual-summary-groups>-</strong>
+                    </article>
+                    <article>
+                        <span>Clasifican</span>
+                        <strong data-manual-summary-qualifiers>-</strong>
+                    </article>
+                    <article>
+                        <span>Eliminados previstos</span>
+                        <strong data-manual-summary-eliminated>-</strong>
+                    </article>
+                </div>
+                <p class="muted-text">Todos los participantes jugaran. Sin byes ni pases directos.</p>
+                {% if manual_phase.final_warning %}
+                    <label class="manual-confirm-line">
+                        <input type="checkbox" name="manual_final_override" value="yes">
+                        Confirmo que quiero configurar manualmente aunque la recomendacion oficial ya cubre esta cantidad final.
+                    </label>
+                {% endif %}
+            </article>
+        </div>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">Generar propuesta</button>
+            {% if manual_phase.proposal %}
+                <button class="button secondary" type="submit" name="action" value="cancel_manual_phase_proposal">Cancelar propuesta</button>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if manual_phase.proposal %}
+        <section class="manual-phase-preview" data-manual-phase-preview>
+            <div class="section-head compact-head">
+                <div>
+                    <p class="eyebrow">Vista previa</p>
+                    <h3>{{ manual_phase.proposal.name }}</h3>
+                    <p class="muted-text">{{ manual_phase.proposal.operation_label }} · {{ manual_phase.proposal.distribution_label }}</p>
+                </div>
+            </div>
+            <div class="phase-decision-preview-grid">
+                <article>
+                    <span>Participantes disponibles</span>
+                    <strong>{{ manual_phase.proposal.participant_ids|length }}</strong>
+                </article>
+                <article>
+                    <span>Participantes asignados</span>
+                    <strong>{{ manual_phase.proposal.assigned_count }}</strong>
+                </article>
+                <article>
+                    <span>Clasificados previstos</span>
+                    <strong>{{ manual_phase.proposal.total_qualifiers }}</strong>
+                </article>
+                <article>
+                    <span>Eliminados previstos</span>
+                    <strong>{{ manual_phase.proposal.eliminated_estimate }}</strong>
+                </article>
+            </div>
+            {% if not manual_phase.proposal.all_groups_equal %}
+                <p class="muted-text">Los grupos no tendran exactamente el mismo tamano, pero todos participan y no hay byes.</p>
+            {% endif %}
+
+            <form
+                method="post"
+                action="{% url 'tournament:control_division_stage' competition.id recommendation_stage_key %}"
+                data-manual-confirm-form
+                onsubmit="return confirm('Se creara una fase real con esta propuesta. No se borraran fases anteriores. ¿Deseas continuar?');"
+            >
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_manual_phase_proposal">
+                <input type="hidden" name="manual_proposal_signature" value="{{ manual_phase.proposal.proposal_signature }}">
+                <input type="hidden" name="manual_operation" value="{{ manual_phase.proposal.operation }}">
+                <input type="hidden" name="manual_distribution" value="{{ manual_phase.proposal.distribution }}">
+                <input type="hidden" name="manual_custom_group_count" value="{{ manual_phase.proposal.group_count }}">
+                <input type="hidden" name="manual_qualifiers_per_group" value="{{ manual_phase.proposal.qualifiers_per_group }}">
+                <input type="hidden" name="manual_phase_name" value="{{ manual_phase.proposal.name }}">
+                {% if manual_phase.final_warning %}
+                    <input type="hidden" name="manual_final_override" value="yes">
+                {% endif %}
+                <div class="manual-preview-grid">
+                    {% for group in manual_phase.proposal.groups_payload %}
+                        <article class="manual-preview-group">
+                            <header>
+                                <div>
+                                    <p class="eyebrow">Grupo {{ group.label }}</p>
+                                    <h4>{{ group.size }} participante(s)</h4>
+                                </div>
+                                <span>Clasifican {{ group.qualifier_target }}</span>
+                            </header>
+                            <div class="manual-preview-list">
+                                {% for participant in group.participants %}
+                                    <div class="manual-preview-row" data-manual-preview-row>
+                                        <div>
+                                            <strong>{{ participant.robot_name }}</strong>
+                                            <span>{{ participant.institution_name }} · {{ participant.source_label }}</span>
+                                        </div>
+                                        <label>
+                                            Mover a
+                                            <select name="manual_assignment_{{ participant.team_id }}" data-manual-assignment>
+                                                {% for target_group in manual_phase.proposal.groups_payload %}
+                                                    <option value="{{ target_group.index }}" {% if target_group.index == group.index %}selected{% endif %}>
+                                                        Grupo {{ target_group.label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+                <div class="form-actions">
+                    <button class="button secondary" type="submit" name="action" value="generate_manual_phase_proposal">Regenerar grupos</button>
+                    <button class="button primary" type="submit">Confirmar y crear fase</button>
+                    <button class="button secondary" type="submit" name="action" value="cancel_manual_phase_proposal">Cancelar</button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+</section>

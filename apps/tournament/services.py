@@ -1,3 +1,4 @@
+import hashlib
 import random
 from collections import defaultdict
 
@@ -101,6 +102,7 @@ MANUAL_STAGE_POOL = [
     CompetitionStage.PURGATORY_1,
     CompetitionStage.PURGATORY_2,
 ]
+MANUAL_PHASE_OPERATIONS = {"normal", "repechage"}
 
 
 class ManualCorrectionRequired(ValueError):
@@ -1008,6 +1010,427 @@ def _ensure_progressive_duel_battles(competition, stage, battle_count):
 
 def _stage_has_entries(competition, stage):
     return CompetitionBattleEntry.objects.filter(battle__competition=competition, battle__stage=stage).exists()
+
+
+def manual_phase_exact_distributions(total):
+    if total < 2:
+        return []
+    options = []
+    for group_size in range(2, total + 1):
+        if total % group_size != 0:
+            continue
+        group_count = total // group_size
+        if group_size == 2:
+            label = f"{group_count} duelos de 2"
+        elif group_size == 3:
+            label = f"{group_count} trio(s) de 3"
+        elif group_count == 1:
+            label = f"1 campal de {total}"
+        else:
+            label = f"{group_count} grupos de {group_size}"
+        options.append(
+            {
+                "group_count": group_count,
+                "group_size": group_size,
+                "group_sizes": [group_size] * group_count,
+                "label": label,
+                "covers_all": True,
+                "participant_count": total,
+            }
+        )
+    return options
+
+
+def manual_phase_balanced_group_sizes(total, group_count):
+    if total < 1:
+        raise ValueError("No hay participantes disponibles para configurar.")
+    if group_count < 1:
+        raise ValueError("Debes crear al menos un grupo.")
+    if group_count > total:
+        raise ValueError("No puedes crear mas grupos que participantes.")
+    return balanced_group_sizes(total, group_count)
+
+
+def _manual_phase_eligible_states(competition, operation):
+    sync_team_states(competition)
+    if operation == "normal":
+        return _progressive_active_states(competition)
+    if operation == "repechage":
+        active_ids = set(
+            TeamCompetitionState.objects.filter(
+                competition=competition,
+                current_status__in=[ParticipantStatus.ACTIVE, ParticipantStatus.QUALIFIED],
+            ).values_list("team_id", flat=True)
+        )
+        return [state for state in _repechage_candidate_states(competition) if state.team_id not in active_ids]
+    raise ValueError("Operacion manual no permitida.")
+
+
+def _manual_participant_signature(operation, source_stage, participant_ids):
+    raw = ":".join([operation, source_stage or "", *[str(team_id) for team_id in sorted(participant_ids)]])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _manual_proposal_signature(proposal):
+    team_ids = [team_id for group in proposal.get("groups", []) for team_id in group]
+    raw = "|".join(
+        [
+            proposal.get("operation", ""),
+            proposal.get("source_stage", ""),
+            proposal.get("name", ""),
+            ",".join(str(size) for size in proposal.get("group_sizes", [])),
+            ",".join(str(target) for target in proposal.get("qualifier_targets", [])),
+            ",".join(str(team_id) for team_id in sorted(team_ids)),
+            str(proposal.get("seed", "")),
+        ]
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _manual_phase_stage_pool(operation):
+    if operation == "repechage":
+        return REPECHAGE_STAGES
+    return MANUAL_STAGE_POOL
+
+
+def _manual_battle_format_for_size(group_size):
+    if group_size == 2:
+        return BattleFormat.DUEL
+    if group_size == 3:
+        return BattleFormat.TRIANGULAR
+    return BattleFormat.BATTLE_ROYALE
+
+
+def _manual_default_name(operation, group_sizes):
+    first_size = group_sizes[0] if group_sizes else 0
+    if operation == "repechage":
+        if first_size == 2:
+            return "Repechaje de duelos"
+        if first_size == 3:
+            return "Repechaje de trios"
+        return "Repechaje grupal"
+    if first_size == 2:
+        return "Ronda de duelos"
+    if first_size == 3:
+        return "Fase de trios"
+    if first_size:
+        return f"Ronda grupal de {first_size}"
+    return "Ronda grupal manual"
+
+
+def _open_progressive_stage(competition, *, exclude_stage=None):
+    created_stages = (competition.configuration or {}).get("progressive_created_stages", [])
+    for stage in created_stages:
+        if stage == exclude_stage:
+            continue
+        has_open_entries = CompetitionBattleEntry.objects.filter(
+            battle__competition=competition,
+            battle__stage=stage,
+        ).exclude(battle__status=MatchStatus.FINISHED).exists()
+        if has_open_entries:
+            return stage
+    return None
+
+
+def manual_phase_context(competition, source_stage=None):
+    normal_states = _manual_phase_eligible_states(competition, "normal")
+    repechage_states = _manual_phase_eligible_states(competition, "repechage")
+    proposal = (competition.configuration or {}).get("manual_phase_proposal") or {}
+    return {
+        "normal_count": len(normal_states),
+        "repechage_count": len(repechage_states),
+        "normal_distributions": manual_phase_exact_distributions(len(normal_states)),
+        "repechage_distributions": manual_phase_exact_distributions(len(repechage_states)),
+        "source_stage": source_stage or "",
+        "final_warning": len(normal_states) in {2, 3, 4},
+        "proposal": manual_phase_proposal_payload(competition, proposal) if proposal else None,
+    }
+
+
+def _parse_manual_phase_request(post_data, eligible_count):
+    operation = (post_data.get("manual_operation") or "normal").strip()
+    if operation not in MANUAL_PHASE_OPERATIONS:
+        raise ValueError("Selecciona una operacion manual valida.")
+    distribution = (post_data.get("manual_distribution") or "").strip()
+    if distribution == "custom":
+        group_count = int(post_data.get("manual_custom_group_count") or 0)
+        group_sizes = manual_phase_balanced_group_sizes(eligible_count, group_count)
+        distribution_label = f"{group_count} grupos balanceados"
+    else:
+        parts = distribution.split(":")
+        if len(parts) != 3 or parts[0] != "exact":
+            raise ValueError("Selecciona una distribucion valida.")
+        group_count = int(parts[1])
+        group_size = int(parts[2])
+        if group_count < 1 or group_size < 2 or group_count * group_size != eligible_count:
+            raise ValueError("La distribucion elegida no cubre todos los participantes.")
+        group_sizes = [group_size] * group_count
+        distribution_label = next(
+            (
+                item["label"]
+                for item in manual_phase_exact_distributions(eligible_count)
+                if item["group_count"] == group_count and item["group_size"] == group_size
+            ),
+            f"{group_count} grupos de {group_size}",
+        )
+
+    qualifiers_per_group = int(post_data.get("manual_qualifiers_per_group") or 0)
+    min_size = min(group_sizes) if group_sizes else 0
+    if qualifiers_per_group < 1:
+        raise ValueError("Debes definir al menos un clasificado por grupo.")
+    if qualifiers_per_group >= min_size:
+        raise ValueError("No pueden clasificar todos los participantes de un grupo.")
+    qualifier_targets = [qualifiers_per_group for _size in group_sizes]
+    return {
+        "operation": operation,
+        "group_count": len(group_sizes),
+        "group_sizes": group_sizes,
+        "qualifier_targets": qualifier_targets,
+        "qualifiers_per_group": qualifiers_per_group,
+        "distribution": distribution,
+        "distribution_label": distribution_label,
+    }
+
+
+@transaction.atomic
+def generate_manual_phase_proposal(competition, source_stage, post_data):
+    operation = (post_data.get("manual_operation") or "normal").strip()
+    eligible_states = _manual_phase_eligible_states(competition, operation)
+    eligible_count = len(eligible_states)
+    if eligible_count < 2:
+        raise ValueError("No hay suficientes participantes elegibles para crear esta fase.")
+    request_data = _parse_manual_phase_request(post_data, eligible_count)
+    if request_data["operation"] == "normal" and eligible_count in {2, 3, 4} and post_data.get("manual_final_override") != "yes":
+        raise ValueError("La recomendacion oficial ya cubre esta cantidad final. Confirma que deseas configurar manualmente.")
+
+    open_stage = _open_progressive_stage(competition, exclude_stage=source_stage)
+    if open_stage:
+        raise ValueError(f"Ya existe una fase abierta: {STAGE_TITLES.get(open_stage, open_stage)}.")
+
+    seed = random.randint(1000, 999999)
+    rng = random.Random(f"{competition.shuffle_seed}:manual-proposal:{seed}")
+    grouped_teams = balanced_group_assignments(
+        [state.team for state in eligible_states],
+        request_data["group_sizes"],
+        rng,
+    )
+    groups = [[team.id for team in group] for group in grouped_teams]
+    _validate_manual_groups(groups, [state.team_id for state in eligible_states], request_data["qualifier_targets"])
+
+    name = (post_data.get("manual_phase_name") or "").strip()[:80] or _manual_default_name(operation, request_data["group_sizes"])
+    proposal = {
+        "operation": request_data["operation"],
+        "name": name,
+        "source_stage": source_stage or "",
+        "participant_ids": sorted(state.team_id for state in eligible_states),
+        "participant_signature": _manual_participant_signature(
+            request_data["operation"],
+            source_stage,
+            [state.team_id for state in eligible_states],
+        ),
+        "group_count": request_data["group_count"],
+        "group_sizes": request_data["group_sizes"],
+        "groups": groups,
+        "distribution": request_data["distribution"],
+        "qualifier_targets": request_data["qualifier_targets"],
+        "qualifiers_per_group": request_data["qualifiers_per_group"],
+        "total_qualifiers": sum(request_data["qualifier_targets"]),
+        "distribution_label": request_data["distribution_label"],
+        "seed": seed,
+    }
+    proposal["proposal_signature"] = _manual_proposal_signature(proposal)
+    configuration = {**(competition.configuration or {})}
+    configuration["manual_phase_proposal"] = proposal
+    competition.configuration = configuration
+    competition.save(update_fields=["configuration", "updated_at"])
+    return {"message": "Propuesta manual generada. Revisa la distribucion antes de confirmar."}
+
+
+def _validate_manual_groups(groups, eligible_team_ids, qualifier_targets):
+    if not groups:
+        raise ValueError("La propuesta debe tener al menos un grupo.")
+    flat_ids = [int(team_id) for group in groups for team_id in group]
+    eligible_set = set(int(team_id) for team_id in eligible_team_ids)
+    if len(flat_ids) != len(eligible_set):
+        raise ValueError("La propuesta no incluye exactamente todos los participantes elegibles.")
+    if set(flat_ids) != eligible_set:
+        raise ValueError("La propuesta contiene participantes invalidos o faltantes.")
+    if len(flat_ids) != len(set(flat_ids)):
+        raise ValueError("La propuesta contiene participantes duplicados.")
+    if any(not group for group in groups):
+        raise ValueError("La propuesta contiene grupos vacios.")
+    if len(qualifier_targets) != len(groups):
+        raise ValueError("Los cupos de clasificacion no coinciden con los grupos.")
+    for group, target in zip(groups, qualifier_targets):
+        target = int(target)
+        if target < 1:
+            raise ValueError("Cada grupo debe tener al menos un clasificado.")
+        if target >= len(group):
+            raise ValueError("No pueden clasificar todos los participantes de un grupo.")
+
+
+def _groups_from_confirmation(post_data, proposal):
+    assignment = {}
+    prefix = "manual_assignment_"
+    for key, value in post_data.items():
+        if not key.startswith(prefix):
+            continue
+        team_id = int(key.removeprefix(prefix))
+        group_index = int(value)
+        assignment[team_id] = group_index
+    if not assignment:
+        return [[int(team_id) for team_id in group] for group in proposal.get("groups", [])]
+    group_count = int(proposal.get("group_count") or 0)
+    groups = [[] for _index in range(group_count)]
+    for team_id in proposal.get("participant_ids", []):
+        if int(team_id) not in assignment:
+            raise ValueError("Falta asignacion de un participante.")
+        group_index = assignment[int(team_id)]
+        if group_index < 0 or group_index >= group_count:
+            raise ValueError("Un participante fue asignado a un grupo invalido.")
+        groups[group_index].append(int(team_id))
+    return groups
+
+
+def manual_phase_proposal_payload(competition, proposal):
+    if not proposal:
+        return None
+    team_ids = [team_id for group in proposal.get("groups", []) for team_id in group]
+    states = {
+        state.team_id: state
+        for state in TeamCompetitionState.objects.filter(competition=competition, team_id__in=team_ids)
+        .select_related("team__institution", "current_group", "current_battle")
+    }
+    groups = []
+    for index, group in enumerate(proposal.get("groups", [])):
+        participants = []
+        for team_id in group:
+            state = states.get(int(team_id))
+            if not state:
+                continue
+            row = participant_row_payload(state)
+            row["source_label"] = "Repechaje" if proposal.get("operation") == "repechage" else "Vivo"
+            participants.append(row)
+        groups.append(
+            {
+                "index": index,
+                "label": GROUP_LABELS[index] if index < len(GROUP_LABELS) else str(index + 1),
+                "size": len(group),
+                "qualifier_target": proposal.get("qualifier_targets", [])[index],
+                "participants": participants,
+            }
+        )
+    return {
+        **proposal,
+        "operation_label": "Repechaje" if proposal.get("operation") == "repechage" else "Fase normal",
+        "groups_payload": groups,
+        "assigned_count": sum(len(group.get("participants", [])) for group in groups),
+        "eliminated_estimate": len(team_ids) - int(proposal.get("total_qualifiers") or 0),
+        "all_groups_equal": len(set(proposal.get("group_sizes", []))) <= 1,
+    }
+
+
+@transaction.atomic
+def confirm_manual_phase_proposal(competition, source_stage, post_data):
+    sync_team_states(competition)
+    proposal = (competition.configuration or {}).get("manual_phase_proposal") or {}
+    if not proposal:
+        raise ValueError("No hay una propuesta manual vigente. Genera una nueva propuesta.")
+    submitted_signature = (post_data.get("manual_proposal_signature") or "").strip()
+    if not submitted_signature or submitted_signature != proposal.get("proposal_signature"):
+        raise ValueError("La firma de la propuesta no coincide. Regenera la propuesta.")
+    if proposal.get("source_stage") != (source_stage or ""):
+        raise ValueError("La propuesta corresponde a otra fase. Regenerala antes de confirmar.")
+
+    operation = proposal.get("operation")
+    eligible_states = _manual_phase_eligible_states(competition, operation)
+    eligible_ids = [state.team_id for state in eligible_states]
+    if _manual_participant_signature(operation, source_stage, eligible_ids) != proposal.get("participant_signature"):
+        raise ValueError("Los participantes elegibles cambiaron. Regenera la propuesta.")
+
+    groups = _groups_from_confirmation(post_data, proposal)
+    qualifier_targets = [int(target) for target in proposal.get("qualifier_targets", [])]
+    _validate_manual_groups(groups, eligible_ids, qualifier_targets)
+    open_stage = _open_progressive_stage(competition, exclude_stage=source_stage)
+    if open_stage:
+        raise ValueError(f"Ya existe una fase abierta: {STAGE_TITLES.get(open_stage, open_stage)}.")
+
+    stage = _next_available_stage(competition, _manual_phase_stage_pool(operation))
+    if stage is None:
+        raise ValueError("No hay una etapa tecnica disponible para crear la fase manual sin migracion.")
+
+    name = (proposal.get("name") or _manual_default_name(operation, proposal.get("group_sizes", []))).strip()[:80]
+    kind = "manual_repechage" if operation == "repechage" else "manual"
+    _ensure_stage_in_configuration(
+        competition,
+        stage,
+        len(groups),
+        title=name,
+        kind=kind,
+        source_stage=source_stage or "",
+        group_sizes=[len(group) for group in groups],
+        qualifier_targets=qualifier_targets,
+        qualifiers_per_battle=qualifier_targets[0] if len(set(qualifier_targets)) == 1 else None,
+        total_qualifiers=sum(qualifier_targets),
+        multi_qualifier_enabled=True,
+        manual_phase_mode=operation,
+    )
+    battles = _ensure_progressive_battles(
+        competition,
+        stage,
+        len(groups),
+        format_type=BattleFormat.BATTLE_ROYALE,
+        name_prefix=name,
+    )
+    if any(battle_is_locked(battle) or battle.entries.exists() for battle in battles):
+        raise ValueError("La fase manual ya tiene progreso o entradas. Abre la fase existente para revisarla.")
+
+    states_by_team_id = {state.team_id: state for state in eligible_states}
+    teams_by_id = {state.team_id: state.team for state in eligible_states}
+    for index, (battle, group_ids) in enumerate(zip(battles, groups)):
+        group_size = len(group_ids)
+        battle_format = _manual_battle_format_for_size(group_size)
+        if battle.format_type != battle_format:
+            battle.format_type = battle_format
+            battle.save(update_fields=["format_type", "updated_at"])
+        set_battle_entries(
+            battle,
+            [(teams_by_id[int(team_id)], f"Grupo {GROUP_LABELS[index] if index < len(GROUP_LABELS) else index + 1}") for team_id in group_ids],
+        )
+        for team_id in group_ids:
+            state = states_by_team_id[int(team_id)]
+            _record_phase_assignment(
+                competition=competition,
+                state=state,
+                stage=stage,
+                status=ParticipantStatus.REPECHAGE if operation == "repechage" else ParticipantStatus.ACTIVE,
+                battle=battle,
+                title=f"Asignado a {name}",
+                metadata={"manual_phase_creation": True, "operation": operation, "source_stage": source_stage or ""},
+            )
+
+    configuration = {**(competition.configuration or {})}
+    configuration.pop("manual_phase_proposal", None)
+    competition.configuration = configuration
+    competition.status = CompetitionStatus.IN_PROGRESS
+    competition.save(update_fields=["configuration", "status", "updated_at"])
+    sync_team_states(competition)
+    return {
+        "created": True,
+        "stage": stage,
+        "message": f"Se creo {name} con {len(groups)} grupo(s). Todos los participantes elegibles fueron asignados.",
+    }
+
+
+@transaction.atomic
+def cancel_manual_phase_proposal(competition):
+    configuration = {**(competition.configuration or {})}
+    if "manual_phase_proposal" not in configuration:
+        return {"message": "No habia propuesta manual pendiente."}
+    configuration.pop("manual_phase_proposal", None)
+    competition.configuration = configuration
+    competition.save(update_fields=["configuration", "updated_at"])
+    return {"message": "Propuesta manual cancelada."}
 
 
 def _battle_qualifier_target(battle):

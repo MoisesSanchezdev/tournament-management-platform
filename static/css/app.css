@@ -1485,10 +1485,10 @@ html[data-theme="light"] .sponsor-details small {
     inset: 0;
     z-index: 130;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: 104px 1rem 1.5rem;
-    overflow: hidden;
+    padding: clamp(88px, 8vh, 112px) clamp(0.75rem, 3vw, 2rem) 1.75rem;
+    overflow: auto;
 }
 
 .phase-decision-modal-shell[hidden] {
@@ -1504,24 +1504,31 @@ html[data-theme="light"] .sponsor-details small {
 
 .phase-decision-modal {
     position: relative;
-    width: min(980px, 100%);
-    max-height: calc(100vh - 128px);
+    width: min(94vw, 1500px);
+    max-height: min(92vh, calc(100vh - 120px));
     margin: 0 auto;
-    border-radius: 28px;
+    border-radius: 24px;
     border: 1px solid rgba(103, 236, 255, 0.2);
     background: var(--modal-bg);
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
     overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 .phase-decision-content {
     display: grid;
-    gap: 1rem;
-    padding: 1.5rem;
+    gap: clamp(1rem, 2vw, 1.6rem);
+    padding: clamp(1.25rem, 2.5vw, 2.4rem);
+    overflow-wrap: anywhere;
+}
+
+.phase-decision-modal * {
+    min-width: 0;
 }
 
 .phase-decision-header {
     padding-right: 3rem;
+    max-width: 980px;
 }
 
 .phase-decision-header p:last-child {
@@ -1532,12 +1539,16 @@ html[data-theme="light"] .sponsor-details small {
 .phase-decision-summary,
 .phase-decision-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.85rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(0.85rem, 1.5vw, 1.15rem);
 }
 
 .phase-decision-summary-wide {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.phase-decision-summary-wide article:first-child {
+    grid-column: span 2;
 }
 
 .phase-decision-grid {
@@ -1549,10 +1560,12 @@ html[data-theme="light"] .sponsor-details small {
 .phase-decision-list > div,
 .phase-decision-preview,
 .phase-decision-manual-panel {
-    border-radius: 18px;
+    min-width: 0;
+    border-radius: 16px;
     border: 1px solid rgba(103, 236, 255, 0.16);
     background: var(--row-bg);
-    padding: 0.95rem;
+    padding: clamp(1rem, 1.6vw, 1.35rem);
+    overflow-wrap: anywhere;
 }
 
 .phase-decision-summary span,
@@ -1566,7 +1579,8 @@ html[data-theme="light"] .sponsor-details small {
     margin-top: 0.25rem;
     color: var(--heading);
     font-family: var(--title-font);
-    font-size: 1.18rem;
+    font-size: clamp(1.08rem, 1.2vw, 1.35rem);
+    line-height: 1.18;
 }
 
 .phase-decision-list {
@@ -1585,14 +1599,22 @@ html[data-theme="light"] .sponsor-details small {
 
 .phase-decision-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 0.9rem;
+    align-items: stretch;
+    padding: 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(103, 236, 255, 0.14);
+    background: var(--surface-soft);
 }
 
 .phase-decision-actions .button {
     flex-direction: column;
-    min-height: 62px;
+    min-height: 64px;
+    padding: 0.9rem 1rem;
     gap: 0.2rem;
+    white-space: normal;
+    text-align: center;
 }
 
 .phase-decision-actions .button span {
@@ -1613,7 +1635,8 @@ html[data-theme="light"] .sponsor-details small {
     border-radius: 16px;
     border: 1px solid rgba(103, 236, 255, 0.16);
     background: var(--surface-soft);
-    padding: 0.9rem;
+    padding: clamp(1rem, 1.6vw, 1.3rem);
+    overflow-wrap: anywhere;
 }
 
 .phase-repechage-choice h4 {
@@ -1623,8 +1646,14 @@ html[data-theme="light"] .sponsor-details small {
 
 .phase-repechage-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
     gap: 0.75rem;
+}
+
+.phase-repechage-actions .button,
+.phase-decision-preview form .button,
+[data-phase-create-action] .button {
+    white-space: normal;
 }
 
 .phase-repechage-actions .button.is-selected {
@@ -1667,12 +1696,101 @@ html[data-theme="light"] .sponsor-details small {
 .phase-decision-preview,
 .phase-decision-manual-panel {
     display: grid;
-    gap: 0.85rem;
+    gap: clamp(0.9rem, 1.5vw, 1.25rem);
 }
 
 .phase-decision-preview[hidden],
 .phase-decision-manual-panel[hidden] {
     display: none !important;
+}
+
+.manual-phase-steps,
+.manual-phase-form,
+.manual-phase-preview {
+    display: grid;
+    gap: 1rem;
+}
+
+.manual-phase-step,
+.manual-preview-group {
+    border: 1px solid rgba(103, 236, 255, 0.16);
+    border-radius: 8px;
+    background: rgba(4, 14, 26, 0.52);
+    padding: 1rem;
+}
+
+.manual-option-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.manual-option-card {
+    display: grid;
+    gap: 0.35rem;
+    border: 1px solid rgba(103, 236, 255, 0.18);
+    border-radius: 8px;
+    padding: 0.9rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.manual-option-card:has(input:checked) {
+    border-color: rgba(38, 255, 143, 0.62);
+    box-shadow: 0 0 18px rgba(38, 255, 143, 0.18);
+}
+
+.manual-option-card input {
+    width: fit-content;
+}
+
+.manual-confirm-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: var(--nav-text);
+    font-weight: 700;
+}
+
+.manual-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.8rem;
+}
+
+.manual-preview-group header,
+.manual-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+
+.manual-preview-group header {
+    margin-bottom: 0.85rem;
+}
+
+.manual-preview-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.manual-preview-row {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.65rem;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.manual-preview-row strong,
+.manual-preview-row span {
+    display: block;
+}
+
+.manual-preview-row label {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 120px;
 }
 
 .phase-decision-preview-grid {
@@ -1682,10 +1800,12 @@ html[data-theme="light"] .sponsor-details small {
 }
 
 .phase-decision-preview-grid article {
+    min-width: 0;
     border-radius: 14px;
     border: 1px solid rgba(103, 236, 255, 0.14);
     background: var(--row-bg);
     padding: 0.8rem;
+    overflow-wrap: anywhere;
 }
 
 .phase-decision-preview-grid span {
@@ -2495,6 +2615,11 @@ html[data-theme="light"] .sponsor-details small {
     font-weight: 700;
 }
 
+.result-save-bar-bottom {
+    margin-top: 1.35rem;
+    margin-bottom: 1rem;
+}
+
 .danger-outline {
     border-color: rgba(255, 89, 223, 0.34) !important;
     color: #fff !important;
@@ -2759,6 +2884,13 @@ html[data-theme="light"] .sponsor-details small {
     z-index: 3;
 }
 
+.button:focus-visible,
+.modal-close:focus-visible,
+.phase-nav-link:focus-visible {
+    outline: 2px solid rgba(103, 236, 255, 0.72);
+    outline-offset: 3px;
+}
+
 .modal-open {
     overflow: hidden;
 }
@@ -2788,6 +2920,8 @@ html[data-theme="light"] .sponsor-details small {
     .phase-decision-grid,
     .phase-decision-actions,
     .phase-decision-preview-grid,
+    .manual-option-grid,
+    .manual-preview-grid,
     .phase-repechage-actions,
     .metric-strip,
     .group-overview-grid,
@@ -2810,11 +2944,21 @@ html[data-theme="light"] .sponsor-details small {
     }
 
     .phase-decision-modal-shell {
-        padding-top: 88px;
+        align-items: flex-start;
+        padding: 88px 0.75rem 1rem;
     }
 
     .phase-decision-modal {
+        width: min(100%, 720px);
         max-height: calc(100vh - 108px);
+    }
+
+    .phase-decision-summary-wide article:first-child {
+        grid-column: auto;
+    }
+
+    .phase-decision-content {
+        padding: 1.1rem;
     }
 
     .recommendation-status {
