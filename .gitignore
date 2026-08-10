@@ -1,4 +1,6 @@
 .venv/
+.venv_libreoffice_backup/
+.venv_copiada_desde_onedrive/
 venv/
 env/
 __pycache__/
@@ -11,9 +13,12 @@ db.sqlite3
 .env.*
 !.env.example
 .idea/
+.idea_configuracion_anterior/
 .vscode/
 staticfiles/
 media/
+tmp/
+logs/
 docs/correos/listado_invitaciones.xlsx
 docs/correos/listados/*.xlsx
 docs/correos/*reales*.xlsx
@@ -25,5 +30,10 @@ htmlcov/
 *.log
 *.bak
 *.tmp
+*.pem
+*.key
+credentials*.json
+secret*.json
+*.local.json
 .DS_Store
 Thumbs.db
