@@ -1,0 +1,169 @@
+\chapter{Aplicaciones Django}
+\label{chap:aplicaciones-django}
+
+\section{Organizacion del dominio por aplicaciones}
+\label{sec:apps-organizacion}
+
+La plataforma divide su dominio en cinco aplicaciones locales: \archivo{apps.common}, \archivo{apps.core}, \archivo{apps.participants}, \archivo{apps.tournament} y \archivo{apps.invitations}. Esta separacion no responde solo a una convencion de carpetas; define como fluye la informacion desde la entrada publica hasta la competencia y las comunicaciones.
+
+El sitio publico presenta informacion de la edicion activa. El registro captura datos de equipos y participantes. La confirmacion de asistencia transforma registros en equipos operativos. El modulo de torneo usa esos equipos para construir competencias por division. El modulo de comunicaciones usa registros, destinatarios, plantillas y logs para controlar envios y solicitudes. \archivo{apps.common} aporta una base reutilizable para registrar fechas de creacion y actualizacion en modelos de dominio.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: dependencias funcionales entre aplicaciones Django. Fuente prevista: DIA-03 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de dependencias entre aplicaciones.}
+  \label{fig:apps-dependencias}
+\end{figure}
+
+\section{Mapa de responsabilidades}
+\label{sec:apps-mapa-responsabilidades}
+
+\begin{longtable}{p{3.2cm}p{3.6cm}p{6.2cm}}
+\toprule
+Aplicacion & Configuracion & Responsabilidad principal \\
+\midrule
+\archivo{apps.common} & \clase{CommonConfig} & Modelo abstracto de timestamps para entidades persistentes. \\
+\archivo{apps.core} & \clase{CoreConfig} & Sitio publico: home, reglas publicadas y patrocinadores. \\
+\archivo{apps.participants} & \clase{ParticipantsConfig} & Registros, participantes, asistencia, instituciones, equipos y sincronizacion operativa. \\
+\archivo{apps.tournament} & \clase{TournamentConfig} & Ediciones, reglas, competencias por division, grupos, batallas, estados, recomendaciones y panel interno. \\
+\archivo{apps.invitations} & \clase{InvitationsConfig} & Plantillas DOCX, destinatarios, lotes, logs, solicitudes de asistencia y envios de comunicacion. \\
+\bottomrule
+\end{longtable}
+
+La tabla resume responsabilidades, pero el punto critico esta en las dependencias. \archivo{apps.participants} depende de \archivo{apps.tournament} para asociar registros a una edicion activa y para inicializar competencias cuando se confirma asistencia. \archivo{apps.tournament} depende de \archivo{apps.participants} porque las competencias operan sobre \clase{Team} y \clase{TeamMember}. \archivo{apps.invitations} consulta registros de participantes para comunicaciones y solicitudes de asistencia. \archivo{apps.core} consume informacion de torneo y participantes para presentar estado publico del evento.
+
+\section{apps.common}
+\label{sec:apps-common}
+
+\archivo{apps.common} contiene \clase{TimeStampedModel}, clase abstracta con \variable{created_at} y \variable{updated_at}. La aplicacion no implementa flujo funcional propio, pero reduce duplicacion en modelos de participantes, torneo e invitaciones.
+
+Su impacto de mantenimiento es bajo pero transversal. Si se cambia \clase{TimeStampedModel}, el cambio afecta entidades de varios dominios. Por eso esta aplicacion debe permanecer pequeña y estable. Convertirla en un contenedor de utilidades sin relacion clara le haria perder su valor como base comun.
+
+\section{apps.core}
+\label{sec:apps-core}
+
+\archivo{apps.core} implementa la entrada publica de la plataforma. Sus vistas consultan la edicion activa, reglas publicadas, conteos de registros y catalogo de patrocinadores. No registra participantes ni modifica competencias; su funcion es presentar informacion verificable y enlazar al flujo publico.
+
+\begin{longtable}{p{3.4cm}p{3.8cm}p{5.8cm}}
+\toprule
+Modulo & Elementos principales & Funcion dentro del flujo \\
+\midrule
+\archivo{views.py} & \funcion{sponsor_catalog}, \funcion{home}, \funcion{rules_page}, \funcion{sponsors_page} & Construye contexto publico desde modelos de torneo y participantes. \\
+\archivo{urls.py} & \ruta{/}, \ruta{/reglas/}, \ruta{/patrocinadores/} & Expone rutas publicas sin autenticacion. \\
+\archivo{templates/core/} & \archivo{base.html}, \archivo{home.html}, \archivo{rules.html}, \archivo{sponsors.html} & Renderiza informacion publica y navegacion hacia registro. \\
+\bottomrule
+\end{longtable}
+
+La dependencia mas relevante de \archivo{apps.core} es de lectura. \funcion{home} consulta \clase{TournamentEdition}, \clase{RuleSection}, \clase{SchoolRegistration} y \clase{UniversityRegistration}. Esta lectura permite mostrar estado de la edicion sin duplicar datos en otra tabla. Si se cambian nombres de estados o reglas de edicion activa, el sitio publico puede cambiar de contenido aunque no se modifique \archivo{apps.core}.
+
+\section{apps.participants}
+\label{sec:apps-participants}
+
+\archivo{apps.participants} captura y transforma informacion de participantes. Su flujo empieza con un formulario publico y termina, cuando hay confirmacion de asistencia, en entidades operativas para torneo.
+
+\begin{longtable}{p{3.4cm}p{4cm}p{5.6cm}}
+\toprule
+Modulo & Responsabilidad & Interaccion \\
+\midrule
+\archivo{models.py} & Registros, participantes, instituciones, equipos y miembros & Define datos que conectan inscripcion publica y competencia. \\
+\archivo{forms.py} & Validaciones de registro escolar y universitario & Bloquea duplicados de robot, correo y documentos en la edicion activa. \\
+\archivo{views.py} & Registro, exito y confirmacion por token & Orquesta formulario, servicios de correo y confirmacion de asistencia. \\
+\archivo{services.py} & Correos, confirmacion y sincronizacion a equipo & Actualiza registros y crea/actualiza \clase{Institution}, \clase{Team} y \clase{TeamMember}. \\
+\archivo{admin.py} & Administracion de registros y equipos & Permite acciones de solicitud de asistencia y sincronizacion de confirmados. \\
+\archivo{templates/participants/} & Formularios y pantallas de confirmacion & Presenta flujo publico al usuario externo. \\
+\bottomrule
+\end{longtable}
+
+El flujo de informacion funciona asi: una vista de registro instancia \clase{SchoolRegistrationForm} o \clase{UniversityRegistrationForm}; el formulario valida la edicion activa y duplicados; al guardar crea un registro y sus participantes; la vista llama \funcion{send_registration_received_email}; despues, la asistencia se confirma por token en \funcion{attendance_confirmation}; el servicio \funcion{confirm_attendance} aprueba el registro, sincroniza equipo y puede inicializar competencia si corresponde.
+
+Esta app es el puente entre usuarios publicos y competencia. Cambiar sus validaciones impacta el conjunto de equipos que llega a \archivo{apps.tournament}. Cambiar \funcion{sync_registration_to_team} impacta relaciones de \clase{Team}, \clase{TeamMember}, estados de competencia y panel interno.
+
+\section{apps.tournament}
+\label{sec:apps-tournament}
+
+\archivo{apps.tournament} concentra el nucleo competitivo. No solo almacena fases; tambien calcula perfiles, construye grupos, registra resultados, crea repechajes, permite fases manuales, sincroniza estados y cierra podios.
+
+\begin{longtable}{p{3.6cm}p{4.2cm}p{5.2cm}}
+\toprule
+Modulo & Responsabilidad & Impacto \\
+\midrule
+\archivo{models.py} & Ediciones, reglas, competencias, grupos, batallas, estados, historial y matches genericos & Define el estado persistente del torneo. \\
+\archivo{formats.py} & Perfiles automaticos segun cantidad de equipos & Determina estructura inicial de competencia. \\
+\archivo{planner.py} & Planificacion y distribucion de slots & Apoya distribucion operativa. \\
+\archivo{recommendations.py} & Recomendaciones de fase, repechaje y tercer lugar & Alimenta decisiones del panel interno. \\
+\archivo{services.py} & Regla de negocio principal de torneo & Modifica grupos, batallas, estados, historial y podio. \\
+\archivo{views.py} & Vista publica y panel interno & Convierte acciones HTTP en llamadas a servicios. \\
+\archivo{urls.py} & Rutas de torneo y control & Expone entrada publica y operaciones internas protegidas. \\
+\archivo{admin.py} & Administracion de modelos de torneo & Permite inspeccion y ajustes administrativos. \\
+\archivo{tests.py} & Pruebas de distribuciones manuales & Cubre parte critica de fases manuales. \\
+\bottomrule
+\end{longtable}
+
+La dependencia con \archivo{apps.participants} es estructural: \clase{DivisionCompetition} se construye por edicion y division, pero los participantes reales de competencia son \clase{Team}. Los grupos y batallas referencian equipos; los estados de competencia siguen el avance de cada equipo; el historial registra cambios por equipo. Por tanto, el torneo no puede entenderse sin los modelos operativos de participantes.
+
+El panel interno no escribe directamente toda la logica. Sus vistas llaman servicios como \funcion{initialize_competition}, \funcion{set_group_qualifiers}, \funcion{set_battle_winner}, \funcion{set_battle_qualifiers}, \funcion{materialize_repechage_stage}, \funcion{generate_manual_phase_proposal}, \funcion{confirm_manual_phase_proposal} y \funcion{save_final_podium}. Esta organizacion reduce duplicacion entre vistas, pero concentra riesgo en \archivo{services.py}.
+
+\section{apps.invitations}
+\label{sec:apps-invitations}
+
+\archivo{apps.invitations} gestiona comunicaciones y solicitudes. Su responsabilidad es transformar plantillas y destinatarios en lotes trazables, con controles para simulacion, prueba controlada y envio oficial.
+
+\begin{longtable}{p{3.4cm}p{4.2cm}p{5.4cm}}
+\toprule
+Modulo & Responsabilidad & Interaccion \\
+\midrule
+\archivo{models.py} & Plantillas, destinatarios, lotes y logs & Persiste la trazabilidad de comunicaciones. \\
+\archivo{forms.py} & Validacion de plantillas, destinatarios y lotes & Bloquea archivos invalidos, plantillas inactivas y envios reales sin confirmacion. \\
+\archivo{services.py} & DOCX, PDF, XLSX, correo y logs & Ejecuta transformaciones y registra resultados por destinatario. \\
+\archivo{views.py} & Dashboard, plantillas, invitaciones, confirmaciones e historial & Orquesta formularios y servicios desde rutas internas. \\
+\archivo{admin.py} & Administracion de comunicaciones & Permite inspeccion de plantillas, lotes, destinatarios y logs. \\
+\archivo{tests.py} & Pruebas de PDF y correo & Valida componentes sensibles del modulo. \\
+\bottomrule
+\end{longtable}
+
+La app interactua con \archivo{apps.participants} porque las solicitudes de asistencia se basan en registros escolares y universitarios. Tambien interactua con configuracion global: SMTP determina si puede enviar correos reales, y \variable{LIBREOFFICE_BINARY} o PATH determinan si puede convertir documentos a PDF. Por eso sus fallos no siempre nacen del codigo de la app; pueden surgir de configuracion de entorno.
+
+\section{Flujo de informacion entre aplicaciones}
+\label{sec:apps-flujo-informacion}
+
+El flujo principal del dominio es secuencial, aunque cada aplicacion mantenga su responsabilidad:
+
+\begin{enumerate}
+  \item \archivo{apps.core} presenta informacion de la edicion activa y dirige al registro.
+  \item \archivo{apps.participants} crea el registro y participantes asociados.
+  \item \archivo{apps.invitations} puede generar comunicaciones o solicitudes de asistencia sobre esos registros.
+  \item \archivo{apps.participants} confirma asistencia por token y sincroniza a equipos.
+  \item \archivo{apps.tournament} consume equipos para construir y operar competencias por division.
+  \item \archivo{apps.tournament} registra resultados, estados e historial.
+  \item \archivo{apps.core} y vistas internas reflejan datos actualizados para consulta publica u operativa.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de informacion entre aplicaciones desde registro hasta competencia. Fuente prevista: DIA-07 y DIA-08 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo de informacion entre aplicaciones.}
+  \label{fig:apps-flujo-informacion}
+\end{figure}
+
+\section{Django Admin como superficie operativa}
+\label{sec:apps-admin}
+
+Django Admin forma parte de la arquitectura operativa. \archivo{apps.participants/admin.py} incluye acciones que pueden enviar solicitudes de asistencia o sincronizar registros confirmados. \archivo{apps.tournament/admin.py} permite inspeccionar entidades del torneo. \archivo{apps.invitations/admin.py} permite revisar plantillas, destinatarios, lotes y logs.
+
+El valor de Admin es la capacidad de inspeccion y correccion. El riesgo es que algunas acciones tienen efectos reales, especialmente correos y sincronizacion de equipos. Por esa razon, las acciones administrativas deben documentarse y probarse como parte de mantenimiento, no tratarse como herramientas auxiliares sin impacto.
+
+\section{Consideraciones de mantenimiento}
+\label{sec:apps-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{apps/*/models.py}, \archivo{forms.py}, \archivo{views.py}, \archivo{services.py}, \archivo{urls.py}, \archivo{admin.py} y templates de cada app. \\
+Riesgo al modificar & Cambios en participantes pueden alterar equipos; cambios en torneo pueden afectar resultados e historial; cambios en invitaciones pueden enviar comunicaciones incorrectas. \\
+Dependencias & \archivo{participants} y \archivo{tournament} estan acopladas por \clase{Team}; \archivo{invitations} depende de registros y configuracion SMTP/PDF; \archivo{core} consume datos de lectura. \\
+Pruebas recomendadas & Registro escolar y universitario, confirmacion por token, sincronizacion a equipo, generacion de competencia, acciones de panel, envio simulado y prueba controlada. \\
+Impacto sobre otros modulos & Modificar estados, nombres de division o estructura de equipos impacta vistas, servicios, templates, Admin y reportes de comunicacion. \\
+Buenas practicas & Mantener regla de negocio en servicios, evitar duplicar validaciones entre vistas, documentar nuevas acciones Admin y actualizar pruebas al cambiar flujos. \\
+\bottomrule
+\end{longtable}

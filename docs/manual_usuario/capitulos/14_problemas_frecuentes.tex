@@ -1,0 +1,77 @@
+\chapter{Problemas frecuentes}
+\label{cap:problemas-frecuentes}
+
+\begin{procedimiento}{Objetivo del capitulo}{Todos}
+Resolver problemas operativos comunes con una accion inmediata y una referencia al capitulo donde se explica el flujo completo.
+\end{procedimiento}
+
+Use esta guia cuando algo no coincida con lo esperado. No sustituye la validacion de la organizacion ni el soporte tecnico. Si el problema involucra resultados oficiales, correos reales o cambios en Django Admin, detenga la operacion y verifique antes de repetir.
+
+\section{Guia rapida}
+
+\begin{longtable}{p{3.0cm}p{3.8cm}p{4.4cm}p{1.9cm}}
+\toprule
+Problema & Causa probable & Accion inmediata & Capitulo\\
+\midrule
+\endhead
+La pagina no carga & Red, servidor no disponible, ruta incorrecta o sesion expirada. & Recargue una vez, pruebe otra pantalla y reporte si el fallo persiste. & \cref{cap:acceso-navegacion}\\
+No puede iniciar sesion & Credenciales incorrectas, cuenta sin permiso o sesion no autorizada. & Verifique usuario autorizado. No comparta contrasena. & \cref{cap:acceso-navegacion}\\
+El formulario no se envia & Campos invalidos, duplicados o edicion activa ausente. & Lea errores junto a los campos y corrija. & \cref{cap:registro-participantes}\\
+Faltan campos obligatorios & Datos de institucion, responsable, robot o integrante incompletos. & Complete campos marcados y vuelva a enviar. & \cref{cap:registro-participantes}\\
+El enlace de confirmacion no funciona & Token inexistente, enlace copiado incompleto o registro no disponible. & No confirme por otra via; solicite enlace valido. & \cref{cap:registro-participantes}\\
+Un participante no aparece & Asistencia no confirmada, equipo no sincronizado, filtro equivocado o division incorrecta. & Revise asistencia, equipo y division antes de crear duplicados. & \cref{cap:gestion-organizacion}\\
+La asistencia no se refleja & Confirmacion pendiente, solicitud no enviada o sincronizacion no ejecutada. & Revise registro y accion de sincronizacion autorizada. & \cref{cap:gestion-organizacion,cap:comunicaciones}\\
+Los cambios no se guardaron & Seleccion visual sin guardar, error AJAX o cancelacion de confirmacion. & Recargue y verifique estado persistido antes de repetir. & \cref{cap:fase-grupos}\\
+El boton no responde & No hay cambios, validacion pendiente, boton deshabilitado o fase incompleta. & Lea mensaje visible y revise precondiciones. & \cref{cap:estados-mensajes}\\
+Error de red durante AJAX & Conexion interrumpida o respuesta inesperada. & No asuma guardado. Recargue y compruebe el resultado. & \cref{cap:estados-mensajes}\\
+La seleccion desaparece tras recargar & No se habia guardado o la operacion fallo. & Repita seleccion solo despues de confirmar el estado actual. & \cref{cap:fase-grupos,cap:eliminatorias-repechaje}\\
+No se habilita la fase siguiente & Faltan resultados guardados en grupo o batalla. & Complete y guarde todos los resultados de la fase actual. & \cref{cap:eliminatorias-repechaje}\\
+Resultado visual inesperado & Estado recalculado, correccion previa o fase posterior afectada. & Compare con acta y revise historial o modal de participante. & \cref{cap:correcciones-manuales}\\
+Aparece confirmacion de correccion & El cambio afecta progreso posterior. & Cancele si no hay autorizacion; si acepta, revise fases posteriores. & \cref{cap:correcciones-manuales}\\
+Repechaje sin candidatos & No hay suficientes participantes elegibles o la fase no esta cerrada. & Cierre resultados actuales y revise recomendacion. & \cref{cap:eliminatorias-repechaje}\\
+El podio no se actualiza & Seleccion incompleta, posiciones duplicadas o error al guardar. & Revise campeon, segundo y tercero; luego guarde y verifique. & \cref{cap:fases-finales-podio}\\
+Previsualizacion no coincide & Marcadores DOCX faltantes o datos extra distintos. & Revise marcadores detectados y plantilla activa. & \cref{cap:comunicaciones}\\
+Lote en error & SMTP bloqueado, destinatario invalido, plantilla no valida o envio real sin confirmacion. & Revise historial y corrija antes de repetir. & \cref{cap:comunicaciones}\\
+Admin muestra datos inesperados & Filtro activo, edicion equivocada, dato modificado directamente o busqueda incompleta. & Quite filtros, revise edicion y no cree duplicados. & \cref{cap:django-admin}\\
+Interfaz parece desactualizada & Cache del navegador o pagina abierta antes de un cambio. & Recargue la pagina y verifique que no haya cambios sin guardar. & \cref{cap:acceso-navegacion}\\
+\bottomrule
+\end{longtable}
+
+\section{Diferenciar responsabilidades}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.2cm}X}
+\toprule
+Tipo de respuesta & Alcance\\
+\midrule
+Usuario publico & Puede corregir campos de registro, revisar reglas, volver a abrir enlaces y solicitar orientacion si el enlace no funciona. No debe acceder al panel interno.\\
+Operador & Puede guardar resultados, revisar fases, simular comunicaciones, consultar historial y detener la operacion si hay duda.\\
+Superusuario Admin & Puede revisar modelos y acciones administrativas autorizadas; no debe usar Admin para reemplazar flujos normales si existe una pantalla operativa.\\
+Soporte tecnico & Debe intervenir cuando hay error repetido, datos incoherentes, fallo de servidor, problema de permisos o necesidad de respaldo segun politica aprobada.\\
+\bottomrule
+\end{tabularx}
+
+\section{Antes de solicitar soporte}
+
+Prepare una descripcion breve con:
+\begin{itemize}
+    \item Pantalla o ruta visible.
+    \item Fecha y hora aproximada.
+    \item Division, fase, grupo, batalla o lote afectado.
+    \item Accion realizada.
+    \item Mensaje mostrado.
+    \item Captura sin correos, documentos, tokens ni credenciales.
+    \item Resultado esperado.
+    \item Resultado obtenido.
+\end{itemize}
+
+No envie contrasena, token de asistencia, claves secretas, credenciales SMTP ni datos personales que no sean necesarios para diagnosticar el caso. Contacto o canal de soporte: \campointerfaz{PENDIENTE DE DEFINICION INSTITUCIONAL}.
+
+\section{Reglas de seguridad ante incidentes}
+
+\begin{itemize}
+    \item No repita envios reales para probar si el problema se arreglo.
+    \item No acepte confirmaciones sensibles si no entiende el impacto.
+    \item No cree registros duplicados para que un participante aparezca.
+    \item No use Django Admin para corregir resultados si existe un flujo operativo documentado.
+    \item No continue una fase si el resultado visible no coincide con el acta o decision oficial.
+\end{itemize}

@@ -1,0 +1,43 @@
+\chapter{Matriz de trazabilidad}
+\label{anexo:matriz-trazabilidad}
+
+La matriz resume la relacion entre capitulos, fuentes documentales y codigo. Su objetivo es permitir mantenimiento documental sin volver a reconstruir toda la auditoria.
+
+\begin{longtable}{p{2.2cm}p{3.5cm}p{3.8cm}p{3.1cm}}
+\caption{Trazabilidad principal del manual.}
+\label{tab:anexo-matriz-trazabilidad}\\
+\toprule
+Capitulo & Tema & Evidencia documental & Codigo fuente principal \\
+\midrule
+1--4 & Contexto, descripcion y arquitectura & Auditoria 00, 01, 04, 23, 24 & \archivo{config/urls.py}, \archivo{apps/*/urls.py}, \archivo{apps/*/views.py} \\
+5--6 & Tecnologias y requisitos & Auditoria 02, 03, 19, 24 & \archivo{requirements.txt}, \archivo{config/settings.py}, \archivo{.env.example} \\
+7--8 & Estructura, instalacion y configuracion & Auditoria 01, 03, 19 & \archivo{manage.py}, \archivo{config/settings.py}, estructura \archivo{apps/} \\
+9 & Aplicaciones Django & Auditoria 04, 23 & \archivo{apps/core}, \archivo{apps/participants}, \archivo{apps/tournament}, \archivo{apps/invitations} \\
+10 & Modelo de datos & Auditoria 05, 16 & \archivo{apps/participants/models.py}, \archivo{apps/tournament/models.py}, \archivo{apps/invitations/models.py} \\
+11 & URLs, vistas y formularios & Auditoria 06, 07, 08 & \archivo{urls.py}, \archivo{views.py}, \archivo{forms.py} por app \\
+12--13 & Servicios y flujo de competencia & Auditoria 09, 10, 21, 24 & \archivo{apps/tournament/services.py}, \archivo{formats.py}, \archivo{recommendations.py} \\
+14--15 & Frontend, templates, JavaScript y AJAX & Auditoria 11, 12, 13, 14 & \archivo{templates/}, \archivo{static/js/app.js}, \archivo{static/js/control.js}, \archivo{static/css/} \\
+16 & Seguridad & Auditoria 15, 21 & \archivo{config/settings.py}, vistas protegidas, comandos de comunicaciones \\
+17 & Pruebas y calidad & Auditoria 18, 24 & \archivo{apps/tournament/tests.py}, \archivo{apps/invitations/tests.py} \\
+18--20 & Despliegue, mantenimiento, respaldo & Auditoria 16, 19, 20, 24 & \archivo{config/settings.py}, \archivo{.env.example}, comandos de gestion \\
+21--23 & Riesgos, escalabilidad y conclusiones & Auditoria 21, 24 y manual completo & Servicios, modelos, configuracion y pruebas existentes \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3.5cm}p{4.5cm}p{4.5cm}}
+\caption{Anexos y evidencia asociada.}
+\label{tab:anexo-trazabilidad-anexos}\\
+\toprule
+Anexo & Funcion & Fuente principal \\
+\midrule
+A & Arbol tecnico del proyecto & Estructura local del repositorio \\
+B & Modelos y campos & Introspeccion ORM y \archivo{models.py} \\
+C & URLs y endpoints & \archivo{config/urls.py} y \archivo{apps/*/urls.py} \\
+D & Trazabilidad documental & Auditoria validada y manual completo \\
+E & Variables de entorno & \archivo{.env.example} y \archivo{config/settings.py} \\
+F & Casos de prueba & Auditoria 18, \archivo{tests.py} y gaps documentados \\
+G & Checklist de despliegue & Auditoria 19, capitulos 18 y 20 \\
+H & Problemas frecuentes & Riesgos y mantenimiento documentados \\
+I & Comandos operativos & \archivo{manage.py}, comandos de gestion y validaciones seguras \\
+\bottomrule
+\end{longtable}

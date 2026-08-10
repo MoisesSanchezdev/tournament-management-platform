@@ -1,0 +1,221 @@
+\chapter{URLs, vistas y formularios}
+\label{chap:urls-vistas-formularios}
+
+\section{Funcion conjunta de URLs, vistas y formularios}
+\label{sec:uvf-funcion}
+
+En este proyecto, URLs, vistas y formularios no deben entenderse como piezas aisladas. Una URL define la entrada del flujo; la vista valida contexto y permisos; el formulario valida datos cuando existe entrada de usuario; el servicio ejecuta regla de negocio; el modelo persiste estado; el template o JSON devuelve respuesta.
+
+El patron recurrente es:
+
+\begin{center}
+URL $\rightarrow$ View $\rightarrow$ Form $\rightarrow$ Servicio $\rightarrow$ Modelo $\rightarrow$ Template o JSON
+\end{center}
+
+No todos los flujos usan formulario. El panel de torneo, por ejemplo, recibe acciones POST con parametros especificos y delega en servicios. Tampoco todos los flujos responden HTML completo: algunas acciones del panel retornan JSON para \archivo{static/js/control.js}.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: recorrido de una peticion HTTP en la plataforma. Fuente prevista: DIA-05 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo URL, vista, formulario, servicio, modelo y respuesta.}
+  \label{fig:uvf-flujo-http}
+\end{figure}
+
+\section{Mapa de rutas principales}
+\label{sec:uvf-mapa-rutas}
+
+\begin{longtable}{p{3.2cm}p{3.8cm}p{5.8cm}}
+\toprule
+Prefijo & Aplicacion & Proposito \\
+\midrule
+\ruta{/} & \archivo{apps.core} & Sitio publico, reglas y patrocinadores. \\
+\ruta{/registro/} & \archivo{apps.participants} & Registro publico y confirmacion de asistencia. \\
+\ruta{/torneo/} & \archivo{apps.tournament} & Vista publica de torneo y panel interno bajo \ruta{/torneo/control/}. \\
+\ruta{/comunicaciones/} & \archivo{apps.invitations} & Panel interno de comunicaciones, plantillas, invitaciones, confirmaciones e historial. \\
+\ruta{/admin/} & Django Admin & Administracion de modelos y acciones administrativas. \\
+\bottomrule
+\end{longtable}
+
+La matriz completa de endpoints debe mantenerse en \cref{anexo:urls-endpoints}. Este capitulo prioriza los recorridos funcionales que conectan rutas, vistas, validaciones, servicios y persistencia.
+
+\section{Flujo publico de core}
+\label{sec:uvf-core}
+
+\archivo{apps.core} expone rutas publicas sin autenticacion:
+
+\begin{longtable}{p{3.2cm}p{3.2cm}p{6.2cm}}
+\toprule
+URL & Vista & Respuesta \\
+\midrule
+\ruta{/} & \funcion{home} & \archivo{core/home.html} con edicion activa, reglas, conteos y sponsors. \\
+\ruta{/reglas/} & \funcion{rules_page} & \archivo{core/rules.html} con reglas publicadas. \\
+\ruta{/patrocinadores/} & \funcion{sponsors_page} & \archivo{core/sponsors.html} con catalogo de patrocinadores. \\
+\bottomrule
+\end{longtable}
+
+Estas vistas no usan formularios. Su flujo es URL $\rightarrow$ view $\rightarrow$ modelos de lectura $\rightarrow$ template. \funcion{home} consulta \clase{TournamentEdition}, \clase{RuleSection}, \clase{SchoolRegistration} y \clase{UniversityRegistration}. La vista publica depende de que exista edicion activa y reglas publicadas; si se cambia la forma de seleccionar edicion activa, estas pantallas cambian de contenido.
+
+\section{Flujo de registro de participantes}
+\label{sec:uvf-registro}
+
+El registro publico tiene dos rutas principales:
+
+\begin{longtable}{p{4cm}p{3.4cm}p{5.4cm}}
+\toprule
+URL & Vista & Formulario \\
+\midrule
+\ruta{/registro/colegios/} & \funcion{school_register} & \clase{SchoolRegistrationForm} \\
+\ruta{/registro/universidades/} & \funcion{university_register} & \clase{UniversityRegistrationForm} \\
+\bottomrule
+\end{longtable}
+
+El recorrido completo es:
+
+\begin{enumerate}
+  \item La URL resuelve la vista de registro por categoria.
+  \item La vista crea el formulario con \variable{request.POST} en POST.
+  \item \clase{BaseRegistrationForm} busca la \clase{TournamentEdition} activa.
+  \item El formulario valida nombre de robot, correo, documentos y consistencia de integrantes.
+  \item Al guardar, asigna edicion activa, estado \variable{submitted} y crea participantes asociados.
+  \item La vista llama \funcion{send_registration_received_email}.
+  \item El servicio actualiza \variable{receipt_email_sent_at}.
+  \item La respuesta redirige a \funcion{registration_success}.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de registro de participantes. Fuente prevista: DIA-06 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo de registro publico.}
+  \label{fig:uvf-flujo-registro}
+\end{figure}
+
+Este flujo escribe en \clase{SchoolRegistration} o \clase{UniversityRegistration} y en \clase{SchoolParticipant} o \clase{UniversityParticipant}. Todavia no crea equipo operativo. Esa separacion protege el torneo: la competencia no se arma con inscripciones que no han confirmado asistencia.
+
+\section{Flujo de confirmacion de asistencia}
+\label{sec:uvf-confirmacion-asistencia}
+
+La ruta \ruta{/registro/confirmar-asistencia/<uuid:token>/} atiende confirmacion por token. La vista \funcion{attendance_confirmation} usa \funcion{resolve_registration_by_token} para buscar el token primero en registros escolares y luego universitarios. Si no existe, renderiza \archivo{attendance_not_found.html}.
+
+Cuando el usuario confirma, la vista llama \funcion{confirm_attendance}. El servicio:
+
+\begin{itemize}
+  \item marca asistencia y aprobacion del registro;
+  \item sincroniza \clase{Institution}, \clase{Team} y \clase{TeamMember};
+  \item envia correo de asistencia confirmada;
+  \item inicializa competencia por division si no existe o esta en borrador.
+\end{itemize}
+
+Este flujo conecta participantes y torneo. Modificarlo puede afectar disponibilidad de equipos en \archivo{apps.tournament}, estado de comunicaciones y conteos publicos.
+
+\section{Flujo interno de torneo}
+\label{sec:uvf-torneo}
+
+Las rutas internas de torneo estan protegidas por \funcion{login_required} y \funcion{user_passes_test(is_organizer)}. \funcion{is_organizer} exige usuario autenticado con \variable{is_staff} o \variable{is_superuser}.
+
+\begin{longtable}{p{4.5cm}p{3.8cm}p{4.5cm}}
+\toprule
+URL & Vista & Funcion principal \\
+\midrule
+\ruta{/torneo/} & \funcion{overview} & Vista publica de edicion y fases. \\
+\ruta{/torneo/control/} & \funcion{control_dashboard} & Dashboard interno y generacion de competencias. \\
+\ruta{/torneo/control/divisiones/<competition_id>/} & \funcion{control_division} & Configuracion, grupos y acciones generales por division. \\
+\ruta{/torneo/control/divisiones/<competition_id>/fases/<stage_key>/} & \funcion{control_division_stage} & Operacion por etapa, resultados, repechaje, fase manual y podio. \\
+\ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/} & \funcion{participant_modal_detail} & JSON de participante para modal. \\
+\ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/actualizar/} & \funcion{participant_modal_update} & Actualizacion AJAX de estado manual. \\
+\ruta{/torneo/control/fases/<phase_id>/} & \funcion{control_phase_detail} & Detalle de \clase{TournamentPhase}. \\
+\bottomrule
+\end{longtable}
+
+El panel usa acciones POST en lugar de formularios Django tradicionales para muchas operaciones. Las vistas leen \variable{action} y parametros, validan contexto con \funcion{get_object_or_404}, y delegan en servicios. Las acciones confirmadas incluyen:
+
+\begin{longtable}{p{4.4cm}p{5.4cm}p{3cm}}
+\toprule
+Accion & Servicio & Respuesta \\
+\midrule
+\variable{generate_competition} & \funcion{initialize_competition} & Redireccion HTML. \\
+\variable{save_group_qualifiers} & \funcion{set_group_qualifiers} & Redireccion o JSON. \\
+\variable{save_battle_winner} & \funcion{set_battle_winner} & Redireccion o JSON. \\
+\variable{save_battle_qualifiers} & \funcion{set_battle_qualifiers} & Redireccion o JSON. \\
+\variable{apply_auto_configuration} & \funcion{initialize_competition} & Redireccion. \\
+\variable{apply_manual_configuration} & \funcion{initialize_competition} con overrides & Redireccion. \\
+\variable{save_group_layout} & \funcion{update_group_layout} & Redireccion. \\
+\variable{reset_competition} & \funcion{reset_competition_state} & Redireccion, exige confirmacion. \\
+\variable{create_recommended_phase} & \funcion{materialize_recommended_duel_stage} & Redireccion. \\
+\variable{create_repechage_phase} & \funcion{materialize_repechage_stage} & Redireccion. \\
+\variable{generate_manual_phase_proposal} & \funcion{generate_manual_phase_proposal} & Redireccion. \\
+\variable{confirm_manual_phase_proposal} & \funcion{confirm_manual_phase_proposal} & Redireccion. \\
+\variable{save_final_podium} & \funcion{save_final_podium} & Redireccion. \\
+\bottomrule
+\end{longtable}
+
+Cuando \archivo{static/js/control.js} envia AJAX, las vistas detectan \variable{X-Requested-With}. Si una correccion requiere confirmacion, los servicios pueden levantar \clase{ManualCorrectionRequired}; la vista responde JSON con \variable{requires_confirmation} para que el cliente pida confirmacion y reintente con \variable{manual_override}. Este contrato conecta vista, servicio, JavaScript y templates.
+
+\section{Flujo interno de comunicaciones}
+\label{sec:uvf-comunicaciones}
+
+\archivo{apps.invitations} tambien esta protegido por login y organizador. Sus vistas combinan formularios Django, servicios de documentos y servicios de correo.
+
+\begin{longtable}{p{4.5cm}p{3.8cm}p{4.5cm}}
+\toprule
+URL & Vista & Flujo \\
+\midrule
+\ruta{/comunicaciones/} & \funcion{dashboard} & Indicadores de plantillas, logs y confirmaciones. \\
+\ruta{/comunicaciones/plantillas/} & \funcion{template_list} & Lista y agrupa plantillas por tipo. \\
+\ruta{/comunicaciones/plantillas/nueva/} & \funcion{template_create} & Carga y valida DOCX con \clase{CommunicationTemplateForm}. \\
+\ruta{/comunicaciones/plantillas/<template_id>/previsualizar/} & \funcion{template_preview} & Extrae marcadores DOCX. \\
+\ruta{/comunicaciones/invitaciones/} & \funcion{invitations} & Agrega destinatarios o procesa lotes desde DB/XLSX. \\
+\ruta{/comunicaciones/confirmaciones/} & \funcion{confirmations} & Envia o simula solicitudes de asistencia. \\
+\ruta{/comunicaciones/historial/} & \funcion{history} & Lista lotes y logs recientes. \\
+\bottomrule
+\end{longtable}
+
+\clase{CommunicationTemplateForm} valida extension DOCX, tamano y marcadores requeridos. \clase{InvitationBatchForm} valida plantilla activa, XLSX, modo de envio, destinatario de prueba y confirmacion explicita cuando el modo implica envio real. La vista \funcion{invitations} usa \funcion{load_recipients_from_xlsx}, \funcion{create_communication_batch} y \funcion{send_rendered_invitation}. La vista \funcion{confirmations} usa registros de participantes y servicios de asistencia para enviar o simular solicitudes.
+
+El modelo de respuesta de comunicaciones es trazable: cada lote queda en \clase{CommunicationBatch} y cada resultado en \clase{CommunicationLog}. Esto permite revisar que paso con cada destinatario sin depender solo de la salida del servidor.
+
+\section{Validaciones de formularios}
+\label{sec:uvf-validaciones-forms}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Formulario & Validaciones relevantes \\
+\midrule
+\clase{SchoolRegistrationForm} & Hereda validaciones de \clase{BaseRegistrationForm}; crea registro escolar y participantes. \\
+\clase{UniversityRegistrationForm} & Hereda validaciones base y exige semestre maximo 4. \\
+\clase{BaseRegistrationForm} & Requiere edicion activa; valida nombre/documento de integrantes; evita duplicados de robot, correo y documentos. \\
+\clase{CommunicationTemplateForm} & Acepta solo DOCX, maximo 8 MB, normaliza marcadores y valida que existan en la plantilla. \\
+\clase{CommunicationRecipientForm} & Gestiona destinatario, correo, tipo, institucion y datos extra. \\
+\clase{InvitationBatchForm} & Exige plantilla activa del tipo correcto, XLSX maximo 4 MB, test recipient en modo prueba y confirmacion para envios reales. \\
+\bottomrule
+\end{longtable}
+
+Las validaciones de formularios protegen la entrada del sistema. Las validaciones de servicios protegen reglas posteriores. Por ejemplo, un formulario impide documentos duplicados al registrar; un servicio de torneo impide clasificaciones invalidas o correcciones sin confirmacion. Ambos niveles son necesarios porque no todos los cambios del torneo pasan por formularios Django.
+
+\section{Plantillas y respuestas}
+\label{sec:uvf-templates-respuestas}
+
+El sistema responde de tres formas principales:
+
+\begin{itemize}
+  \item \textbf{Templates HTML}: registro, paginas publicas, panel de torneo y comunicaciones.
+  \item \textbf{Redirecciones}: despues de guardar registros, aplicar acciones o completar operaciones internas.
+  \item \textbf{JSON}: modales de participante, actualizacion AJAX, resultados guardados y solicitudes de confirmacion manual.
+\end{itemize}
+
+La mezcla de HTML y JSON es intencional en el panel interno. Permite mantener el renderizado server-side y aun asi actualizar secciones del panel sin recargar manualmente toda la navegacion. El riesgo es que templates, atributos \variable{data-*} y \archivo{control.js} deben evolucionar juntos.
+
+\section{Consideraciones de mantenimiento}
+\label{sec:uvf-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{config/urls.py}, \archivo{apps/*/urls.py}, \archivo{apps/*/views.py}, \archivo{apps/participants/forms.py}, \archivo{apps/invitations/forms.py}, servicios, modelos y templates. \\
+Riesgo al modificar & Cambios de rutas rompen enlaces y JavaScript; cambios de action POST rompen panel; cambios de formularios alteran datos persistidos. \\
+Dependencias & Registro depende de edicion activa; torneo depende de equipos; comunicaciones depende de plantillas, SMTP, LibreOffice y registros. \\
+Pruebas recomendadas & GET/POST de registro, confirmacion por token, acciones del panel, AJAX de participante, carga DOCX, carga XLSX, dry-run, prueba controlada y rutas protegidas. \\
+Impacto sobre otros modulos & Una vista puede afectar servicios, modelos, templates, Admin y JavaScript. Los cambios deben trazarse de URL a persistencia. \\
+Buenas practicas & Mantener nombres de rutas estables, no duplicar reglas de servicios en vistas, conservar CSRF, documentar nuevas acciones POST y actualizar matriz de endpoints en \cref{anexo:urls-endpoints}. \\
+\bottomrule
+\end{longtable}

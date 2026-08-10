@@ -1,0 +1,137 @@
+\chapter{Pruebas y calidad}
+\label{chap:pruebas-calidad}
+
+\section{Estado actual de calidad}
+\label{sec:pruebas-estado}
+
+La calidad del proyecto se sostiene en una combinacion de pruebas automaticas parciales, validaciones de Django, revision documental, pruebas manuales y simulaciones operativas descritas en la auditoria. No existe evidencia de una suite integral que cubra de extremo a extremo registro, confirmacion de asistencia, generacion de competencia, panel AJAX, comunicaciones y despliegue.
+
+El objetivo de este capitulo es dejar claro que se puede operar y mantener la plataforma, pero que la validacion previa a un evento real debe incluir pruebas adicionales. Las pruebas existentes son utiles, aunque no suficientes para aceptar cambios de alto impacto sin revision manual.
+
+\section{Pruebas automaticas existentes}
+\label{sec:pruebas-automaticas}
+
+Se detectaron pruebas en \archivo{apps/tournament/tests.py} y \archivo{apps/invitations/tests.py}. No se detectaron archivos de prueba dedicados en \archivo{apps/core} ni \archivo{apps/participants}.
+
+\begin{longtable}{p{3.4cm}p{4.4cm}p{4.8cm}}
+\caption{Cobertura automatica confirmada.}
+\label{tab:pruebas-cobertura-confirmada}\\
+\toprule
+Archivo & Cobertura & Valor tecnico \\
+\midrule
+\archivo{apps/tournament/tests.py} & Distribuciones exactas y balanceadas para fase manual. & Protege una parte sensible de planificacion cuando el numero de participantes no encaja en formatos simples. \\
+\archivo{apps/invitations/tests.py} & Conversion DOCX a PDF, ausencia de LibreOffice, timeout, PDF faltante, sanitizacion de nombre, MIME y envio con adjuntos. & Reduce riesgo de enviar archivos incorrectos o marcar invitaciones como enviadas ante fallos de conversion. \\
+\archivo{apps/core} & Sin pruebas dedicadas detectadas. & Requiere validacion manual de paginas publicas. \\
+\archivo{apps/participants} & Sin pruebas dedicadas detectadas. & Registro y asistencia requieren pruebas adicionales. \\
+\bottomrule
+\end{longtable}
+
+\section{Validaciones ejecutadas}
+\label{sec:pruebas-validaciones}
+
+Durante las fases de auditoria y redaccion se uso \comando{manage.py check} como validacion basica de configuracion Django. En esta fase se conserva como verificacion recomendada porque no modifica datos operativos.
+
+\begin{lstlisting}[language=bash,caption={Comando de verificacion Django recomendado.},label={lst:pruebas-manage-check}]
+python manage.py check
+\end{lstlisting}
+
+Para despliegue debe ejecutarse tambien:
+
+\begin{lstlisting}[language=bash,caption={Comando de verificacion para despliegue.},label={lst:pruebas-check-deploy}]
+python manage.py check --deploy
+\end{lstlisting}
+
+Las pruebas completas de Django pueden crear base de datos de prueba. Deben ejecutarse en un entorno de desarrollo o integracion, no sobre una base operativa del evento.
+
+\section{Matriz resumida de pruebas}
+\label{sec:pruebas-matriz}
+
+\begin{longtable}{p{3.2cm}p{3.2cm}p{3.4cm}p{3.6cm}}
+\caption{Matriz resumida de pruebas recomendadas.}
+\label{tab:pruebas-matriz}\\
+\toprule
+Area & Estado actual & Verificacion necesaria & Prioridad \\
+\midrule
+Configuracion Django & \comando{manage.py check} sin issues en auditoria. & Ejecutar \comando{check} y \comando{check --deploy} por entorno. & Alta \\
+Registro publico & Sin pruebas dedicadas detectadas. & Validar duplicados de robot, correo, documento y edicion activa. & Alta \\
+Confirmacion de asistencia & Sin pruebas dedicadas detectadas. & Probar token valido, token invalido y sincronizacion a \clase{Team}. & Alta \\
+Inicializacion de competencia & Sin prueba integral detectada. & Crear equipos confirmados por division y validar grupos, estados e historial. & Alta \\
+Resultados de grupos & Sin prueba integral detectada. & Guardar clasificados correctos, incompletos y correccion manual. & Alta \\
+Batallas y eliminatorias & Sin prueba integral detectada. & Guardar ganador unico, multiples clasificados y propagacion de estados. & Alta \\
+Fases manuales & Pruebas parciales de distribucion. & Probar propuesta, firma, cancelacion y confirmacion. & Media \\
+Comunicaciones & Pruebas de PDF y envio parcial. & Probar dry-run, prueba controlada y bloqueo de envio real sin confirmacion. & Alta \\
+Permisos internos & Sin pruebas detectadas. & Validar anonimo, usuario no staff, staff y superuser. & Alta \\
+Frontend AJAX & Sin pruebas automatizadas detectadas. & Probar manualmente modales, guardado individual, masivo y refresco parcial. & Alta \\
+Despliegue & No hay entorno final confirmado. & Validar PostgreSQL, static files, media, SMTP, LibreOffice y variables. & Alta \\
+\bottomrule
+\end{longtable}
+
+\section{Pruebas manuales del flujo del torneo}
+\label{sec:pruebas-flujo-torneo}
+
+La validacion manual debe seguir el flujo real del sistema descrito en \cref{chap:flujo-competencia}. El orden recomendado es:
+
+\begin{enumerate}
+  \item crear o confirmar una edicion activa;
+  \item registrar equipos de colegio y universidad con datos ficticios;
+  \item confirmar asistencia mediante token;
+  \item sincronizar equipos al cuadro oficial;
+  \item inicializar competencia por division;
+  \item guardar clasificados de grupos;
+  \item avanzar a eliminatorias o repechaje segun corresponda;
+  \item aplicar una correccion manual controlada;
+  \item confirmar fase manual si aplica;
+  \item guardar podio final;
+  \item revisar historial de participantes y estado final.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de validacion manual desde registro hasta podio, con puntos de control por modulo. Fuente prevista: inventario de diagramas de validacion.}}
+  \caption{Marcador para flujo de validacion de calidad.}
+  \label{fig:pruebas-flujo-validacion}
+\end{figure}
+
+\section{Limitaciones actuales}
+\label{sec:pruebas-limitaciones}
+
+Las principales limitaciones de calidad son:
+
+\begin{itemize}
+  \item cobertura automatica limitada para el dominio central del torneo;
+  \item ausencia de pruebas dedicadas para formularios de registro y confirmacion de asistencia;
+  \item ausencia de pruebas de permisos para panel interno y comunicaciones;
+  \item ausencia de pruebas automatizadas para \archivo{static/js/control.js};
+  \item falta de entorno de integracion o CI/CD confirmado;
+  \item despliegue productivo aun pendiente de definicion.
+\end{itemize}
+
+Estas limitaciones no impiden continuar la redaccion del manual, pero condicionan la operacion real: antes de usar el sistema con datos reales se debe ejecutar una prueba completa con datos ficticios y registrar resultados.
+
+\section{Criterios de aceptacion para cambios}
+\label{sec:pruebas-criterios-cambios}
+
+Un cambio en el sistema debe aceptarse solo si cumple, como minimo:
+
+\begin{itemize}
+  \item \comando{manage.py check} sin errores;
+  \item migraciones revisadas si cambia el modelo;
+  \item prueba manual del flujo afectado;
+  \item pruebas automaticas nuevas o actualizadas cuando el cambio toca reglas de negocio;
+  \item revision de permisos si afecta vistas internas;
+  \item revision de CSRF y contratos AJAX si afecta templates o JavaScript;
+  \item verificacion de no incluir secretos ni datos reales en archivos versionados.
+\end{itemize}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:pruebas-recomendaciones}
+
+\begin{itemize}
+  \item Crear pruebas para \clase{BaseRegistrationForm}, duplicados de robot, correo y documento.
+  \item Cubrir \funcion{confirm_attendance} y \funcion{sync_registration_to_team} con pruebas de estado.
+  \item Agregar pruebas integrales para \funcion{initialize_competition}, \funcion{set_group_qualifiers}, \funcion{set_battle_winner}, \funcion{set_battle_qualifiers} y \funcion{save_final_podium}.
+  \item Incorporar pruebas de permisos para \ruta{/torneo/control/}, \ruta{/comunicaciones/} y \ruta{/admin/}.
+  \item Automatizar pruebas de comandos en modo dry-run para invitaciones y asistencia.
+  \item Evaluar pruebas de navegador para flujos AJAX criticos del panel interno.
+  \item Definir una pipeline de validacion cuando exista repositorio remoto o entorno CI/CD confirmado.
+\end{itemize}

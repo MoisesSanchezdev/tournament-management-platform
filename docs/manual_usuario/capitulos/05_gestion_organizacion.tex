@@ -1,0 +1,193 @@
+\chapter{Gestion de organizacion}
+\label{cap:gestion-organizacion}
+
+\begin{procedimiento}{Objetivo del capitulo}{Organizador autorizado}
+Orientar al organizador en la revision operativa de registros, asistencia, instituciones, equipos y categorias antes de preparar la competencia.
+\end{procedimiento}
+
+Este capitulo no repite el inicio de sesion explicado en \cref{cap:acceso-navegacion}. Parte de un usuario autorizado que ya puede entrar al panel interno y, cuando requiere revisar datos administrativos, al Django Admin. Los nombres visibles en las capturas corresponden a datos ficticios de demostracion.
+
+\section{Superficies de trabajo}
+
+La organizacion utiliza dos superficies distintas. El panel interno concentra la operacion del torneo por categorias; Django Admin permite revisar y mantener registros, instituciones y equipos con permisos superiores.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.6cm}X}
+\toprule
+Superficie & Uso operativo\\
+\midrule
+Panel de organizacion & Consultar la edicion activa, conteos por categoria, modo de competencia y accesos a Colegios o Universidades. Desde aqui se asegura o regenera el tablero base.\\
+Django Admin & Consultar registros escolares y universitarios, revisar instituciones, sincronizar confirmados al cuadro oficial y corregir datos permitidos bajo control administrativo.\\
+Modal de participante & Revisar un participante ya incorporado al control del torneo y aplicar movimientos manuales cuando la pantalla de fase lo habilita. El procedimiento detallado de correcciones se documenta en un capitulo posterior.\\
+\bottomrule
+\end{tabularx}
+
+\begin{advertencia}
+No use Django Admin para cambiar datos de registro sin validar el impacto con la organizacion. Las pantallas publicas no permiten editar un registro ya enviado; las correcciones administrativas deben quedar justificadas y revisadas antes de preparar la competencia.
+\end{advertencia}
+
+\section{Reconocer el panel de organizacion}
+
+\figuraManual{capturas/finales/MU-013-panel-torneo.png}{Panel interno con resumen de edicion activa, total de inscripciones, modelo de competencia y tarjetas por categoria.}{fig:bloque2-mu-013}
+
+\begin{procedimiento}{Ubicar las secciones principales del panel}{Organizador autorizado}
+Use este recorrido despues de iniciar sesion en el panel interno.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item Existe una edicion activa del torneo.
+    \item El usuario inicio sesion con permisos de organizador.
+    \item Los datos visibles corresponden a la edicion que se va a operar.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra el panel interno desde \ruta{/torneo/control/}.}
+\paso{2}{Verifique el encabezado \campointerfaz{Panel de organizacion}.}
+\paso{3}{Revise la tarjeta \campointerfaz{Edicion activa} para confirmar nombre y ubicacion del evento.}
+\paso{4}{Revise \campointerfaz{Inscripciones}; el conteo separa colegios y universidades.}
+\paso{5}{Revise \campointerfaz{Modelo}; la interfaz indica que el formato es adaptativo, automatico al crear y editable durante la operacion.}
+\paso{6}{Identifique las tarjetas de categoria \campointerfaz{Colegios} y \campointerfaz{Universidades}.}
+\paso{7}{Use \botoninterfaz{Abrir Colegios} o \botoninterfaz{Abrir Universidades} solo cuando necesite operar una categoria ya creada.}
+
+En \cref{fig:bloque2-mu-013}, la zona superior resume la edicion y los conteos; las tarjetas inferiores separan las categorias del torneo.
+
+\begin{resultadoesperado}
+El organizador confirma que esta en la edicion correcta y reconoce donde entrar a cada categoria antes de modificar configuracion o revisar competencia.
+\end{resultadoesperado}
+
+\section{Asegurar el tablero base}
+
+\figuraManual{capturas/finales/MU-014-generar-competencia.png}{Tarjeta de categoria con controles para abrir la division o regenerar grupos, mas marcadores editoriales sobre los indicadores principales.}{fig:bloque2-mu-014}
+
+\begin{procedimiento}{Generar o asegurar una categoria}{Operador del torneo}
+Use este procedimiento cuando una categoria debe quedar disponible para su preparacion inicial.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La asistencia y los equipos fueron revisados previamente.
+    \item La categoria tiene registros aprobados o equipos confirmados suficientes para operar.
+    \item No hay resultados en curso que puedan verse afectados por una nueva mezcla de grupos.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{En el panel, ubique la tarjeta de la categoria que desea preparar.}
+\paso{2}{Revise el indicador de inscritos y el modo mostrado en la tarjeta.}
+\paso{3}{Si la categoria todavia no tiene tablero, presione \botoninterfaz{Generar torneo}.}
+\paso{4}{Si la categoria ya existe y necesita asegurar la estructura, presione \botoninterfaz{Regenerar grupos} solo despues de revisar el progreso.}
+\paso{5}{Espere el mensaje de resultado en la parte superior del panel.}
+\paso{6}{Presione \botoninterfaz{Abrir Colegios} o \botoninterfaz{Abrir Universidades} para verificar el tablero creado.}
+
+En \cref{fig:bloque2-mu-014}, el marcador 1 senala la zona de accion donde aparece el control para generar o regenerar la categoria; el marcador 2 senala los indicadores que deben revisarse antes de actuar.
+
+\begin{operacionsensible}
+Generar o regenerar grupos puede reorganizar la distribucion inicial de equipos. Antes de confirmar, revise categoria, conteo de inscritos, asistencia confirmada y ausencia de resultados en progreso. Para cancelar, no envie el formulario y permanezca en la pantalla. Para verificar, abra la categoria y confirme que los grupos y el modo coinciden con lo esperado.
+\end{operacionsensible}
+
+\begin{resultadoesperado}
+La plataforma muestra un mensaje como \campointerfaz{Se aseguro el tablero base de Colegios sin borrar progreso existente.} o un mensaje equivalente para la categoria operada.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si aparece un mensaje de error, revise si existe edicion activa, si la categoria tiene participantes suficientes o si la configuracion actual no permite generar el tablero. No repita la accion varias veces sin corregir la causa.
+\end{fallas}
+
+\section{Registros escolares y universitarios}
+
+La consulta y edicion administrativa de registros se realiza desde Django Admin. El panel de organizacion muestra conteos por categoria, pero no reemplaza la revision administrativa de registros individuales.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Registro & Diferencia operativa visible\\
+\midrule
+Escolar & Representa colegios o instituciones educativas. En Admin se consulta por institucion, robot, responsable, edicion, estado y fechas de asistencia.\\
+Universitario & Representa universidades o programas academicos. Ademas de los datos comunes, incluye semestre del equipo universitario.\\
+Ambos & Pueden incluir participantes asociados, correo de contacto, estado del registro, fecha de solicitud de asistencia y fecha de asistencia confirmada.\\
+\bottomrule
+\end{tabularx}
+
+\begin{procedimiento}{Consultar registros e instituciones en Django Admin}{Administrador u organizador con permisos de Admin}
+Use este procedimiento para revisar datos antes de sincronizar equipos o preparar la competencia.
+\end{procedimiento}
+
+\paso{1}{Ingrese a Django Admin con un usuario autorizado.}
+\paso{2}{Abra la seccion de registros escolares o universitarios segun la categoria que va a revisar.}
+\paso{3}{Use los filtros visibles de estado y edicion para limitar la consulta.}
+\paso{4}{Use la busqueda por institucion, robot, responsable o correo cuando necesite ubicar un registro especifico.}
+\paso{5}{Abra el registro y revise institucion, robot, responsable, contacto, estado y participantes asociados.}
+\paso{6}{Si necesita consultar instituciones, abra la seccion de instituciones y filtre por tipo de institucion.}
+\paso{7}{No modifique documentos, correos o nombres sin una validacion externa de la organizacion.}
+
+\begin{resultadoesperado}
+El organizador identifica registros completos, duplicados aparentes, registros incompletos o instituciones mal clasificadas antes de preparar equipos.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si no encuentra un registro, confirme la categoria, la edicion activa y posibles diferencias de escritura en el nombre del robot o institucion. Si el registro esta duplicado, no borre datos desde el manual; eleve el caso a la persona responsable de la depuracion administrativa.
+\end{fallas}
+
+\section{Asistencia}
+
+La asistencia puede confirmarse desde el enlace enviado al participante, explicado en \cref{cap:registro-participantes}. Para organizacion interna, Django Admin muestra las fechas \campointerfaz{attendance\_request\_sent\_at} y \campointerfaz{attendance\_confirmed\_at}; ademas ofrece acciones administrativas para enviar solicitudes y sincronizar confirmados al cuadro oficial.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Estado visible & Interpretacion operativa\\
+\midrule
+Sin solicitud enviada & El registro existe, pero no se ha registrado envio de solicitud de confirmacion.\\
+Solicitud enviada & Existe fecha de solicitud; el participante aun puede tener pendiente confirmar asistencia.\\
+Asistencia confirmada & Existe fecha de confirmacion; el equipo puede sincronizarse al cuadro oficial si cumple las condiciones administrativas.\\
+Registro omitido o con error & La accion masiva no pudo enviar o sincronizar ese registro; debe revisarse caso por caso.\\
+\bottomrule
+\end{tabularx}
+
+\begin{procedimiento}{Revisar y actualizar asistencia desde Admin}{Administrador u organizador con permisos de Admin}
+Use este procedimiento cuando necesite preparar el listado que alimentara los equipos oficiales.
+\end{procedimiento}
+
+\paso{1}{Abra la lista de registros escolares o universitarios.}
+\paso{2}{Filtre por edicion y estado para evitar mezclar registros de eventos distintos.}
+\paso{3}{Revise las columnas de solicitud de asistencia y asistencia confirmada.}
+\paso{4}{Seleccione los registros que deben recibir solicitud y ejecute \botoninterfaz{Enviar correo de confirmacion de asistencia} si corresponde.}
+\paso{5}{Para registros ya confirmados, ejecute \botoninterfaz{Sincronizar confirmados al cuadro oficial} solo sobre la seleccion revisada.}
+\paso{6}{Lea el mensaje de resultado: la interfaz informa cuantos correos fueron enviados o cuantos registros fueron sincronizados, y cuantos se omitieron.}
+\paso{7}{Vuelva a la lista y confirme que las fechas o equipos reflejan el cambio esperado.}
+
+\begin{advertencia}
+No envie solicitudes reales durante una prueba sin confirmar el entorno de correo. La accion de sincronizar confirmados crea o actualiza equipos usados por el torneo, por lo que debe ejecutarse despues de revisar duplicados, categoria y edicion.
+\end{advertencia}
+
+\begin{resultadoesperado}
+Los registros confirmados quedan disponibles para organizar equipos y, si aplica, para el tablero de competencia.
+\end{resultadoesperado}
+
+\section{Equipos}
+
+Los equipos representan los robots que entran al cuadro oficial. En Django Admin se consultan por nombre, edicion, institucion, categoria y estado; los integrantes se revisan como miembros del equipo. En el panel interno, la categoria muestra conteos y distribucion en grupos cuando la competencia ya fue creada.
+
+\begin{procedimiento}{Consultar equipos antes de operar categoria}{Organizador autorizado}
+Use este recorrido para evitar iniciar competencia con datos incompletos.
+\end{procedimiento}
+
+\paso{1}{En Admin, abra la lista de equipos.}
+\paso{2}{Filtre por edicion y tipo de institucion cuando la lista lo permita.}
+\paso{3}{Revise nombre del robot, institucion, categoria y estado.}
+\paso{4}{Abra el equipo y confirme sus integrantes antes de usarlo en el torneo.}
+\paso{5}{Regrese al panel de organizacion y compare el conteo de inscritos o equipos con la categoria que va a preparar.}
+\paso{6}{Si el tablero ya existe, abra la categoria y revise la distribucion de grupos en el capitulo siguiente.}
+
+\begin{advertencia}
+Modificar equipos despues de crear el tablero puede dejar diferencias entre la lista administrativa y la distribucion inicial del torneo. Si se corrige un equipo, verifique si debe sincronizar o regenerar la categoria antes de avanzar.
+\end{advertencia}
+
+\section{Modal de participante}
+
+En las pantallas de fase, algunos participantes pueden abrirse como detalle interactivo. El modal muestra robot, institucion, grupo actual, fase actual, estado, historial y una seccion de \campointerfaz{Control manual}. Los campos visibles de edicion rapida son \campointerfaz{Mover a fase}, \campointerfaz{Mover a grupo}, \campointerfaz{Mover a batalla}, \campointerfaz{Estado manual} y \campointerfaz{Nota}. El guardado se realiza con \botoninterfaz{Guardar cambios}.
+
+\begin{operacionsensible}
+Mover un participante, cambiar su estado o asignarlo a otro grupo puede afectar la lectura operativa de fases posteriores. Antes de guardar, revise el estado actual, el destino y la nota. Para cancelar, cierre el modal con el boton de cierre o la tecla Escape. Para verificar, espere que la pantalla se recargue y confirme que el participante aparece en el lugar esperado.
+\end{operacionsensible}
+
+\begin{fallas}
+Si el modal muestra \campointerfaz{No fue posible cargar el participante} o \campointerfaz{No fue posible actualizar el participante}, revise que la categoria siga abierta, que el participante pertenezca a esa categoria y que el destino seleccionado sea compatible.
+\end{fallas}

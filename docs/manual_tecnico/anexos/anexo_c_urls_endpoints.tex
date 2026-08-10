@@ -1,0 +1,68 @@
+\chapter{URLs y endpoints}
+\label{anexo:urls-endpoints}
+
+Este anexo resume las rutas propias del proyecto. Las rutas internas generadas por Django Admin existen bajo \ruta{/admin/}, pero no se enumeran una por una porque pertenecen al mecanismo administrativo del framework.
+
+\begin{longtable}{p{4.8cm}p{3.5cm}p{2.8cm}p{2.2cm}}
+\caption{URLs publicas e informativas.}
+\label{tab:anexo-urls-publicas}\\
+\toprule
+Ruta & Vista & App & Proteccion \\
+\midrule
+\ruta{/} & \funcion{home} & \archivo{core} & Publica \\
+\ruta{/reglas/} & \funcion{rules_page} & \archivo{core} & Publica \\
+\ruta{/patrocinadores/} & \funcion{sponsors_page} & \archivo{core} & Publica \\
+\ruta{/torneo/} & \funcion{overview} & \archivo{tournament} & Publica \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{4.8cm}p{3.5cm}p{2.8cm}p{2.2cm}}
+\caption{URLs de registro y asistencia.}
+\label{tab:anexo-urls-registro}\\
+\toprule
+Ruta & Vista & App & Proteccion \\
+\midrule
+\ruta{/registro/} & \funcion{registration_choice} & \archivo{participants} & Publica \\
+\ruta{/registro/colegios/} & \funcion{school_register} & \archivo{participants} & Publica con CSRF en POST \\
+\ruta{/registro/universidades/} & \funcion{university_register} & \archivo{participants} & Publica con CSRF en POST \\
+\ruta{/registro/exito/<registration_type>/} & \funcion{registration_success} & \archivo{participants} & Publica \\
+\ruta{/registro/confirmar-asistencia/<token>/} & \funcion{attendance_confirmation} & \archivo{participants} & Token UUID y CSRF en POST \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{4.8cm}p{3.5cm}p{2.8cm}p{2.2cm}}
+\caption{URLs de comunicaciones.}
+\label{tab:anexo-urls-comunicaciones}\\
+\toprule
+Ruta & Vista & App & Proteccion \\
+\midrule
+\ruta{/comunicaciones/} & \funcion{dashboard} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/plantillas/} & \funcion{template_list} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/plantillas/nueva/} & \funcion{template_create} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/plantillas/<template_id>/previsualizar/} & \funcion{template_preview} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/invitaciones/} & \funcion{invitations} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/confirmaciones/} & \funcion{confirmations} & \archivo{invitations} & Organizador \\
+\ruta{/comunicaciones/historial/} & \funcion{history} & \archivo{invitations} & Organizador \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{5.2cm}p{3.7cm}p{3.7cm}}
+\caption{URLs del panel de torneo.}
+\label{tab:anexo-urls-torneo}\\
+\toprule
+Ruta & Vista & Tipo de respuesta \\
+\midrule
+\ruta{/torneo/control/login/} & \clase{LoginView} & HTML \\
+\ruta{/torneo/control/logout/} & \clase{LogoutView} & Redireccion \\
+\ruta{/torneo/control/} & \funcion{control_dashboard} & HTML interno \\
+\ruta{/torneo/control/divisiones/<competition_id>/} & \funcion{control_division} & HTML interno \\
+\ruta{/torneo/control/divisiones/<competition_id>/fases/<stage_key>/} & \funcion{control_division_stage} & HTML, JSON o parcial HTML segun solicitud \\
+\ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/} & \funcion{participant_modal_detail} & HTML parcial para modal \\
+\ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/actualizar/} & \funcion{participant_modal_update} & JSON para actualizacion AJAX \\
+\ruta{/torneo/control/fases/<phase_id>/} & \funcion{control_phase_detail} & HTML interno \\
+\bottomrule
+\end{longtable}
+
+\begin{advertencia}
+Las rutas internas marcadas como organizador dependen de autenticacion y validacion de usuario staff o superusuario. Si se agregan roles mas granulares, esta matriz debe actualizarse junto con \cref{chap:seguridad}.
+\end{advertencia}

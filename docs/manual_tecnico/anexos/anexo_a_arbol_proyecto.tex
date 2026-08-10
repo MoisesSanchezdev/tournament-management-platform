@@ -1,0 +1,70 @@
+\chapter{Arbol del proyecto}
+\label{anexo:arbol-proyecto}
+
+Este anexo resume la estructura tecnica relevante del repositorio. Se excluyen artefactos locales, entornos virtuales, cache, base SQLite local, archivos reales de entorno y salidas de compilacion.
+
+\begin{lstlisting}[language=bash,caption={Arbol tecnico resumido del proyecto.},label={lst:anexo-arbol-proyecto}]
+pre_explotaglobos/
++-- apps/
+|   +-- common/
+|   |   +-- apps.py
+|   |   +-- models.py
+|   +-- core/
+|   |   +-- urls.py
+|   |   +-- views.py
+|   +-- participants/
+|   |   +-- admin.py
+|   |   +-- forms.py
+|   |   +-- models.py
+|   |   +-- services.py
+|   |   +-- urls.py
+|   |   +-- views.py
+|   +-- tournament/
+|   |   +-- admin.py
+|   |   +-- formats.py
+|   |   +-- models.py
+|   |   +-- planner.py
+|   |   +-- recommendations.py
+|   |   +-- services.py
+|   |   +-- tests.py
+|   |   +-- urls.py
+|   |   +-- views.py
+|   +-- invitations/
+|       +-- admin.py
+|       +-- forms.py
+|       +-- models.py
+|       +-- services.py
+|       +-- tests.py
+|       +-- urls.py
+|       +-- views.py
++-- config/
+|   +-- settings.py
+|   +-- urls.py
+|   +-- asgi.py
+|   +-- wsgi.py
++-- static/
++-- media/
++-- docs/
+|   +-- manual_tecnico/
++-- manage.py
++-- requirements.txt
++-- .env.example
++-- README.md
+\end{lstlisting}
+
+\begin{longtable}{p{4cm}p{8.5cm}}
+\caption{Responsabilidad de carpetas principales.}
+\label{tab:anexo-arbol-responsabilidades}\\
+\toprule
+Ruta & Responsabilidad \\
+\midrule
+\archivo{apps/core} & Paginas publicas informativas: inicio, reglas y patrocinadores. \\
+\archivo{apps/participants} & Registro publico, confirmacion de asistencia, sincronizacion hacia instituciones, equipos e integrantes. \\
+\archivo{apps/tournament} & Dominio competitivo: ediciones, fases, grupos, batallas, estados, historial, panel interno y comandos de torneo. \\
+\archivo{apps/invitations} & Plantillas, destinatarios, lotes, conversion DOCX a PDF, envios y logs de comunicaciones. \\
+\archivo{config} & Configuracion Django, URLs raiz, WSGI y ASGI. \\
+\archivo{static} & CSS, JavaScript y assets estaticos versionables. \\
+\archivo{media} & Archivos cargados en ejecucion; no debe tratarse como fuente versionable. \\
+\archivo{docs/manual_tecnico} & Fuente LaTeX modular del Manual Tecnico. \\
+\bottomrule
+\end{longtable}

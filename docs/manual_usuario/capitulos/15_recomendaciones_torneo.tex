@@ -1,0 +1,106 @@
+\chapter{Recomendaciones de operacion del torneo}
+\label{cap:recomendaciones-torneo}
+
+\begin{procedimiento}{Objetivo del capitulo}{Organizador}
+Reducir riesgos antes, durante y despues del evento mediante recomendaciones operativas basadas en los flujos implementados.
+\end{procedimiento}
+
+Las recomendaciones de este capitulo combinan tres niveles: comportamiento implementado por la plataforma, practica operativa recomendada y politica institucional pendiente. Cuando una decision depende de la organizacion, se marca como \campointerfaz{PENDIENTE DE DEFINICION INSTITUCIONAL}.
+
+\section{Antes del torneo}
+
+\begin{longtable}{p{3.4cm}p{7.6cm}p{2.0cm}}
+\toprule
+Revision & Recomendacion & Tipo\\
+\midrule
+\endhead
+Acceso & Inicie sesion con el usuario que operara el panel y verifique que puede abrir resumen, divisiones y comunicaciones. & Implementado\\
+Participantes & Revise registros, duplicados, categoria, institucion, robot e integrantes antes de sincronizar equipos. & Operativa\\
+Asistencia & Envie solicitudes solo desde un entorno autorizado y revise confirmados antes de sincronizar. & Operativa\\
+Equipos & Confirme que los equipos aprobados aparecen en la division correcta. & Operativa\\
+Divisiones & Verifique colegios y universidades por separado; no mezcle decisiones entre categorias. & Implementado\\
+Competencia & Genere o asegure tablero solo con datos revisados. No regenere con progreso sin entender el impacto. & Operativa\\
+Navegador & Use un navegador actualizado y mantenga una sesion limpia para el operador principal. & Operativa\\
+Red & Pruebe conectividad desde el lugar de operacion antes de iniciar resultados. & Operativa\\
+Dispositivo alterno & Defina un equipo alterno con acceso autorizado por si el equipo principal falla. & Politica\\
+Permisos & Identifique quien puede operar torneo, comunicaciones y Admin. & Politica\\
+Responsables & Defina responsable de mesa, operador de plataforma y persona autorizada para correcciones. & Politica\\
+Estado previo & Revise que no haya cambios pendientes ni datos demo mezclados con operacion real. & Operativa\\
+Datos de demostracion & Elimine o aisle datos de demostracion segun procedimiento aprobado antes de trabajar con datos reales. & Politica\\
+\bottomrule
+\end{longtable}
+
+\section{Durante el torneo}
+
+\begin{itemize}
+    \item Use una sola fuente de verdad para resultados: acta o decision oficial antes de guardar en la plataforma.
+    \item Guarde y verifique. Despues de cada resultado sensible, confirme que la pantalla conserva el dato al recargar.
+    \item Evite que varios operadores trabajen sobre la misma division sin coordinacion.
+    \item Si aparece una confirmacion de correccion, cancele salvo que la mesa haya autorizado el cambio.
+    \item Despues de una correccion, revise fases posteriores como indica \cref{cap:correcciones-manuales}.
+    \item No use Django Admin cuando exista una interfaz operativa para la accion.
+    \item Registre incidentes: hora aproximada, fase, accion, mensaje y decision tomada.
+    \item Proteja datos personales en pantallas, capturas y conversaciones de soporte.
+    \item Use \campointerfaz{Simulacion segura} para revisar comunicaciones durante pruebas; no ejecute envio real sin autorizacion.
+\end{itemize}
+
+\begin{operacionsensible}
+Durante el torneo, detenerse para verificar es preferible a encadenar correcciones. La aplicacion no conserva cambios no guardados como mecanismo de contingencia; si hay duda, recargue y confirme el estado persistido.
+\end{operacionsensible}
+
+\section{Despues del torneo}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Actividad & Recomendacion\\
+\midrule
+Podio & Revise campeon, segundo y tercer lugar si aplica. Confirme que el podio fue guardado.\\
+Resultados finales & Verifique grupos, batallas, repechaje y final antes de declarar cierre operativo.\\
+Comunicaciones & Consulte historial de comunicaciones para simulado, prueba, enviado, omitido o fallido.\\
+Sesiones & Cierre sesiones de panel interno y Admin en equipos compartidos.\\
+Evidencia & Conserve solo capturas o reportes autorizados y sin datos sensibles innecesarios.\\
+Respaldo & Solicite o ejecute respaldo solo segun politica aprobada por responsable autorizado.\\
+Incidentes & Documente errores, correcciones, envios fallidos y decisiones manuales.\\
+Cambios posteriores & Evite modificar resultados o registros despues del cierre sin autorizacion organizativa.\\
+\bottomrule
+\end{tabularx}
+
+\section{Plan de contingencia}
+
+\begin{longtable}{p{3.6cm}p{5.9cm}p{3.6cm}}
+\toprule
+Incidente & Accion inmediata & Que no hacer\\
+\midrule
+\endhead
+Perdida temporal de red & Detenga la operacion, no cierre conclusiones y verifique estado al volver la conexion. & No asumir que el ultimo cambio quedo guardado.\\
+Cierre accidental del navegador & Reabra la pantalla, inicie sesion si hace falta y revise el ultimo estado persistido. & No repetir resultados sin comparar con acta.\\
+Recarga inesperada & Verifique si la seleccion sigue visible y si hubo mensaje de exito previo. & No avanzar de fase por memoria.\\
+Error de servidor & Capture mensaje sin datos sensibles y reporte si se repite. & No usar Admin para forzar cambios sin diagnostico.\\
+Duda sobre un resultado & Detenga guardado y consulte la fuente oficial. & No aceptar confirmaciones sensibles.\\
+Conflicto entre operadores & Pause la division, defina un operador responsable y compare estado persistido. & No operar simultaneamente la misma fase.\\
+Informacion visual desactualizada & Recargue y compare con historial o pantalla relacionada. & No crear duplicados.\\
+No es posible continuar fase & Revise resultados pendientes, cierre de fase y mensajes de bloqueo. & No crear fase manual para ocultar resultados incompletos.\\
+\bottomrule
+\end{longtable}
+
+\section{Politicas pendientes}
+
+Los siguientes puntos dependen de la organizacion y no de una funcion automatica descrita en este manual:
+\begin{itemize}
+    \item Canal formal de soporte: \campointerfaz{PENDIENTE DE DEFINICION INSTITUCIONAL}.
+    \item Responsable autorizado para correcciones sensibles.
+    \item Politica de respaldo antes y despues del torneo.
+    \item Politica de conservacion de evidencias y capturas.
+    \item Procedimiento institucional para retirar datos demo antes de produccion.
+    \item Criterios para envio real de comunicaciones.
+\end{itemize}
+
+\section{Resumen para mesa de operacion}
+
+\begin{itemize}
+    \item Preparar: acceso, participantes, asistencia, equipos, divisiones y conectividad.
+    \item Operar: seleccionar, guardar, verificar y avanzar solo con resultados completos.
+    \item Corregir: detenerse, autorizar, aplicar y revisar fases posteriores.
+    \item Comunicar: simular primero, probar de forma controlada y enviar real solo con aprobacion.
+    \item Cerrar: revisar podio, historial, incidentes, sesiones y pendientes.
+\end{itemize}

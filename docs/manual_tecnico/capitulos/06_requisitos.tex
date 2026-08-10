@@ -1,0 +1,133 @@
+\chapter{Requisitos}
+\label{chap:requisitos}
+
+\section{Criterio de requisitos}
+\label{sec:requisitos-criterio}
+
+Los requisitos de este capitulo se derivan de la auditoria tecnica, de archivos de configuracion y de dependencias declaradas. No se establecen capacidades de hardware, infraestructura o produccion que no esten justificadas por el proyecto. Cuando un requisito depende del ambiente final, se marca como \MarcadorProduccionPendiente.
+
+La plataforma tiene dos perfiles de ejecucion: desarrollo local y produccion o entorno no local. El entorno local permite SQLite y consola de correo para facilitar preparacion y pruebas. El entorno no local requiere configuracion mas estricta: \variable{DEBUG=False}, clave secreta real, hosts permitidos, PostgreSQL, configuracion de correo si se enviaran comunicaciones reales y disponibilidad de LibreOffice si se generaran PDF.
+
+\section{Requisitos funcionales derivados}
+\label{sec:requisitos-funcionales}
+
+\begin{longtable}{p{4cm}p{8.8cm}}
+\toprule
+Area & Requisito funcional del sistema \\
+\midrule
+Sitio publico & Publicar pagina principal, reglas y patrocinadores desde \archivo{apps.core}. \\
+Registro & Permitir registros de equipos de colegio y universidad mediante formularios diferenciados. \\
+Asistencia & Confirmar asistencia mediante token UUID y sincronizar registros confirmados a equipos operativos. \\
+Torneo & Administrar competencias por division con grupos, batallas, repechajes, fases manuales, estados e historial. \\
+Panel interno & Permitir a organizadores gestionar divisiones, fases, resultados y participantes desde rutas protegidas. \\
+Comunicaciones & Gestionar plantillas DOCX, destinatarios XLSX, lotes, logs, PDF y envio de correos. \\
+Administracion & Permitir inspeccion y operaciones controladas mediante Django Admin. \\
+\bottomrule
+\end{longtable}
+
+Estos requisitos explican la seleccion tecnologica: un solo proyecto Django puede coordinar formularios, autenticacion, persistencia, servicios de negocio, templates y admin sin introducir varios sistemas independientes.
+
+\section{Requisitos de software}
+\label{sec:requisitos-software}
+
+\begin{longtable}{p{4.2cm}p{4.2cm}p{4.8cm}}
+\toprule
+Componente & Desarrollo local & Produccion o no local \\
+\midrule
+Python & Validado con Python 3.12.10 en \archivo{.venv} & Version exacta \MarcadorProduccionPendiente; debe ser compatible con dependencias declaradas. \\
+Dependencias pip & \archivo{requirements.txt} & Mismas dependencias, instaladas en entorno aislado. \\
+Base de datos & SQLite permitido con \variable{DJANGO_DATABASE=sqlite} y \variable{DJANGO_DEBUG=True} & PostgreSQL mediante variables \variable{POSTGRES_*}. \\
+Correo & Consola o SMTP segun variables & SMTP real si se enviaran comunicaciones. \\
+LibreOffice & Necesario si se prueba conversion PDF & Necesario para generar PDF de invitaciones. \\
+Archivos estaticos & Servidos por \funcion{runserver} en desarrollo & Requiere recoleccion y servicio externo o configuracion de servidor. \\
+Media & Carpeta local \archivo{media/} & Estrategia final \MarcadorProduccionPendiente. \\
+\bottomrule
+\end{longtable}
+
+\section{Dependencias obligatorias}
+\label{sec:requisitos-dependencias}
+
+Las dependencias obligatorias son las declaradas en \archivo{requirements.txt}. No se requiere instalar dependencias JavaScript para ejecutar la plataforma segun la estructura observada.
+
+\begin{lstlisting}[language=bash,caption={Dependencias Python declaradas por el proyecto},label={lst:requirements-proyecto}]
+Django>=5.2,<5.3
+psycopg[binary]>=3.2,<3.3
+python-dotenv>=1.0,<2.0
+openpyxl>=3.1,<3.2
+python-docx>=1.1,<1.2
+\end{lstlisting}
+
+La instalacion de estas dependencias cubre el funcionamiento base del backend, la conexion PostgreSQL, la carga de entorno, el procesamiento XLSX y las plantillas DOCX. No cubre LibreOffice, porque LibreOffice es un programa externo y debe instalarse o estar disponible por separado si se usaran conversiones PDF.
+
+\section{Requisitos de hardware}
+\label{sec:requisitos-hardware}
+
+La auditoria no confirma mediciones de carga, numero de usuarios concurrentes, volumen de archivos ni dimensionamiento de produccion. Por tanto, no se definen CPU, memoria o almacenamiento minimos como requisitos cerrados.
+
+Para desarrollo local, el requisito justificable es disponer de un equipo capaz de ejecutar Python, Django, SQLite y navegador web. Si se prueban invitaciones PDF, el equipo tambien debe ejecutar LibreOffice. Para produccion, el dimensionamiento queda como \MarcadorProduccionPendiente{} y debe definirse segun:
+
+\begin{itemize}
+  \item Numero esperado de equipos y participantes.
+  \item Cantidad de organizadores usando el panel simultaneamente.
+  \item Volumen de documentos DOCX/PDF y media.
+  \item Politica de retencion de logs de comunicaciones.
+  \item Estrategia de backups.
+\end{itemize}
+
+\section{Entorno de desarrollo}
+\label{sec:requisitos-desarrollo}
+
+El entorno de desarrollo debe permitir:
+
+\begin{itemize}
+  \item Crear un entorno virtual local en \archivo{.venv}.
+  \item Instalar dependencias desde \archivo{requirements.txt}.
+  \item Copiar \archivo{.env.example} a \archivo{.env} y ajustar valores seguros de desarrollo.
+  \item Usar SQLite solamente con \variable{DJANGO_DEBUG=True}.
+  \item Ejecutar migraciones sobre una base local.
+  \item Crear un superusuario si se necesita acceder al admin o panel interno.
+  \item Ejecutar \comando{manage.py check} y \comando{runserver}.
+\end{itemize}
+
+El repositorio incluye reglas de \archivo{.gitignore} para excluir \archivo{.venv/}, \archivo{.env}, bases SQLite, \archivo{media/}, \archivo{staticfiles/}, caches y listados reales de comunicaciones. Esto reduce el riesgo de versionar secretos, datos operativos o archivos generados.
+
+\section{Entorno recomendado para produccion}
+\label{sec:requisitos-produccion}
+
+El entorno no local debe cumplir como minimo las restricciones ya implementadas en \archivo{config/settings.py}:
+
+\begin{itemize}
+  \item \variable{DJANGO_DEBUG=False}.
+  \item \variable{DJANGO_SECRET_KEY} real y no versionada.
+  \item \variable{DJANGO_ALLOWED_HOSTS} con hosts autorizados.
+  \item PostgreSQL configurado con \variable{POSTGRES_DB}, \variable{POSTGRES_USER}, \variable{POSTGRES_PASSWORD} y \variable{POSTGRES_HOST}.
+  \item Cookies seguras, redireccion SSL y HSTS activados por la condicion \variable{not DEBUG}.
+  \item SMTP real configurado si se enviaran comunicaciones.
+  \item LibreOffice disponible si se generaran PDF.
+  \item Servicio definido para estaticos y media.
+\end{itemize}
+
+\begin{advertencia}
+El servidor web o de aplicacion, dominio, certificados, reverse proxy, CI/CD, backups y almacenamiento final de media no estan confirmados. Deben tratarse como \MarcadorProduccionPendiente{} hasta que exista una decision tecnica aprobada.
+\end{advertencia}
+
+\section{Compatibilidad y limitaciones conocidas}
+\label{sec:requisitos-limitaciones}
+
+\begin{longtable}{p{4.5cm}p{8.5cm}}
+\toprule
+Limitacion & Impacto \\
+\midrule
+SQLite bloqueado fuera de debug & Obliga a configurar PostgreSQL para entornos no locales y evita despliegues accidentales sobre base local. \\
+LibreOffice externo & La generacion PDF falla si el binario no esta en PATH o en \variable{LIBREOFFICE_BINARY}. \\
+SMTP no confirmado & El envio real depende de variables y credenciales validas; el sistema puede usar consola o simulacion para desarrollo. \\
+Sin pipeline frontend observado & Menos pasos de instalacion, pero los assets se mantienen manualmente en \archivo{static/}. \\
+Pruebas limitadas & Faltan validaciones end-to-end para registro, panel completo y AJAX; se desarrolla en \cref{chap:pruebas-calidad}. \\
+Datos de produccion no definidos & No se puede cerrar procedimiento productivo completo hasta confirmar infraestructura. \\
+\bottomrule
+\end{longtable}
+
+\section{Cierre del capitulo}
+\label{sec:requisitos-cierre}
+
+Los requisitos del proyecto estan determinados por su propio flujo operativo: registro publico, confirmacion de asistencia, torneo, comunicaciones y panel interno. Para desarrollo, la preparacion es compacta y depende principalmente de Python, entorno virtual, dependencias pip, SQLite y variables locales. Para produccion, las restricciones de seguridad ya implementadas elevan el nivel requerido: PostgreSQL, secretos reales, hosts definidos, HTTPS, SMTP validado, LibreOffice y una estrategia de servicio para estaticos, media y backups.

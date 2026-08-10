@@ -1,0 +1,133 @@
+\chapter{Seguridad}
+\label{chap:seguridad}
+
+\section{Alcance de seguridad implementado}
+\label{sec:seguridad-alcance}
+
+La seguridad del sistema se apoya en mecanismos nativos de Django, validaciones de configuracion por entorno y controles especificos en los flujos de torneo y comunicaciones. Este capitulo documenta unicamente controles confirmados en el proyecto. No se afirma cumplimiento de normas externas, politicas institucionales de privacidad ni auditoria formal de accesos, porque no hay evidencia de esos procesos en el codigo ni en la auditoria validada.
+
+El criterio principal de seguridad es reducir operaciones accidentales durante el evento: proteger el panel interno, evitar envios reales sin confirmacion, impedir configuraciones inseguras en produccion y mantener fuera del repositorio los secretos y bases locales.
+
+\section{Configuracion por entorno}
+\label{sec:seguridad-configuracion}
+
+\archivo{config/settings.py} carga variables desde \archivo{.env} mediante \funcion{load_dotenv}. El modo por defecto es restrictivo: \variable{DEBUG} se calcula desde \variable{DJANGO_DEBUG} con valor predeterminado falso. Cuando \variable{DEBUG=False}, la clave secreta y los hosts permitidos son obligatorios.
+
+\begin{longtable}{p{3.5cm}p{4.6cm}p{4.8cm}}
+\caption{Controles de configuracion de seguridad.}
+\label{tab:seguridad-configuracion}\\
+\toprule
+Control & Implementacion confirmada & Impacto operativo \\
+\midrule
+\variable{DJANGO_SECRET_KEY} & Si falta con \variable{DEBUG=False}, se lanza \clase{ImproperlyConfigured}. & Evita iniciar produccion con clave debil o ausente. \\
+\variable{DJANGO_ALLOWED_HOSTS} & Obligatorio cuando \variable{DEBUG=False}. & Reduce exposicion a hosts no previstos. \\
+\variable{DJANGO_CSRF_TRUSTED_ORIGINS} & Lista configurable por entorno. & Permite declarar origenes confiables si se despliega detras de dominio real. \\
+\variable{DJANGO_DATABASE} & SQLite solo se permite para desarrollo local con debug. & Obliga PostgreSQL fuera de entorno local. \\
+Cookies seguras & \variable{CSRF_COOKIE_SECURE} y \variable{SESSION_COOKIE_SECURE} son verdaderas cuando no hay debug. & Exige transporte seguro para cookies en produccion. \\
+Redireccion SSL & \variable{SECURE_SSL_REDIRECT=True} cuando \variable{DEBUG=False}. & Fuerza HTTPS si el despliegue esta correctamente preparado. \\
+HSTS & \variable{SECURE_HSTS_SECONDS=31536000}, subdominios y preload cuando no hay debug. & Endurece navegadores despues del primer acceso HTTPS. \\
+Clickjacking & \variable{X_FRAME_OPTIONS="DENY"}. & Impide incrustar el sitio en marcos externos. \\
+MIME sniffing & \variable{SECURE_CONTENT_TYPE_NOSNIFF=True}. & Reduce interpretaciones inseguras de contenido. \\
+Referrer policy & \variable{SECURE_REFERRER_POLICY="same-origin"}. & Limita fuga de informacion de navegacion hacia otros origenes. \\
+\bottomrule
+\end{longtable}
+
+\begin{advertencia}
+El proyecto no define dominio, proxy, certificados ni proveedor de hosting. Por tanto, cualquier despliegue real debe validar que las reglas de HTTPS, hosts permitidos y origenes CSRF coincidan con la infraestructura final. Esa informacion sigue como PENDIENTE DE DEFINICION PARA PRODUCCION.
+\end{advertencia}
+
+\section{Autenticacion y autorizacion}
+\label{sec:seguridad-auth}
+
+El panel interno del torneo y el modulo de comunicaciones dependen de autenticacion Django. La funcion \funcion{is_organizer} valida que el usuario este autenticado y que sea \variable{is_staff} o \variable{is_superuser}. Las vistas internas usan \funcion{login_required} y \funcion{user_passes_test}.
+
+La ventaja de este modelo es que reutiliza usuarios, sesiones y administracion de Django sin crear una capa de identidad propia. La limitacion es que el permiso operativo es binario: quien cumple \funcion{is_organizer} puede acceder al panel interno. No hay evidencia de permisos granulares por accion, division, modulo de comunicaciones o fase de torneo.
+
+El acceso a \ruta{/admin/} queda bajo el mecanismo de Django Admin. Los modelos de participantes, torneo e invitaciones estan registrados con \clase{ModelAdmin}; algunas acciones administrativas tienen impacto operativo, por lo que deben tratarse como funciones sensibles, no solo como administracion pasiva.
+
+\section{CSRF, formularios y AJAX}
+\label{sec:seguridad-csrf}
+
+El middleware \clase{CsrfViewMiddleware} esta activo. Los formularios POST revisados en templates usan \variable{csrf_token}. En el panel interno, \archivo{static/js/control.js} obtiene el token desde el DOM y lo envia en la cabecera \variable{X-CSRFToken} durante peticiones AJAX.
+
+Este control protege operaciones como guardar clasificados, guardar ganadores y actualizar manualmente participantes. La vista \funcion{control_division_stage} conserva compatibilidad con POST tradicional y con respuestas JSON si recibe \variable{X-Requested-With=XMLHttpRequest}. La seguridad del flujo depende de mantener simultaneamente:
+
+\begin{itemize}
+  \item token CSRF en formularios renderizados;
+  \item cabecera CSRF en llamadas AJAX;
+  \item autenticacion de usuario para vistas internas;
+  \item validaciones en servicios antes de persistir cambios.
+\end{itemize}
+
+\section{Validaciones de dominio}
+\label{sec:seguridad-validaciones}
+
+La seguridad del proyecto no se limita a configuracion HTTP. Varias validaciones reducen errores operativos o datos inconsistentes:
+
+\begin{itemize}
+  \item los formularios de registro validan edicion activa, duplicados de robot, correo y documentos;
+  \item la confirmacion de asistencia usa token UUID antes de sincronizar equipos;
+  \item \funcion{stage_is_closed} bloquea avance de fase sin resultados completos;
+  \item \clase{ManualCorrectionRequired} exige confirmacion cuando una correccion puede afectar fases posteriores;
+  \item las propuestas manuales usan firma para detectar cambios antes de confirmar;
+  \item los servicios de invitaciones validan SMTP, placeholders y modo de envio.
+\end{itemize}
+
+Estas validaciones tienen impacto directo en mantenimiento: si se cambia una regla en formularios o servicios, no basta con revisar la pantalla. Tambien debe validarse que los estados persistidos y el historial sigan siendo coherentes con \cref{chap:flujo-competencia}.
+
+\section{Comunicaciones y proteccion contra envios accidentales}
+\label{sec:seguridad-comunicaciones}
+
+El modulo de comunicaciones incorpora controles especificos porque puede enviar correos reales. El comportamiento seguro por defecto es simulacion. Las vistas y comandos distinguen modo dry-run, prueba controlada con \variable{test_recipient} y envio oficial.
+
+\begin{longtable}{p{3.8cm}p{4.5cm}p{4.6cm}}
+\caption{Controles de seguridad en comunicaciones.}
+\label{tab:seguridad-comunicaciones}\\
+\toprule
+Control & Evidencia & Riesgo mitigado \\
+\midrule
+Dry-run por defecto & Servicios y comandos de \archivo{apps/invitations}. & Evita envios reales accidentales. \\
+Confirmacion explicita & Campo \variable{confirm_real_send} o bandera \comando{--yes}. & Exige decision humana antes de envio oficial. \\
+Prueba controlada & \variable{test_recipient} redirige destinatario fisico. & Permite probar SMTP sin contactar participantes reales. \\
+Validacion SMTP & \funcion{is_real_email_configured}. & Bloquea envio real con configuracion incompleta. \\
+Bloqueo de placeholders & Deteccion de secretos de ejemplo. & Evita operar con credenciales ficticias. \\
+Logs por destinatario & \clase{CommunicationLog}. & Permite trazabilidad de resultados de envio. \\
+\bottomrule
+\end{longtable}
+
+\section{Datos sensibles y secretos}
+\label{sec:seguridad-secretos}
+
+El repositorio excluye archivos sensibles mediante \archivo{.gitignore}: \archivo{.env}, variantes de entorno, bases SQLite locales, \archivo{media/}, logs y listados reales de correos. \archivo{.env.example} documenta nombres de variables y placeholders, no valores reales.
+
+No deben incorporarse al manual ni al repositorio claves reales, credenciales SMTP, passwords de PostgreSQL, tokens, listados de estudiantes ni bases de datos productivas. El manual solo documenta nombres de variables y propositos.
+
+\section{Riesgos conocidos}
+\label{sec:seguridad-riesgos}
+
+\begin{longtable}{p{3.4cm}p{4.1cm}p{4.9cm}}
+\caption{Riesgos de seguridad y control recomendado.}
+\label{tab:seguridad-riesgos}\\
+\toprule
+Riesgo & Evidencia & Control recomendado \\
+\midrule
+Roles internos binarios & \funcion{is_organizer} acepta staff o superuser. & Definir permisos por accion antes de operacion productiva. \\
+Comando demo destructivo & \archivo{reset_tournament_demo.py} elimina multiples modelos. & Aislarlo de produccion y documentar uso solo en demo. \\
+Previews con datos personales & \clase{CommunicationLog.rendered_preview}. & Revisar politica de retencion y privacidad de logs. \\
+Token de asistencia en URL & Confirmacion publica por UUID. & Mantener HTTPS y tokens no predecibles. \\
+Assets remotos & Imagenes externas en vistas publicas. & Evaluar disponibilidad, privacidad y reemplazo local si aplica. \\
+Sin rate limit confirmado & No se detecto proteccion explicita. & Evaluar controles en servidor o middleware si se expone publicamente. \\
+\bottomrule
+\end{longtable}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:seguridad-recomendaciones}
+
+\begin{itemize}
+  \item Definir permisos granulares para panel de torneo, comunicaciones, acciones de Admin y cambios de fase.
+  \item Formalizar politica de privacidad y tratamiento de datos personales antes de operar con datos reales.
+  \item Incorporar auditoria de acciones por usuario para operaciones sensibles: correcciones manuales, envios oficiales, sincronizacion de equipos y reinicios.
+  \item Revisar retencion de \clase{CommunicationLog.rendered_preview} y limitar datos personales si no son necesarios para trazabilidad.
+  \item Agregar pruebas de seguridad para acceso anonimo, usuario no staff, usuario staff y superusuario en rutas internas.
+  \item Definir controles de rate limit o proteccion equivalente para formularios publicos si el sistema se publica en Internet.
+\end{itemize}

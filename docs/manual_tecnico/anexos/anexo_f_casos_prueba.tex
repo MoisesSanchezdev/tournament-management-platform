@@ -1,0 +1,39 @@
+\chapter{Casos de prueba}
+\label{anexo:casos-prueba}
+
+Este anexo resume pruebas existentes y casos recomendados. La prioridad alta corresponde a flujos que afectan datos de participantes, avance del torneo, comunicaciones reales o seguridad.
+
+\begin{longtable}{p{3.3cm}p{4.2cm}p{3.8cm}p{1.7cm}}
+\caption{Casos de prueba existentes confirmados.}
+\label{tab:anexo-pruebas-existentes}\\
+\toprule
+Area & Caso cubierto & Evidencia & Prioridad \\
+\midrule
+Fase manual & Distribuciones exactas para 36 participantes. & \archivo{apps/tournament/tests.py} & Alta \\
+Fase manual & Exclusiones para distribuciones no validas con 10 participantes. & \archivo{apps/tournament/tests.py} & Media \\
+Fase manual & Distribucion balanceada para 17 participantes en 4 grupos. & \archivo{apps/tournament/tests.py} & Alta \\
+PDF & Conversion DOCX a PDF exitosa y errores controlados. & \archivo{apps/invitations/tests.py} & Alta \\
+PDF & Ausencia de LibreOffice, timeout y PDF faltante. & \archivo{apps/invitations/tests.py} & Alta \\
+Adjuntos & Sanitizacion de nombre y MIME PDF. & \archivo{apps/invitations/tests.py} & Media \\
+Correo & Envio con PDF, limpieza temporal y fallo sin marcar enviado. & \archivo{apps/invitations/tests.py} & Alta \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3.3cm}p{4.2cm}p{3.8cm}p{1.7cm}}
+\caption{Casos de prueba recomendados antes de evento real.}
+\label{tab:anexo-pruebas-recomendadas}\\
+\toprule
+Flujo & Prueba recomendada & Resultado esperado & Prioridad \\
+\midrule
+Registro escolar & Enviar formulario valido, duplicado y con datos invalidos. & Registro creado solo cuando cumple validaciones. & Alta \\
+Registro universitario & Validar semestre, robot duplicado y participantes. & Datos consistentes sin duplicados indebidos. & Alta \\
+Asistencia & Confirmar token valido, token inexistente y POST repetido. & Sincronizacion a \clase{Team} controlada. & Alta \\
+Inicializacion de torneo & Crear competencia con cantidad minima, media y alta de equipos. & Grupos, estados e historial coherentes. & Alta \\
+Clasificacion & Guardar clasificados de grupos normales y manuales. & \clase{TeamCompetitionState} actualizado. & Alta \\
+Eliminatorias & Guardar ganador de batalla y validar ganador no perteneciente. & Solo ganador valido persiste. & Alta \\
+Correccion manual & Forzar cambio con progreso posterior. & Respuesta de confirmacion y uso controlado de \variable{manual_override}. & Alta \\
+AJAX & Guardado individual, masivo y modal de participante. & JSON valido y refresco de panel. & Alta \\
+Comunicaciones & Dry-run, prueba controlada y envio real confirmado. & Logs correctos y sin envio accidental. & Alta \\
+Despliegue & \comando{manage.py check --deploy}. & Sin errores criticos antes de produccion. & Alta \\
+\bottomrule
+\end{longtable}

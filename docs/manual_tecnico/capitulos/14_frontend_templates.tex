@@ -1,0 +1,227 @@
+\chapter{Frontend y templates}
+\label{chap:frontend-templates}
+
+\section{Funcion de la capa de presentacion}
+\label{sec:frontend-funcion}
+
+La interfaz de la plataforma Robot Explota Globos esta construida con templates Django renderizados en servidor, una hoja de estilos global y JavaScript progresivo. No existe una aplicacion de una sola pagina ni un proceso de empaquetado frontend. Cada vista entrega HTML ya compuesto por el backend y, cuando se requiere interaccion dinamica, el navegador agrega comportamiento sobre marcas \variable{data-*} presentes en las plantillas.
+
+Esta decision reduce la cantidad de infraestructura necesaria para operar el sistema durante el torneo. El estado critico de la competencia no queda repartido entre un cliente complejo y el servidor; se conserva en modelos, servicios y vistas Django, tal como se describe en \cref{chap:modelo-datos}, \cref{chap:urls-vistas-formularios} y \cref{chap:servicios-logica-negocio}. El frontend se concentra en presentar informacion, capturar decisiones del operador y enviar cambios puntuales al backend.
+
+La capa de presentacion tiene tres superficies principales:
+
+\begin{itemize}
+  \item sitio publico, orientado a inscripcion, reglas, patrocinadores y consulta general;
+  \item panel interno, orientado a operacion del torneo y comunicaciones;
+  \item componentes dinamicos del panel, usados para guardar resultados, abrir modales, revisar participantes y preparar fases.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: jerarquia de templates publicos e internos, con herencia desde \archivo{core/base.html} y \archivo{tournament/control_base.html}. Fuente prevista: DIA-17 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para jerarquia de templates.}
+  \label{fig:frontend-jerarquia-templates}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: interaccion usuario, frontend y backend para vistas publicas, panel interno, POST tradicional y llamadas AJAX. Fuente prevista: DIA-18 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para interaccion entre usuario, frontend y backend.}
+  \label{fig:frontend-usuario-backend}
+\end{figure}
+
+\section{Layouts base}
+\label{sec:frontend-layouts}
+
+El proyecto separa dos layouts base porque las necesidades del sitio publico y del panel interno son distintas. \archivo{apps/core/templates/core/base.html} define la experiencia publica. Incluye la hoja \archivo{static/css/app.css}, el boton de tema, la zona de mensajes de Django y el script \archivo{static/js/app.js}. Las paginas de \archivo{core}, \archivo{participants} y la vista publica de logistica del torneo heredan de este layout.
+
+\archivo{apps/tournament/templates/tournament/control_base.html} define el layout interno. Tambien usa \archivo{static/css/app.css}, pero carga \archivo{static/js/control.js} y agrega elementos que no existen en el sitio publico: navegacion interna, contenedor \variable{data-control-main} para refresco parcial, shell del modal de participante y estructura comun para mensajes del panel.
+
+La separacion evita condicionar en exceso una sola base. El sitio publico no carga la logica operativa del torneo, y el panel interno no depende de la estructura visual de la portada. Esa division facilita mantener el sistema porque un cambio en modales, guardado AJAX o controles de fase se concentra en el layout interno.
+
+\begin{longtable}{p{2.6cm}p{2.5cm}p{2.7cm}p{3.2cm}p{2cm}}
+\caption{Matriz de templates principales.}
+\label{tab:frontend-templates-principales}\\
+\toprule
+Template & Vista & Proposito & Datos principales & JavaScript asociado \\
+\midrule
+\archivo{core/base.html} & Layout base publico & Estructura comun para paginas publicas & Mensajes, navegacion, tema, bloque de contenido & \archivo{app.js} \\
+\archivo{core/home.html} & \funcion{home} & Portada e informacion de entrada & Edicion activa, enlaces de registro, reglas y patrocinadores & \archivo{app.js} \\
+\archivo{core/rules.html} & \funcion{rules_page} & Consulta de reglas y documento PDF & Edicion activa, archivo de reglas y enlaces informativos & \archivo{app.js} \\
+\archivo{core/sponsors.html} & \funcion{sponsors_page} & Visualizacion de patrocinadores & Catalogo configurado desde la vista de \archivo{core} & \archivo{app.js} \\
+\archivo{participants/registration_choice.html} & \funcion{registration_choice} & Seleccion de tipo de inscripcion & Opciones de colegios y universidades & \archivo{app.js} \\
+\archivo{participants/registration_form.html} & Vistas de registro & Captura de datos de equipo e integrantes & Formulario Django, errores, CSRF y edicion activa & \archivo{app.js} \\
+\archivo{participants/registration_success.html} & Vistas de registro & Confirmacion posterior al envio & Datos de respuesta del registro enviado & \archivo{app.js} \\
+\archivo{participants/attendance_confirmation.html} & \funcion{attendance_confirmation} & Confirmacion de asistencia por token & Registro, estado de asistencia y formulario POST & \archivo{app.js} \\
+\archivo{tournament/overview.html} & \funcion{overview} & Consulta publica de logistica del torneo & Edicion activa y fases publicadas & \archivo{app.js} \\
+\archivo{tournament/internal_login.html} & \clase{LoginView} & Acceso al panel interno & Formulario de autenticacion Django & \archivo{app.js} \\
+\archivo{tournament/control_base.html} & Layout base interno & Estructura comun para panel y comunicaciones & Usuario, mensajes, modal de participante, contenedor principal & \archivo{control.js} \\
+\archivo{tournament/control_dashboard.html} & \funcion{control_dashboard} & Entrada operativa por division & Competencias, edicion, conteos y acciones de inicializacion & \archivo{control.js} \\
+\archivo{tournament/control_division.html} & \funcion{control_division} & Configuracion y avance de division & Competencia, perfil, recomendacion y modal de fase & \archivo{control.js} \\
+\archivo{tournament/control_stage.html} & \funcion{control_division_stage} & Operacion de grupos, batallas, repechajes y final & Grupos, batallas, estados, podio, recomendacion y acciones POST & \archivo{control.js} \\
+\archivo{tournament/_manual_phase_assistant.html} & Include de control & Asistente para propuesta manual de fase & Candidatos, distribuciones, clasificados y asignaciones & \archivo{control.js} \\
+\archivo{invitations/dashboard.html} & Vista de comunicaciones & Resumen de comunicaciones & Estado de correo, totales y accesos internos & \archivo{control.js} \\
+\archivo{invitations/template_list.html} & Vista de plantillas & Administracion de plantillas de correo & Plantillas, tipo, estado y acciones & \archivo{control.js} \\
+\archivo{invitations/template_form.html} & Vista de plantillas & Creacion y edicion de plantilla & Formulario Django de plantilla & \archivo{control.js} \\
+\archivo{invitations/template_preview.html} & Vista de plantillas & Revision de plantilla renderizada & Plantilla, asunto y cuerpo generado & \archivo{control.js} \\
+\archivo{invitations/invitations.html} & Vista de envio & Seleccion y envio de invitaciones & Formulario de envio, registros y plantillas activas & Script inline y \archivo{control.js} \\
+\archivo{invitations/confirmations.html} & Vista de confirmaciones & Seguimiento de asistencia & Registros, estado de correo y acciones & \archivo{control.js} \\
+\archivo{invitations/history.html} & Vista de historial & Auditoria de envios & Logs, destinatarios, errores y fechas & \archivo{control.js} \\
+\bottomrule
+\end{longtable}
+
+\section{Templates publicos}
+\label{sec:frontend-templates-publicos}
+
+Los templates publicos presentan informacion institucional y capturan datos de participantes antes de que exista una competencia operativa. La responsabilidad de estas paginas no es decidir el avance del torneo; su funcion es entregar formularios, mensajes y confirmaciones respaldadas por vistas y formularios Django.
+
+En \archivo{participants/registration_form.html}, los campos provienen de formularios del backend. Esto mantiene las validaciones de negocio en Python y evita duplicarlas en JavaScript. La plantilla muestra errores de formulario, conserva CSRF y permite que los cambios en reglas de registro se implementen en \archivo{apps/participants/forms.py} sin reescribir la interfaz.
+
+La confirmacion de asistencia en \archivo{participants/attendance_confirmation.html} opera con token y POST tradicional. Ese flujo es relevante para el torneo porque la sincronizacion hacia \clase{Team} ocurre despues de confirmar asistencia, no durante el registro inicial. La interfaz publica, por tanto, participa en la calidad de los datos que llegan al panel interno, pero no materializa por si misma grupos, batallas ni resultados.
+
+\section{Panel interno de torneo}
+\label{sec:frontend-panel-interno}
+
+El panel interno esta orientado a operacion durante competencia. \archivo{control_dashboard.html} permite ubicar divisiones; \archivo{control_division.html} muestra configuracion, diagnostico y decision de siguiente fase; \archivo{control_stage.html} concentra la captura de clasificados, ganadores, podio y acciones de avance.
+
+La plantilla \archivo{control_stage.html} expone formularios con \variable{data-result-form}. Cada formulario representa una unidad operativa concreta:
+
+\begin{itemize}
+  \item un grupo que debe seleccionar \variable{qualified_entry_ids};
+  \item una batalla de ganador unico que debe seleccionar \variable{winner_team_id};
+  \item una batalla con varios clasificados que debe seleccionar \variable{qualified_team_ids}.
+\end{itemize}
+
+Los formularios incluyen un campo oculto \variable{action}. Ese campo define la operacion que interpretara \funcion{control_division_stage}: \variable{save_group_qualifiers}, \variable{save_battle_winner} o \variable{save_battle_qualifiers}. La vista conserva compatibilidad con POST tradicional, pero cuando el navegador envia la cabecera \variable{X-Requested-With} con valor \variable{XMLHttpRequest}, responde JSON para que \archivo{control.js} refresque el contenido sin abandonar la pantalla.
+
+La interfaz del panel tambien muestra listas de participantes activos, clasificados, eliminados recientes y participantes secundarios. Los botones con \variable{data-participant-state-id} abren el modal de participante. Ese modal no esta precargado en HTML para todos los participantes; se obtiene bajo demanda mediante JSON. La ventaja es reducir ruido visual y permitir edicion manual solo cuando el operador inspecciona un estado concreto.
+
+\section{Asistente y decisiones de fase}
+\label{sec:frontend-decisiones-fase}
+
+La decision de avanzar a otra fase se presenta mediante \archivo{control_division.html}, \archivo{control_stage.html} y el include \archivo{_manual_phase_assistant.html}. El modal de decision contiene vista previa, advertencias, alternativas, posible repechaje y una ruta manual.
+
+El JavaScript del panel muestra u oculta paneles, calcula distribuciones balanceadas y actualiza resumen de participantes, grupos, clasificados y eliminados. Sin embargo, la creacion real de fases sigue siendo POST tradicional hacia \funcion{control_division_stage}. Las acciones \variable{create_recommended_phase}, \variable{create_repechage_phase}, \variable{generate_manual_phase_proposal}, \variable{confirm_manual_phase_proposal} y \variable{cancel_manual_phase_proposal} se procesan en servidor y redirigen con mensajes.
+
+Esta separacion es importante: el asistente mejora la decision del operador, pero no reemplaza las validaciones de \archivo{apps/tournament/services.py}. Si la etapa no esta cerrada o la propuesta no es valida, el backend bloquea la operacion.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: carga dinamica de modal de participante, modal de decision de fase y panel manual. Fuente prevista: DIA-22 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para carga dinamica de modales.}
+  \label{fig:frontend-modales-dinamicos}
+\end{figure}
+
+\section{Estados visuales}
+\label{sec:frontend-estados-visuales}
+
+El estado visual mas critico del panel es el estado de seleccion de resultados. Las clases de CSS no son decorativas en este punto: ayudan al operador a distinguir ganadores, clasificados, perdedores y elementos pendientes antes de guardar. La fuente de verdad sigue siendo el backend; la clase visual es una proyeccion temporal o renderizada del estado persistido.
+
+\begin{longtable}{p{2.7cm}p{2.8cm}p{2.7cm}p{2.8cm}p{2.2cm}}
+\caption{Matriz de estados visuales.}
+\label{tab:frontend-estados-visuales}\\
+\toprule
+Estado o clase & Significado & Origen & Persistencia relacionada & Riesgo \\
+\midrule
+\clase{is-winner} / \clase{entry-card--winner} & Equipo ganador o clasificado en la unidad visible & Template renderizado o \funcion{setResultCardState} & \clase{DivisionGroupEntry}, \clase{Battle}, estados de equipo & Mostrar como ganador una seleccion aun no guardada si el operador no confirma el POST \\
+\clase{is-loser} / \clase{entry-card--loser} & Equipo no seleccionado cuando ya existe ganador o clasificados & Template renderizado o cambio local en controles & Resultado de batalla o clasificacion multiple & Confundir descarte visual con eliminacion persistida antes de guardar \\
+\clase{is-pending} / \clase{entry-card--pending} & Resultado sin seleccion confirmada en la tarjeta & Template renderizado o formulario sin seleccion & Estado pendiente de grupo o batalla & Dejar una fase aparentemente incompleta y bloquear avance \\
+\variable{checked} en radios y checkboxes & Valor que sera enviado al backend & Interaccion del operador o HTML renderizado & Entradas \variable{winner_team_id}, \variable{qualified_entry_ids}, \variable{qualified_team_ids} & Desincronizacion si una tarjeta cambia clase sin cambiar input \\
+\variable{data-result-dirty} & Formulario con cambios frente a la firma inicial & \funcion{resultFormChanged} y evento \variable{change} & No persiste; controla guardado masivo & Omitir guardado si se altera DOM sin disparar evento \variable{change} \\
+\clase{phase-decision-actions .is-selected} & Opcion activa dentro del modal de decision & \funcion{showPhaseDecisionPanel} y \funcion{chooseRepechageDecision} & No persiste; prepara decision del operador & Creer que la vista previa creo datos cuando solo habilita un formulario \\
+\variable{hidden} & Panel, modal o mensaje no visible & HTML inicial o JavaScript del panel & No persiste; controla visibilidad & Ocultar advertencias si se cambia la estructura esperada \\
+\clase{button:disabled} / atributo \variable{disabled} & Accion no disponible temporalmente o por regla de interfaz & Template o JavaScript durante guardado & Puede reflejar reglas de cierre de etapa & Habilitar acciones sin validar en backend si se modifica solo el frontend \\
+\clase{messages} y tags de Django & Mensajes de exito, advertencia o error & Framework de mensajes Django & Resultado de POST o redireccion & Perder retroalimentacion si un flujo AJAX no devuelve mensaje JSON coherente \\
+\bottomrule
+\end{longtable}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: actualizacion del estado visual de una tarjeta desde seleccion local, guardado AJAX, respuesta JSON y nuevo HTML renderizado. Fuente prevista: DIA-23 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para actualizacion de estados visuales.}
+  \label{fig:frontend-estado-visual}
+\end{figure}
+
+\section{CSS y componentes}
+\label{sec:frontend-css-componentes}
+
+La hoja \archivo{static/css/app.css} centraliza el estilo de todo el proyecto. Contiene variables de tema, componentes publicos, componentes internos, tablas, formularios, tarjetas, modales y reglas responsivas. Los layouts base aplican la misma hoja para mantener una identidad visual comun y reducir duplicacion.
+
+El CSS usa variables para colores de superficie, texto, bordes, estados de ganador, perdedor y pendiente, ademas de fondos de modal. La conmutacion de tema se apoya en \variable{document.documentElement.dataset.theme}; los scripts solo cambian el atributo, mientras que las variables CSS resuelven la apariencia final. Esta relacion mantiene la logica de tema simple y evita duplicar colores en JavaScript.
+
+Los componentes principales son:
+
+\begin{itemize}
+  \item encabezado publico e interno, con boton de tema;
+  \item tarjetas informativas para portada, reglas, patrocinadores y panel;
+  \item formularios de registro, asistencia, configuracion y resultados;
+  \item tablas dentro de \clase{table-shell} para listados administrativos;
+  \item tarjetas de resultado \clase{result-choice-card} y \clase{winner-choice-card};
+  \item modales \clase{participant-modal} y \clase{phase-decision-modal};
+  \item navegacion de fases \clase{phase-nav} y enlaces \clase{phase-nav-link}.
+\end{itemize}
+
+La responsividad esta implementada con media queries en la misma hoja. La auditoria confirma puntos de ajuste para anchos cercanos a 920, 800 y 460 pixeles, ademas de reglas para dispositivos sin hover. Esto permite que las paginas publicas y el panel se adapten a pantallas menores sin introducir una dependencia de framework CSS.
+
+\begin{advertencia}
+El CSS utiliza capacidades modernas como \variable{:has(...)} y \variable{color-mix(...)}. Antes de declarar compatibilidad con navegadores antiguos se debe probar el panel en el navegador objetivo del evento. La ausencia de bundler o transpiler implica que la compatibilidad depende directamente del navegador usado.
+\end{advertencia}
+
+\section{Templates de comunicaciones}
+\label{sec:frontend-comunicaciones}
+
+La aplicacion \archivo{invitations} reutiliza \archivo{tournament/control_base.html}, por lo que pertenece a la superficie interna. Sus templates cubren dashboard, plantillas de correo, previsualizacion, envio, confirmaciones e historial. Esta decision mantiene bajo autenticacion operativa las acciones relacionadas con comunicaciones y asistencia.
+
+\archivo{invitations/invitations.html} incluye un script inline pequeno que filtra las opciones de plantilla segun el tipo de comunicacion seleccionado. El script no envia peticiones AJAX; trabaja con las opciones ya renderizadas en el HTML y deshabilita el selector cuando no hay plantillas activas para el tipo elegido. Debe conservarse documentado como comportamiento local de esa plantilla, no como parte del contrato global de \archivo{control.js}.
+
+\section{Relaciones con backend}
+\label{sec:frontend-relaciones-backend}
+
+Las plantillas no contienen reglas de negocio completas. Su papel es exponer datos ya preparados por vistas y servicios:
+
+\begin{itemize}
+  \item las vistas publicas entregan formularios y objetos de edicion;
+  \item las vistas de torneo entregan payloads de grupos, batallas, participantes y recomendaciones;
+  \item los servicios calculan estructura de competencia, estados, historial y propuestas;
+  \item los templates proyectan esos datos como formularios, tarjetas, modales y tablas.
+\end{itemize}
+
+Cuando se modifica un template operativo, el riesgo no es solo visual. Cambiar nombres de campos, atributos \variable{data-*} o clases esperadas puede romper la relacion con \archivo{control.js} o con \funcion{control_division_stage}. Por esa razon, cualquier ajuste en \archivo{control_stage.html}, \archivo{control_division.html} o \archivo{_manual_phase_assistant.html} debe revisarse junto con el contrato descrito en \cref{chap:javascript-ajax}.
+
+\section{Impacto de modificacion}
+\label{sec:frontend-impacto-modificacion}
+
+\begin{longtable}{p{3.1cm}p{3.6cm}p{2.6cm}p{3.2cm}}
+\caption{Impacto de modificacion en frontend y templates.}
+\label{tab:frontend-impacto-modificacion}\\
+\toprule
+Componente & Elementos relacionados & Riesgo & Verificacion necesaria \\
+\midrule
+\archivo{core/base.html} & Paginas publicas, \archivo{app.js}, \archivo{app.css} & Romper tema, mensajes o carga de assets publicos & Probar home, reglas, patrocinadores, registros y confirmacion de asistencia \\
+\archivo{control_base.html} & Panel de torneo, comunicaciones, \archivo{control.js}, modal de participante & Romper refresco parcial o modales internos & Probar dashboard, division, fase, comunicaciones y cierre de modales \\
+\archivo{control_stage.html} & \funcion{control_division_stage}, \archivo{control.js}, servicios de resultados & Guardados AJAX fallidos o seleccion visual incorrecta & Guardar grupos, batalla simple, clasificacion multiple y podio final \\
+\archivo{control_division.html} & Recomendacion de fase, asistente manual y servicios de materializacion & Crear fases desde una vista previa mal representada & Probar avance recomendado, repechaje y propuesta manual en datos controlados \\
+\archivo{_manual_phase_assistant.html} & \funcion{updateManualPhaseForm}, propuestas manuales y confirmacion de fase & Distribuciones invalidas o asignaciones inconsistentes & Cambiar distribucion, clasificadores por grupo y confirmar propuesta manual \\
+\archivo{static/css/app.css} & Todos los templates & Regresiones visuales, estados ambiguos o problemas responsive & Revisar publico, panel, modal y tablas en escritorio y movil \\
+\archivo{invitations/invitations.html} & Formulario de envio y script inline & Seleccionar plantilla incompatible con tipo de comunicacion & Cambiar tipo de invitacion y validar opciones disponibles \\
+\bottomrule
+\end{longtable}
+
+\section{Consideraciones de mantenimiento}
+\label{sec:frontend-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{apps/core/templates/core/base.html}, \archivo{apps/tournament/templates/tournament/control_base.html}, \archivo{apps/tournament/templates/tournament/control_stage.html}, \archivo{apps/tournament/templates/tournament/control_division.html}, \archivo{apps/tournament/templates/tournament/_manual_phase_assistant.html}, \archivo{static/css/app.css}. \\
+Dependencias & Las plantillas del panel dependen de vistas de \archivo{apps/tournament/views.py}, servicios de \archivo{apps/tournament/services.py}, atributos \variable{data-*} usados por \archivo{static/js/control.js} y nombres de campos POST. \\
+Riesgos al modificar & Cambiar clases o atributos sin actualizar JavaScript puede impedir abrir modales, detectar cambios o guardar resultados. Cambiar nombres de inputs rompe la lectura de \funcion{control_division_stage}. \\
+Pruebas manuales recomendadas & Registro publico, confirmacion de asistencia, login interno, inicializacion de division, seleccion de clasificados, seleccion de ganador, apertura de modal de participante, decision de fase y envio de invitaciones. \\
+Pruebas automatizadas recomendadas & Tests de vistas que aseguren templates correctos, presencia de CSRF en formularios POST, nombres de campos esperados y respuesta JSON cuando se envia \variable{X-Requested-With}. \\
+Impacto sobre otros modulos & Un cambio visual en resultados puede afectar percepcion operativa del flujo documentado en \cref{chap:flujo-competencia}; un cambio en formularios puede afectar servicios del \cref{chap:servicios-logica-negocio}. \\
+Buenas practicas & Mantener templates server-side simples, no duplicar reglas de negocio en JavaScript, conservar atributos \variable{data-*} como contrato, documentar cualquier nuevo estado visual y probar panel en el navegador que se usara en competencia. \\
+\bottomrule
+\end{longtable}
+
+El frontend del proyecto esta alineado con una arquitectura de servidor: Django prepara datos y decide reglas, las plantillas presentan el estado y JavaScript mejora la operacion sin asumir propiedad de la competencia. Esta separacion es la condicion principal para mantener la interfaz sin comprometer consistencia del torneo.

@@ -1,0 +1,74 @@
+\chapter{Descripcion del sistema}
+\label{chap:descripcion-sistema}
+
+\section{Vision general}
+\label{sec:descripcion-vision}
+
+La Plataforma Web Robot Explota Globos es un sistema web para gestionar componentes publicos y operativos del torneo Robot Explota Globos. La aplicacion no se limita a publicar informacion del evento: tambien recibe registros, procesa confirmaciones de asistencia, transforma registros aprobados en equipos de competencia, administra comunicaciones y permite controlar el avance del torneo desde un panel interno.
+
+El sistema esta construido sobre Django y usa una organizacion por dominios. Esta decision permite que cada flujo principal tenga una ubicacion tecnica reconocible. El sitio publico se concentra en \archivo{apps.core}; el registro y asistencia en \archivo{apps.participants}; la competencia en \archivo{apps.tournament}; las comunicaciones en \archivo{apps.invitations}; y los elementos reutilizables en \archivo{apps.common}. El impacto practico de esta separacion es que un cambio sobre comunicaciones no deberia requerir modificar la logica de torneo, y un ajuste en el registro publico puede rastrearse hasta los servicios que sincronizan equipos.
+
+\section{Usuarios y areas de uso}
+\label{sec:descripcion-usuarios}
+
+El sistema distingue dos grupos operativos principales.
+
+\begin{itemize}
+  \item \textbf{Usuarios publicos}: consultan informacion del evento, revisan reglas, ven patrocinadores y realizan registros de equipos de colegio o universidad. Tambien pueden confirmar asistencia mediante un enlace con token UUID, sin iniciar sesion.
+  \item \textbf{Organizadores}: acceden a areas internas protegidas por autenticacion y verificacion de \variable{is_staff} o \variable{is_superuser}. Desde esas areas controlan divisiones, fases, resultados, participantes, comunicaciones, plantillas, destinatarios y logs.
+\end{itemize}
+
+La separacion es importante porque el proyecto expone operaciones sensibles. El registro publico debe ser accesible sin login, pero el control de resultados, comunicaciones y administracion de torneo no puede quedar abierto. Por esta razon, las rutas internas de torneo y comunicaciones usan \funcion{login_required} junto con \funcion{user_passes_test(is_organizer)}.
+
+\section{Dominios funcionales}
+\label{sec:descripcion-dominios}
+
+\subsection{Sitio publico}
+
+El sitio publico entrega la entrada visible al sistema. Desde \archivo{apps.core} se atiende la pagina principal, reglas y patrocinadores. La vista \funcion{home} consulta informacion de la edicion activa, reglas publicadas, conteos de registros y catalogo de patrocinadores. Esta capa reduce la necesidad de consultar manualmente el estado del evento y entrega una lectura publica de informacion que tambien se relaciona con modelos del torneo y participantes.
+
+\subsection{Registro y asistencia}
+
+El dominio de participantes recibe registros de colegio y universidad mediante formularios diferenciados. La auditoria confirma validaciones sobre duplicados de robot, correo y documentos. Despues del registro, el flujo operativo relevante ocurre con la confirmacion de asistencia: el token UUID permite localizar el registro, aprobarlo y sincronizarlo hacia equipos operativos mediante \funcion{sync_registration_to_team}. Esta sincronizacion crea o actualiza \clase{Institution}, \clase{Team} y \clase{TeamMember}.
+
+El impacto de este flujo es directo sobre el torneo. Un registro no confirmado no basta para construir una competencia operativa; el sistema trabaja con equipos derivados de asistencias confirmadas. Esta regla evita que la competencia se arme con participantes que no llegaron al evento.
+
+\subsection{Competencia}
+
+El dominio de torneo contiene la mayor cantidad de logica de negocio. Modela ediciones, reglas, fases, competencias por division, grupos, batallas, estados de equipos e historial. Sus servicios inicializan competencias, distribuyen equipos, registran clasificados, materializan repechajes, crean fases manuales, sincronizan estados y guardan podios.
+
+El sistema puede operar con perfiles automaticos segun cantidad de equipos. Para cantidades menores a cuatro mantiene un modo pendiente; para rangos superiores genera configuraciones con grupos, semifinales, finales, cuartos, ronda de 32 o repechajes segun el perfil. La ventaja de esta logica es que el torneo puede adaptarse a variaciones en la cantidad real de equipos confirmados sin reconstruir manualmente toda la estructura.
+
+\subsection{Comunicaciones}
+
+El modulo de comunicaciones administra plantillas DOCX, destinatarios, lotes y logs. Su responsabilidad no es solo enviar correos; tambien valida marcadores requeridos, carga destinatarios desde XLSX, renderiza documentos personalizados, convierte DOCX a PDF mediante LibreOffice y registra el resultado de cada envio. Los modos de simulacion y prueba controlada reducen el riesgo de enviar comunicaciones reales antes de validar contenido, destinatarios y configuracion SMTP.
+
+\subsection{Frontend y panel interno}
+
+El frontend se implementa con Django Templates, \archivo{static/css/app.css}, \archivo{static/js/app.js} y \archivo{static/js/control.js}. La parte publica usa interacciones de tema, header y animaciones. El panel interno usa JavaScript para operaciones mas sensibles: modales de participante, guardado de resultados, reintentos con correccion manual, guardado multiple y refresco parcial del contenido.
+
+Las operaciones AJAX del panel envian CSRF mediante encabezado y esperan respuestas JSON o HTML parcial para actualizar la interfaz. Esto permite que el organizador registre resultados sin navegar manualmente por cada vista completa, pero tambien introduce acoplamiento con atributos \variable{data-*} en templates. Ese acoplamiento debe ser tratado con cuidado en mantenimiento.
+
+\section{Flujo operativo resumido}
+\label{sec:descripcion-flujo-operativo}
+
+El flujo principal del sistema puede resumirse asi:
+
+\begin{enumerate}
+  \item Se configura una edicion y reglas visibles para el evento.
+  \item Un equipo realiza registro publico como colegio o universidad.
+  \item El sistema envia o permite gestionar comunicaciones de confirmacion.
+  \item La asistencia se confirma mediante token UUID.
+  \item El registro confirmado se sincroniza hacia institucion, equipo y miembros.
+  \item La competencia por division se inicializa o actualiza segun equipos disponibles.
+  \item Los organizadores registran clasificados y resultados desde el panel interno.
+  \item Los servicios de torneo sincronizan estados, crean fases posteriores y registran historial.
+  \item La competencia se cierra con podio final cuando las condiciones estan completas.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.86\textwidth}{\centering Marcador de figura: flujo operativo general del sistema. Fuente prevista: \archivo{docs/manual_tecnico/planificacion/04_inventario_figuras.md}, FIG-03-01.}}
+  \caption{Marcador para figura de modulos funcionales y flujo operativo general.}
+  \label{fig:descripcion-flujo-operativo}
+\end{figure}

@@ -1,0 +1,210 @@
+\chapter{Modelo de datos}
+\label{chap:modelo-datos}
+
+\section{Funcion del modelo de datos en el sistema}
+\label{sec:modelo-funcion}
+
+El modelo de datos de la plataforma organiza la informacion alrededor de tres dominios: participantes, torneo y comunicaciones. Estos dominios no son independientes. Un registro publico pertenece a una edicion; al confirmar asistencia se convierte en equipo operativo; ese equipo entra a grupos, batallas y estados de competencia; las comunicaciones pueden usar registros y destinatarios para generar solicitudes, invitaciones, documentos y logs.
+
+Por esa razon, el modelo no debe leerse como una coleccion de tablas. Es el mecanismo que preserva el ciclo de vida del evento: inscripcion, asistencia, equipo, competencia, resultado, historial y comunicacion.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: modelo entidad-relacion del dominio. Fuente prevista: DIA-04 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama entidad-relacion del sistema.}
+  \label{fig:modelo-er}
+\end{figure}
+
+\section{Modelo base y trazabilidad temporal}
+\label{sec:modelo-base}
+
+\clase{TimeStampedModel} define \variable{created_at} y \variable{updated_at}. Es abstracto y se reutiliza en entidades persistentes de participantes, torneo e invitaciones. Su aporte es operativo: permite ordenar, auditar y revisar recencia de registros, equipos, competencias, plantillas, lotes e historial sin agregar campos manualmente en cada modelo.
+
+Los timestamps no sustituyen el historial de competencia ni los logs de comunicacion. Sirven como trazabilidad basica. La trazabilidad semantica se almacena en modelos especificos como \clase{CompetitionHistoryEntry} y \clase{CommunicationLog}.
+
+\section{Participantes: de inscripcion a equipo operativo}
+\label{sec:modelo-participantes}
+
+El dominio de participantes tiene dos niveles de informacion. El primer nivel corresponde a registros publicos: \clase{SchoolRegistration} y \clase{UniversityRegistration}. El segundo corresponde a entidades operativas: \clase{Institution}, \clase{Team} y \clase{TeamMember}.
+
+\begin{longtable}{p{3.7cm}p{4.1cm}p{5.2cm}}
+\toprule
+Modelo & Rol & Participacion en el flujo \\
+\midrule
+\clase{SchoolRegistration} & Registro escolar publico & Captura institucion, responsable, robot, contacto y token de asistencia para colegios. \\
+\clase{UniversityRegistration} & Registro universitario publico & Captura la misma base de registro y agrega \variable{semester}. \\
+\clase{SchoolParticipant} & Integrante escolar del registro & Mantiene lider e integrantes asociados antes de sincronizar equipo. \\
+\clase{UniversityParticipant} & Integrante universitario del registro & Mantiene lider e integrantes universitarios. \\
+\clase{Institution} & Institucion operativa & Agrupa equipos por institucion y tipo. \\
+\clase{Team} & Equipo oficial de competencia & Es la entidad que usa \archivo{apps.tournament}. \\
+\clase{TeamMember} & Integrante operativo de equipo & Representa participantes ya sincronizados hacia equipo. \\
+\bottomrule
+\end{longtable}
+
+La diferencia entre registro y equipo es central. El registro representa una intencion de participacion. El equipo representa una unidad operativa confirmada para competir. La confirmacion de asistencia marca el registro como aprobado, registra fecha de confirmacion, sincroniza institucion/equipo/miembros y puede inicializar competencia. Este diseno evita construir el torneo sobre registros no confirmados.
+
+\subsection{Estados y restricciones de participantes}
+\label{subsec:modelo-estados-participantes}
+
+\clase{RegistrationStatus} define \variable{draft}, \variable{submitted}, \variable{approved} y \variable{rejected}. En el flujo publico, los formularios crean registros con estado \variable{submitted}; el servicio de asistencia puede llevarlos a \variable{approved}.
+
+Las restricciones principales protegen duplicidad operativa:
+
+\begin{itemize}
+  \item \clase{SchoolRegistration} y \clase{UniversityRegistration}: nombre de robot unico por edicion e institucion.
+  \item \clase{Team}: equipo unico por edicion, institucion y nombre.
+  \item \clase{TeamMember}: documento unico.
+  \item Formularios: bloquean duplicados de robot, correo y documentos dentro de la edicion activa.
+\end{itemize}
+
+Si se modifica una restriccion de registro, debe evaluarse el efecto sobre sincronizacion a \clase{Team}. Permitir duplicados puede producir equipos ambiguos o cruces incorrectos en torneo.
+
+\section{Torneo: estructura operativa de competencia}
+\label{sec:modelo-torneo}
+
+El dominio de torneo empieza en \clase{TournamentEdition}. La edicion agrupa reglas, registros, equipos y competencias. La restriccion \variable{single_active_tournament_edition} permite una sola edicion activa, lo que simplifica formularios publicos y vistas que consultan el evento vigente.
+
+\begin{longtable}{p{3.8cm}p{8.8cm}}
+\toprule
+Modelo & Funcion dentro del torneo \\
+\midrule
+\clase{TournamentEdition} & Define la edicion y su estado activo. \\
+\clase{RuleSection} & Publica reglas por edicion, usadas en vistas publicas. \\
+\clase{TournamentPhase} & Modelo generico de fases historicas o flexibles. \\
+\clase{Match} & Enfrentamiento generico asociado a \clase{TournamentPhase}. \\
+\clase{DivisionCompetition} & Competencia operativa por edicion y division. \\
+\clase{DivisionGroup} & Grupo dentro de una competencia. \\
+\clase{DivisionGroupEntry} & Equipo asignado a un grupo, con slot, ranking y clasificacion. \\
+\clase{CompetitionBattle} & Batalla de una etapa operativa: duelo, triangular, campal o grupo. \\
+\clase{CompetitionBattleEntry} & Equipo participante en una batalla. \\
+\clase{TeamCompetitionState} & Estado actual de cada equipo dentro de una competencia. \\
+\clase{CompetitionHistoryEntry} & Historial de cambios, resultados y movimientos por equipo. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Competencia por division}
+\label{subsec:modelo-division-competition}
+
+\clase{DivisionCompetition} une edicion y division. La restriccion \variable{unique_competition_per_division} evita que una misma edicion tenga dos competencias operativas para la misma division. Sus campos \variable{format_key}, \variable{configuration}, \variable{status} y \variable{shuffle_seed} permiten reconstruir como fue configurada la competencia.
+
+\variable{configuration} es un \clase{JSONField}. La auditoria lo identifica como punto que debe ampliarse en capitulos posteriores porque almacena informacion dinamica como configuracion de perfil, propuestas manuales o podio final. Su ventaja es flexibilidad para escenarios variables; su riesgo es que las claves esperadas no quedan protegidas por tipos relacionales. Cualquier cambio en esas claves debe revisarse contra \archivo{apps/tournament/services.py}, \archivo{apps/tournament/views.py} y templates del panel.
+
+\subsection{Grupos, batallas y estados}
+\label{subsec:modelo-grupos-batallas-estados}
+
+\clase{DivisionGroup} y \clase{DivisionGroupEntry} representan la fase de grupos. Cada grupo tiene etiqueta, orden y tamano esperado. Cada entry vincula un \clase{Team}, posicion de slot, ranking final y marca de clasificacion. Las restricciones evitan repetir equipo, slot o ranking dentro de un grupo.
+
+\clase{CompetitionBattle} y \clase{CompetitionBattleEntry} representan etapas posteriores o estructuras especiales. La batalla tiene etapa, formato, orden, nombre, estado y ganador opcional. Los entries indican equipos y origen. La validacion de \clase{CompetitionBattle} exige que el ganador pertenezca a sus entries.
+
+\clase{TeamCompetitionState} resume donde esta cada equipo dentro de una competencia: stage actual, estado actual, grupo actual, batalla actual, override manual y notas. Este modelo permite que el panel muestre participantes por etapa sin recalcular todo desde grupos y batallas cada vez. \clase{CompetitionHistoryEntry} registra cambios para explicar como llego un equipo a su estado actual.
+
+\section{Estados del torneo}
+\label{sec:modelo-estados-torneo}
+
+\begin{longtable}{p{4cm}p{8.8cm}}
+\toprule
+Enum & Valores y uso \\
+\midrule
+\clase{DivisionType} & \variable{school}, \variable{university}; separa competencias por categoria. \\
+\clase{CompetitionStatus} & \variable{draft}, \variable{ready}, \variable{in_progress}, \variable{completed}; indica estado global de una competencia. \\
+\clase{CompetitionStage} & \variable{groups}, \variable{purgatory_1}, \variable{round_of_32}, \variable{round_of_16}, \variable{purgatory_2}, \variable{quarterfinal}, \variable{semifinal}, \variable{third_place}, \variable{final}; ordena etapas operativas. \\
+\clase{BattleFormat} & \variable{group}, \variable{battle_royale}, \variable{duel}, \variable{triangular}; define estructura de batalla. \\
+\clase{ParticipantStatus} & \variable{active}, \variable{eliminated}, \variable{repechage}, \variable{qualified}, \variable{withdrawn}; describe situacion de un equipo. \\
+\clase{HistoryActionType} & \variable{auto_sync}, \variable{group_result}, \variable{battle_result}, \variable{manual_move}, \variable{status_change}, \variable{reintegrated}; clasifica eventos de historial. \\
+\bottomrule
+\end{longtable}
+
+Estos enums no son etiquetas decorativas. Son contratos entre modelos, servicios, vistas y templates. Si se cambia un valor, se afecta navegacion de etapas, filtros del panel, sincronizacion de estados, historial, acciones AJAX y posibles datos ya persistidos.
+
+\section{Comunicaciones: plantillas, lotes y logs}
+\label{sec:modelo-comunicaciones}
+
+El dominio de comunicaciones mantiene trazabilidad de documentos y envios:
+
+\begin{longtable}{p{3.8cm}p{8.8cm}}
+\toprule
+Modelo & Funcion \\
+\midrule
+\clase{CommunicationTemplate} & Plantilla DOCX por tipo, marcadores requeridos, estado activo y errores de validacion. \\
+\clase{CommunicationRecipient} & Destinatario reusable con tipo, correo, institucion y datos extra. \\
+\clase{CommunicationBatch} & Lote de comunicacion con tipo, plantilla, modo de envio, estado, creador y fecha de envio. \\
+\clase{CommunicationLog} & Resultado por destinatario: correo original, correo fisico, estado, asunto, error, preview y fecha. \\
+\bottomrule
+\end{longtable}
+
+\clase{CommunicationTemplate} desactiva otras plantillas activas del mismo tipo cuando se guarda una nueva activa. Esta regla evita ambiguedad al elegir plantilla para un tipo de comunicacion. \clase{CommunicationBatch} y \clase{CommunicationLog} separan operacion por lote y resultado individual: un lote puede procesar varios destinatarios y cada destinatario requiere estado propio.
+
+\section{Ciclo de vida de la informacion}
+\label{sec:modelo-ciclo-vida}
+
+El ciclo de vida de datos del sistema puede resumirse asi:
+
+\begin{enumerate}
+  \item Se crea o activa una \clase{TournamentEdition}.
+  \item El registro publico crea \clase{SchoolRegistration} o \clase{UniversityRegistration} y sus participantes.
+  \item Comunicaciones puede enviar solicitudes o invitaciones y registrar logs.
+  \item La asistencia confirma el registro y lo sincroniza a \clase{Institution}, \clase{Team} y \clase{TeamMember}.
+  \item El torneo crea o actualiza \clase{DivisionCompetition}.
+  \item La competencia distribuye equipos en \clase{DivisionGroupEntry} y crea \clase{TeamCompetitionState}.
+  \item Los resultados actualizan grupos, batallas, estados e historial.
+  \item La competencia se completa con final y podio.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: ciclo de vida de los datos desde registro hasta podio y logs. Fuente prevista: inventario de diagramas del manual.}}
+  \caption{Marcador para ciclo de vida de los datos del sistema.}
+  \label{fig:modelo-ciclo-vida}
+\end{figure}
+
+\section{Reglas de negocio protegidas por el modelo}
+\label{sec:modelo-reglas}
+
+El modelo de datos protege reglas que los servicios complementan:
+
+\begin{itemize}
+  \item Solo una edicion activa mediante restriccion condicional.
+  \item Un registro de robot por edicion, institucion y tipo de registro.
+  \item Un equipo por edicion, institucion y nombre.
+  \item Un estado por equipo y competencia.
+  \item Un orden de batalla por competencia y etapa.
+  \item Un slot unico por grupo o batalla.
+  \item Un ganador de \clase{Match} o \clase{CompetitionBattle} debe pertenecer al enfrentamiento.
+  \item Una plantilla activa por tipo de comunicacion.
+\end{itemize}
+
+Estas reglas reducen inconsistencias, pero no cubren todo. La seleccion exacta de clasificados, repechajes, propuestas manuales y podio se valida principalmente en servicios. Por eso el modelo y los servicios deben evolucionar juntos.
+
+\section{Impacto de cambios en modelos}
+\label{sec:modelo-impacto-cambios}
+
+Cambiar modelos de participantes impacta formularios, sincronizacion, comunicaciones y torneo. Cambiar modelos de torneo impacta servicios, vistas del panel, JavaScript, historial y migraciones. Cambiar modelos de comunicaciones impacta formularios, renderizado, envio, logs y Admin.
+
+Los cambios mas sensibles son:
+
+\begin{itemize}
+  \item Modificar enums persistidos.
+  \item Cambiar claves esperadas en \variable{DivisionCompetition.configuration}.
+  \item Alterar restricciones de unicidad.
+  \item Cambiar relaciones \clase{ForeignKey} usadas por servicios.
+  \item Cambiar campos requeridos en formularios publicos.
+  \item Modificar estado o estructura de logs de comunicaciones.
+\end{itemize}
+
+Todo cambio de modelo debe ir acompanado de migracion, revision de servicios y pruebas de flujo. El detalle exhaustivo de modelos y campos debe consolidarse en \cref{anexo:modelos-campos}.
+
+\section{Consideraciones de mantenimiento}
+\label{sec:modelo-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{apps/participants/models.py}, \archivo{apps/tournament/models.py}, \archivo{apps/invitations/models.py}, migraciones, formularios, servicios y admin. \\
+Riesgo al modificar & Una migracion puede afectar datos reales de participantes, resultados o logs; cambios en enums pueden romper datos existentes. \\
+Dependencias & Participantes alimenta torneo; torneo depende de \clase{Team}; comunicaciones depende de registros, plantillas y configuracion de correo/PDF. \\
+Pruebas recomendadas & Registro completo, confirmacion, sincronizacion, inicializacion de competencia, clasificacion de grupos, batalla, repechaje, fase manual y envio simulado. \\
+Impacto sobre otros modulos & Cambios en modelos se reflejan en vistas, templates, JavaScript, Admin, servicios y migraciones. \\
+Buenas practicas & Evitar cambios directos en datos sin migraciones; documentar nuevas claves JSON; mantener historial y logs como fuente de trazabilidad. \\
+\bottomrule
+\end{longtable}

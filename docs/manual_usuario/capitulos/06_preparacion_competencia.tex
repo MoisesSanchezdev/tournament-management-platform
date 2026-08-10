@@ -1,0 +1,188 @@
+\chapter{Preparacion de competencia}
+\label{cap:preparacion-competencia}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador del torneo}
+Guiar la verificacion previa y la configuracion inicial de categorias antes de operar grupos, batallas o fases posteriores.
+\end{procedimiento}
+
+La preparacion de competencia inicia cuando registros, asistencia y equipos ya fueron revisados segun \cref{cap:gestion-organizacion}. Este capitulo cubre el estado inicial de una categoria, el formato sugerido, el formato manual y la distribucion de grupos. No documenta todavia seleccion de clasificados, resultados de batallas, repechaje ni podio.
+
+\section{Verificaciones antes de inicializar}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.2cm}X}
+\toprule
+Revision & Criterio operativo\\
+\midrule
+Participantes & Los registros corresponden a la edicion activa y no contienen duplicados evidentes.\\
+Asistencia & Los equipos que asistiran al evento estan confirmados o revisados por la organizacion.\\
+Equipos & Cada robot tiene institucion, categoria e integrantes esperados.\\
+Division & La categoria a preparar es Colegios o Universidades, sin mezclar registros.\\
+Permisos & El operador inicio sesion como usuario autorizado y entiende el impacto de regenerar grupos.\\
+Progreso existente & Antes de cambiar formato o volver a mezclar, se revisa si ya hay resultados o fases creadas.\\
+\bottomrule
+\end{tabularx}
+
+\begin{advertencia}
+No inicialice una categoria si los conteos no coinciden con la lista revisada por la organizacion. Primero corrija asistencia o equipos desde las superficies correspondientes y vuelva al panel cuando los datos esten listos.
+\end{advertencia}
+
+\section{Entrar a una categoria preparada}
+
+\figuraManual{capturas/finales/MU-015-configuracion-division.png}{Resumen de una categoria con navegacion de fases, estado de competencia, modo activo y accion rapida para volver a mezclar grupos.}{fig:bloque2-mu-015}
+
+\begin{procedimiento}{Revisar el estado de la categoria}{Operador del torneo}
+Use este procedimiento despues de abrir \botoninterfaz{Abrir Colegios} o \botoninterfaz{Abrir Universidades} desde el panel.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La categoria ya tiene tablero base generado.
+    \item El operador esta en la pantalla de resumen de la categoria.
+    \item La revision de asistencia y equipos fue realizada antes de esta operacion.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Confirme el titulo de la categoria, por ejemplo \campointerfaz{Colegios}.}
+\paso{2}{Revise la navegacion superior de fases. En esta etapa use \botoninterfaz{Resumen}; las fases posteriores se documentan mas adelante.}
+\paso{3}{Verifique \campointerfaz{Edicion}, \campointerfaz{Estado} y \campointerfaz{Modo activo}.}
+\paso{4}{Revise la semilla mostrada en \campointerfaz{Estado}; sirve para reconocer la mezcla actual de grupos.}
+\paso{5}{Revise el panel \campointerfaz{Recomendacion del sistema} sin crear fases posteriores desde este capitulo.}
+\paso{6}{Si debe reconstruir la distribucion inicial, use \botoninterfaz{Volver a mezclar grupos} solo despues de validar que no hay progreso que conservar.}
+
+\begin{resultadoesperado}
+El operador identifica si la categoria esta no inicializada, preparada o con progreso visible antes de realizar cualquier cambio.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si la categoria no abre, vuelva al panel y confirme que el tablero fue generado. Si el estado o el modo no coinciden con lo esperado, revise los conteos y no avance a fases posteriores.
+\end{fallas}
+
+\section{Estados previos de competencia}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Estado operativo & Como actuar\\
+\midrule
+No inicializada & En el panel de organizacion aparece la opcion \botoninterfaz{Generar torneo}. Revise asistencia y equipos antes de crear el tablero.\\
+Preparada & La categoria abre en resumen, muestra grupos y modo activo. Puede revisarse formato o distribucion antes de registrar resultados.\\
+Con progreso existente & La navegacion muestra fases con actividad o resultados. No use acciones de mezcla o formato sin revisar el avance.\\
+Recalculada o regenerada & La interfaz informa que aseguro o mezclo la categoria. Verifique grupos, participantes y modo antes de continuar.\\
+\bottomrule
+\end{tabularx}
+
+\section{Aplicar modo sugerido}
+
+\figuraManual{capturas/finales/MU-016-formato-manual.png}{Zona de configuracion inicial con modo sugerido y formulario editable para preparar la primera fase.}{fig:bloque2-mu-016}
+
+\begin{procedimiento}{Usar el formato sugerido}{Operador del torneo}
+Use esta opcion cuando la organizacion acepta la recomendacion inicial de la plataforma.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item El operador reviso la cantidad de equipos de la categoria.
+    \item No existe progreso que deba preservarse con una distribucion diferente.
+    \item La recomendacion coincide con las reglas operativas del evento.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{En la categoria, baje hasta \campointerfaz{Configuracion inicial sugerida}.}
+\paso{2}{Presione \botoninterfaz{Ver detalle} si la seccion esta cerrada.}
+\paso{3}{Revise cantidad de grupos, clasificados por grupo y si la configuracion incluye repechaje o tercer lugar.}
+\paso{4}{Presione \botoninterfaz{Usar modo sugerido}.}
+\paso{5}{Espere el mensaje de confirmacion y vuelva a revisar \campointerfaz{Modo activo}.}
+
+\begin{resultadoesperado}
+La plataforma muestra un mensaje como \campointerfaz{Se aplico el modo sugerido automatico sin borrar progreso existente.} y actualiza el resumen de la categoria.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si aparece un error de configuracion, revise cantidad de grupos y clasificados permitidos. No fuerce un formato manual hasta confirmar que la lista de equipos es correcta.
+\end{fallas}
+
+\section{Aplicar formato manual}
+
+\begin{procedimiento}{Preparar primera fase con formato manual}{Operador del torneo}
+Use esta opcion cuando la organizacion necesita ajustar grupos, clasificados, purgatorio o tercer lugar antes de iniciar.
+\end{procedimiento}
+
+\paso{1}{Abra \campointerfaz{Configuracion inicial editable} con \botoninterfaz{Abrir ajustes}.}
+\paso{2}{Defina \campointerfaz{Numero de grupos}.}
+\paso{3}{Defina \campointerfaz{Clasificados por grupo}.}
+\paso{4}{Active o desactive \campointerfaz{Activar Purgatorio 1}, \campointerfaz{Activar Purgatorio 2} y \campointerfaz{Jugar tercer lugar} segun la decision de la organizacion.}
+\paso{5}{Presione \botoninterfaz{Aplicar formato manual}.}
+\paso{6}{Revise el mensaje de resultado y confirme que \campointerfaz{Modo activo} muestre \campointerfaz{Manual}.}
+
+\begin{operacionsensible}
+El formato manual define la estructura inicial que usara la competencia. Antes de guardar, revise numero de equipos, cantidad de grupos y clasificados. Para cancelar, cierre la seccion o cambie de pantalla sin presionar \botoninterfaz{Aplicar formato manual}. Para verificar, revise el resumen de la categoria y la distribucion de grupos.
+\end{operacionsensible}
+
+\begin{resultadoesperado}
+La interfaz confirma que se aplico una configuracion manual para la categoria seleccionada.
+\end{resultadoesperado}
+
+\section{Reorganizar grupos}
+
+\figuraManual{capturas/finales/MU-017-distribucion-grupos.png}{Lista de distribucion manual donde cada equipo muestra institucion, grupo actual y selector para moverlo a otro grupo.}{fig:bloque2-mu-017}
+
+\begin{procedimiento}{Ajustar la distribucion manual de grupos}{Operador del torneo}
+Use este procedimiento cuando la estructura de grupos existe, pero la organizacion necesita mover equipos antes de operar resultados.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item Los equipos ya aparecen en grupos.
+    \item La organizacion definio que un movimiento es necesario.
+    \item No se han registrado resultados que dependan de la distribucion actual.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la seccion \campointerfaz{Distribucion manual}.}
+\paso{2}{Presione \botoninterfaz{Mostrar lista completa} si la lista esta cerrada.}
+\paso{3}{Ubique el robot que desea mover. La fila muestra robot, institucion y grupo actual.}
+\paso{4}{En \campointerfaz{Mover a}, seleccione el grupo destino.}
+\paso{5}{Repita la revision para cada equipo que deba cambiar de grupo.}
+\paso{6}{Presione \botoninterfaz{Guardar distribucion manual}.}
+\paso{7}{Espere el mensaje \campointerfaz{Se actualizo la distribucion manual de grupos.} o el mensaje de error correspondiente.}
+\paso{8}{Vuelva a abrir la lista y confirme que cada equipo aparece en el grupo esperado.}
+
+\begin{operacionsensible}
+Mover equipos cambia la primera fase de competencia. Antes de guardar, revise que ningun grupo quede desbalanceado de forma no autorizada y que no existan resultados previos. Para cancelar, no presione \botoninterfaz{Guardar distribucion manual}. Para verificar, compare la lista despues del guardado con la decision de la organizacion.
+\end{operacionsensible}
+
+\begin{fallas}
+Si el sistema rechaza la distribucion, revise que todos los destinos pertenezcan a la categoria actual. Si un equipo no aparece, confirme que fue sincronizado al cuadro oficial y que pertenece a la edicion activa.
+\end{fallas}
+
+\section{Comprobaciones posteriores}
+
+\begin{procedimiento}{Confirmar que la categoria quedo preparada}{Operador del torneo}
+Ejecute esta revision antes de entregar la operacion a la fase de grupos.
+\end{procedimiento}
+
+\paso{1}{Revise que el titulo de categoria sea correcto.}
+\paso{2}{Confirme el estado de competencia y el modo activo.}
+\paso{3}{Verifique que los grupos contienen los equipos esperados.}
+\paso{4}{Revise que la cantidad de clasificados por grupo coincide con la decision aprobada.}
+\paso{5}{No avance a fases posteriores si hay conteos incompletos, equipos duplicados o dudas de asistencia.}
+
+\begin{resultadoesperado}
+La categoria queda lista para operar la fase de grupos en el capitulo correspondiente, sin adelantar resultados ni crear fases posteriores desde esta etapa.
+\end{resultadoesperado}
+
+\section{Checklist previo}
+
+\begin{itemize}
+    \item Registros revisados en la edicion activa.
+    \item Asistencia actualizada o validada por la organizacion.
+    \item Equipos completos y sin duplicados evidentes.
+    \item Divisiones Colegios y Universidades verificadas por separado.
+    \item Permisos de operador confirmados.
+    \item Datos de demostracion retirados antes de produccion.
+    \item Configuracion inicial revisada antes de aplicar modo sugerido o manual.
+    \item Estado previo o progreso existente verificado antes de volver a mezclar.
+\end{itemize}
+
+\begin{nota}
+La plataforma implementa controles de formato, distribucion y mensajes de resultado. El respaldo operativo previo y la autorizacion para cambiar estructura son recomendaciones de organizacion, no botones automaticos de esta pantalla.
+\end{nota}

@@ -1,0 +1,18 @@
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
+\geometry{margin=2.4cm,inner=2.7cm,outer=2.1cm,headheight=15pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[LO]{\nouppercase{\rightmark}}
+\fancyhead[RE]{\nouppercase{\leftmark}}
+\titleformat{\chapter}{\Huge\bfseries\sffamily\color{MUPrincipal}}{\thechapter}{1em}{}
+\titleformat{\section}{\Large\bfseries\sffamily\color{MUTinta}}{\thesection}{0.75em}{}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{topsep=2pt,itemsep=2pt}
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{3.2em}}
+\makeatother

@@ -1,0 +1,45 @@
+\chapter{Comandos operativos}
+\label{anexo:comandos-operativos}
+
+Los comandos se agrupan por riesgo. Los comandos de alto impacto no deben ejecutarse sobre datos reales sin respaldo y aprobacion operativa.
+
+\begin{longtable}{p{5.9cm}p{4.4cm}p{3.8cm}}
+\caption{Comandos seguros de validacion.}
+\label{tab:anexo-comandos-validacion}\\
+\toprule
+Comando & Proposito & Riesgo \\
+\midrule
+\comando{python manage.py check} & Validar configuracion Django basica. & Bajo; no modifica datos. \\
+\comando{python manage.py check --deploy} & Revisar advertencias de produccion. & Bajo; no modifica datos. \\
+\comando{python manage.py test} & Ejecutar pruebas automaticas existentes. & Bajo; usa base de pruebas. \\
+\comando{lualatex -interaction=nonstopmode -halt-on-error -output-directory=build manual_tecnico.tex} & Compilar manual desde fuente LaTeX. & Bajo; genera artefactos en \archivo{build/}. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{5.9cm}p{4.5cm}p{3.7cm}}
+\caption{Comandos de preparacion y operacion.}
+\label{tab:anexo-comandos-operacion}\\
+\toprule
+Comando & Proposito & Precaucion \\
+\midrule
+\comando{python manage.py migrate} & Aplicar migraciones. & Requiere respaldo si hay datos reales. \\
+\comando{python manage.py createsuperuser} & Crear usuario administrador. & Proteger credenciales. \\
+\comando{python manage.py collectstatic} & Recolectar archivos estaticos. & Ejecutar con configuracion del entorno correcto. \\
+\comando{python manage.py runserver} & Servidor local de desarrollo. & No usar como servidor productivo. \\
+\comando{python manage.py bootstrap_tournament} & Preparar datos base de torneo. & Ejecutar solo si el entorno lo requiere. \\
+\comando{python manage.py send_invitations} & Enviar o simular invitaciones. & Usar primero dry-run y prueba controlada. \\
+\comando{python manage.py send_attendance_requests} & Enviar solicitudes de confirmacion de asistencia. & Validar \texttt{base-url}, SMTP y modo de envio. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{5.7cm}p{4.2cm}p{4.2cm}}
+\caption{Comandos de alto impacto.}
+\label{tab:anexo-comandos-alto-impacto}\\
+\toprule
+Comando & Proposito & Advertencia \\
+\midrule
+\comando{python manage.py reset_tournament_demo} & Reiniciar datos demo del torneo. & Alto impacto: puede eliminar datos operativos; no usar en produccion. \\
+\comando{python manage.py migrate} sobre base real & Cambiar estructura de datos. & Requiere respaldo, revision de migraciones y ventana aprobada. \\
+Envio real con comandos de comunicaciones & Contactar destinatarios reales. & Requiere SMTP validado, destinatarios revisados y confirmacion explicita. \\
+\bottomrule
+\end{longtable}

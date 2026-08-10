@@ -1,0 +1,122 @@
+\chapter{Arquitectura}
+\label{chap:arquitectura}
+
+\section{Enfoque arquitectonico implementado}
+\label{sec:arquitectura-enfoque}
+
+La plataforma usa una arquitectura Django organizada por aplicaciones de dominio. El proyecto central en \archivo{config/} concentra configuracion, URL raiz, ASGI y WSGI. Las aplicaciones locales viven en \archivo{apps/} y separan responsabilidades funcionales. Esta estructura permite ubicar rapidamente donde se atiende una solicitud, donde se valida informacion, donde se persiste el estado y donde se ejecuta la regla de negocio.
+
+La arquitectura no implementa una API separada ni una aplicacion SPA. La interfaz se basa en renderizado server-side con Django Templates y JavaScript puntual para interacciones publicas e internas. El panel de torneo agrega AJAX sobre vistas Django tradicionales para guardar resultados, actualizar participantes y refrescar contenido. Esta combinacion reduce complejidad de infraestructura frontend y mantiene la regla de negocio en servicios Python, pero exige disciplina en templates, atributos \variable{data-*} y contratos de respuesta.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: arquitectura general del sistema. Fuente prevista: DIA-01 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de arquitectura general.}
+  \label{fig:arquitectura-general}
+\end{figure}
+
+\section{Organizacion por aplicaciones}
+\label{sec:arquitectura-apps}
+
+\begin{longtable}{p{3.3cm}p{4cm}p{6.2cm}}
+\toprule
+Aplicacion & Responsabilidad & Impacto arquitectonico \\
+\midrule
+\archivo{apps.common} & Modelo abstracto \clase{TimeStampedModel} & Centraliza campos temporales reutilizables y evita repetir \variable{created_at} y \variable{updated_at} en modelos de dominio. \\
+\archivo{apps.core} & Sitio publico, reglas y patrocinadores & Mantiene la entrada publica separada de registro, comunicaciones y panel interno. \\
+\archivo{apps.participants} & Registros, participantes, asistencia, instituciones, equipos y miembros & Conecta el flujo publico con el estado operativo del torneo mediante sincronizacion hacia equipos. \\
+\archivo{apps.tournament} & Ediciones, reglas, competencias, grupos, batallas, estados, historial, recomendaciones y panel & Contiene la logica critica de competencia y concentra la mayor sensibilidad de mantenimiento. \\
+\archivo{apps.invitations} & Plantillas, destinatarios, lotes, logs, DOCX, PDF y correo & Aisla comunicaciones y reduce el riesgo de mezclar envio de correos con logica de torneo. \\
+\bottomrule
+\end{longtable}
+
+La dependencia mas relevante ocurre entre participantes y torneo. \archivo{apps.participants} no termina su trabajo al guardar un registro; cuando se confirma asistencia, invoca servicios que crean o actualizan equipos y pueden inicializar competencia. \archivo{apps.tournament}, a su vez, depende de \clase{Team} y \clase{TeamMember} para construir grupos, batallas y estados por division. Esta relacion explica por que el manual trata el registro como parte del flujo competitivo y no como un formulario aislado.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: dependencias entre aplicaciones. Fuente prevista: DIA-03 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de dependencias entre aplicaciones Django.}
+  \label{fig:arquitectura-dependencias-apps}
+\end{figure}
+
+\section{Aplicacion del patron MTV}
+\label{sec:arquitectura-mtv}
+
+El proyecto aplica el patron Model-Template-View de Django con una capa adicional de servicios para la regla de negocio. Los modelos representan el estado persistente: registros, participantes, equipos, ediciones, competencias, grupos, batallas, estados e historial. Las vistas reciben solicitudes HTTP, aplican permisos, preparan formularios, llaman servicios y devuelven templates, redirecciones, JSON o fragmentos HTML segun el flujo. Los templates construyen la interfaz publica e interna, y el JavaScript del panel agrega comportamiento dinamico sobre esas respuestas.
+
+La capa de servicios es decisiva en este proyecto. Si toda la regla de torneo quedara en vistas, cada endpoint podria replicar logica de clasificacion, sincronizacion o correccion. En cambio, \archivo{apps/tournament/services.py} concentra operaciones como \funcion{initialize_competition}, \funcion{set_group_qualifiers}, \funcion{set_battle_winner}, \funcion{materialize_repechage_stage}, \funcion{generate_manual_phase_proposal}, \funcion{confirm_manual_phase_proposal}, \funcion{sync_competition} y \funcion{save_final_podium}. Esto permite que distintas vistas usen la misma regla de negocio. El costo es que ese archivo requiere pruebas y revision rigurosa porque cualquier cambio puede impactar varios flujos.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: patron MTV aplicado al proyecto con capa de servicios. Fuente prevista: DIA-02 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama del patron MTV aplicado a la plataforma.}
+  \label{fig:arquitectura-mtv-servicios}
+\end{figure}
+
+\section{Flujo de peticion HTTP}
+\label{sec:arquitectura-http}
+
+La URL raiz del proyecto define cinco entradas principales:
+
+\begin{itemize}
+  \item \ruta{/admin/}: administracion Django.
+  \item \ruta{/}: sitio publico de \archivo{apps.core}.
+  \item \ruta{/registro/}: registro y confirmacion de participantes.
+  \item \ruta{/comunicaciones/}: panel interno de comunicaciones.
+  \item \ruta{/torneo/}: vista publica e interna del torneo.
+\end{itemize}
+
+Las rutas publicas de \archivo{apps.core} y \archivo{apps.participants} no exigen autenticacion. Esto permite consultar informacion y registrar equipos sin crear cuentas. La confirmacion de asistencia usa token UUID como mecanismo de identificacion del registro. En contraste, las rutas de \archivo{apps.tournament} para \ruta{/torneo/control/} y las rutas de \archivo{apps.invitations} bajo \ruta{/comunicaciones/} requieren autenticacion y validacion de organizador, definido como usuario \variable{is_staff} o \variable{is_superuser}.
+
+El flujo HTTP interno sigue este patron: la URL resuelve una vista; la vista valida permisos y parametros; si hay formulario o accion POST, llama servicios de dominio; el servicio actualiza modelos y registra efectos; la vista responde con template, redireccion, JSON o HTML parcial. En operaciones AJAX, \archivo{static/js/control.js} envia encabezados \variable{X-CSRFToken} y \variable{X-Requested-With}; la vista procesa la solicitud y devuelve una respuesta que el cliente usa para confirmar, reintentar o refrescar el panel.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de peticion HTTP y AJAX. Fuente prevista: DIA-05 y DIA-13 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de flujo HTTP y operaciones AJAX.}
+  \label{fig:arquitectura-flujo-http}
+\end{figure}
+
+\section{Persistencia}
+\label{sec:arquitectura-persistencia}
+
+La persistencia se implementa con Django ORM. En desarrollo local, el proyecto usa SQLite cuando \variable{DJANGO_DATABASE=sqlite} o cuando \variable{DEBUG=True} sin variables PostgreSQL. La configuracion impide usar SQLite con \variable{DEBUG=False}; si no se usa SQLite, exige variables PostgreSQL. Esta regla protege despliegues no locales contra una configuracion accidentalmente debil o incompleta.
+
+Los modelos persistidos se agrupan por dominio. \archivo{apps.participants} mantiene registros de colegio y universidad, participantes, instituciones, equipos y miembros. \archivo{apps.tournament} mantiene ediciones, reglas, fases, competencias por division, grupos, entradas de grupo, batallas, participantes de batalla, estados de equipos e historial. \archivo{apps.invitations} mantiene plantillas, destinatarios, lotes y logs. La persistencia no solo guarda datos; tambien permite reconstruir estado operativo, historial de decisiones y resultados de comunicaciones.
+
+\section{Logica de torneo}
+\label{sec:arquitectura-logica-torneo}
+
+La logica de torneo combina perfiles automaticos y decisiones manuales. Los perfiles automaticos definen estructuras segun cantidad de equipos: modo pendiente con menos de cuatro, configuraciones con grupos y final four para rangos bajos, estructuras con cuartos o ronda de 32 para rangos superiores y repechajes cuando corresponde. Este comportamiento permite responder a la cantidad real de equipos confirmados, que puede variar respecto a inscripciones iniciales.
+
+Las fases manuales existen para resolver escenarios que no pueden tratarse como avance automatico simple. El sistema genera propuestas, las guarda temporalmente en \variable{competition.configuration}, valida firmas y participantes, permite reasignaciones y materializa batallas solo cuando la propuesta se confirma. Esa estrategia protege contra duplicados, grupos vacios o clasificaciones inconsistentes. El manual debe desarrollar estos contratos en capitulos posteriores porque son parte central del mantenimiento del sistema.
+
+\section{Frontend y AJAX}
+\label{sec:arquitectura-frontend-ajax}
+
+El frontend publico usa \archivo{static/js/app.js} para tema, accesibilidad del boton de tema, comportamiento del header y animaciones de revelado. El panel interno usa \archivo{static/js/control.js}, que contiene comportamiento de mayor impacto operativo: modales de participante, guardado de resultados, seleccion de ganadores o clasificados, decision de fase, asistente manual, guardado multiple y refresco parcial.
+
+La arquitectura frontend evita introducir un framework cliente adicional. La ventaja es que el estado principal permanece en Django y la interfaz se renderiza desde templates conocidos por el backend. El costo tecnico es el acoplamiento entre JavaScript y atributos \variable{data-*}. Si un template cambia el nombre de un atributo usado por \archivo{control.js}, una accion interna puede dejar de funcionar aunque el HTML siga renderizando. Por eso, los capitulos de frontend y JavaScript deben documentar esos contratos con precision.
+
+\section{Administracion}
+\label{sec:arquitectura-administracion}
+
+El proyecto usa Django Admin como herramienta administrativa complementaria. \archivo{apps.participants/admin.py} registra administradores para instituciones, registros y equipos, e incluye acciones que pueden enviar solicitudes de asistencia o sincronizar registros confirmados hacia equipos. \archivo{apps.tournament/admin.py} registra modelos de edicion, reglas, fases, competencias, grupos, batallas, estados e historial. \archivo{apps.invitations/admin.py} permite revisar plantillas, destinatarios, lotes y logs.
+
+La administracion aporta capacidad de inspeccion y correccion, pero tambien introduce riesgo operativo. Algunas acciones administrativas pueden disparar correos o modificar datos que alimentan el torneo. Por esa razon, el manual no trata Django Admin como un detalle secundario: queda incluido dentro de la arquitectura porque forma parte de las superficies reales de operacion y mantenimiento.
+
+\section{Riesgos arquitectonicos conocidos}
+\label{sec:arquitectura-riesgos}
+
+La auditoria validada identifica riesgos que afectan la arquitectura:
+
+\begin{itemize}
+  \item \textbf{Concentracion de logica}: \archivo{apps/tournament/services.py} concentra muchas responsabilidades. Esto facilita encontrar la regla de negocio, pero exige pruebas focalizadas y revisiones cuidadosas.
+  \item \textbf{Configuracion dinamica}: \variable{DivisionCompetition.configuration} almacena informacion operativa en JSON. La flexibilidad permite soportar propuestas manuales y configuracion de fases, pero requiere documentar claves esperadas.
+  \item \textbf{Dependencia de LibreOffice}: la conversion DOCX a PDF depende de un binario externo disponible por PATH o \variable{LIBREOFFICE_BINARY}.
+  \item \textbf{Acoplamiento JS-template}: \archivo{control.js} depende de atributos \variable{data-*} en templates internos.
+  \item \textbf{Cobertura de pruebas limitada}: existen pruebas para distribuciones manuales y comunicaciones, pero faltan pruebas end-to-end de flujos completos.
+  \item \textbf{Produccion no definida}: dominio, servidor, reverse proxy, certificados, backups y almacenamiento de media permanecen como \MarcadorProduccionPendiente.
+\end{itemize}
+
+Estos riesgos no invalidan la arquitectura. Indican donde debe concentrarse la validacion cuando se redacten los capitulos de modelo de datos, servicios, flujo de competencia, pruebas, despliegue y mantenimiento.

@@ -1,0 +1,170 @@
+\chapter{Registro de participantes}
+\label{cap:registro-participantes}
+
+\begin{procedimiento}{Objetivo del capítulo}{Participante o responsable de registro}
+Explicar cómo elegir la categoría correcta, diligenciar el formulario, corregir errores y comprender los mensajes posteriores al envío.
+\end{procedimiento}
+
+\begin{advertencia}
+El registro puede incluir nombres, documentos, correos y teléfonos. Ingrese únicamente información autorizada por el equipo y verifique los datos antes de presionar \botoninterfaz{Enviar inscripción}.
+\end{advertencia}
+
+\section{Selección de categoría}
+
+Cada inscripción corresponde a un robot. Si una institución participa con varios robots, debe enviar un registro independiente por cada uno. La pantalla de selección permite elegir entre registro para colegios y registro para universidades.
+
+\figuraManual{capturas/finales/MU-004-seleccion-registro.png}{Pantalla de selección donde el participante elige si registrará un robot escolar o universitario.}{fig:bloque1-mu-004}
+
+\begin{procedimiento}{Elegir categoría de registro}{Participante}
+Use este procedimiento antes de diligenciar cualquier formulario.
+\end{procedimiento}
+
+\paso{1}{Abra \ruta{/registro/} desde el enlace \botoninterfaz{Registro}.}
+\paso{2}{Revise el aviso \campointerfaz{Una inscripción equivale a un robot}.}
+\paso{3}{Seleccione \botoninterfaz{Ir al formulario de colegios} si el equipo representa un colegio o categoría escolar.}
+\paso{4}{Seleccione \botoninterfaz{Ir al formulario universitario} si el equipo representa una universidad, facultad o programa académico.}
+\paso{5}{Si aún no conoce las condiciones del torneo, use \botoninterfaz{Consultar reglas oficiales} antes de continuar.}
+
+\begin{resultadoesperado}
+El usuario llega al formulario correcto para su categoría y evita registrar el robot en una sección equivocada.
+\end{resultadoesperado}
+
+\section{Campos comunes del formulario}
+
+Los formularios escolar y universitario comparten los datos principales del robot y del grupo. La interfaz muestra una columna de orientación con las reglas: \campointerfaz{1 robot}, \campointerfaz{Líder obligatorio} y \campointerfaz{Hasta 3 integrantes}.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.2cm}X}
+\toprule
+Campo o dato & Uso en el registro\\
+\midrule
+Nombre de universidad o colegio & Identifica la institución representada por el equipo.\\
+Nombre del docente encargado o acudiente responsable & Identifica la persona responsable del registro.\\
+Nombre del robot & Debe ser exclusivo; no se aceptan variantes numeradas de un nombre ya usado.\\
+Teléfono de contacto & Permite a la organización comunicarse si requiere verificar información.\\
+Correo electrónico & Recibe comunicaciones asociadas al registro, cuando el correo está configurado.\\
+Nombre del integrante \#1 & Identifica el líder obligatorio del equipo.\\
+Número de documento del integrante \#1 & Dato de identificación del líder.\\
+Integrantes \#2 y \#3 & Son opcionales, pero si se escribe un nombre debe completarse también su documento.\\
+\bottomrule
+\end{tabularx}
+
+\section{Registro escolar}
+
+\begin{procedimiento}{Registrar robot escolar}{Participante o responsable de registro}
+Permite enviar la inscripción de un robot que representa un colegio o categoría escolar.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item Existe una edición activa del torneo.
+    \item El equipo conoce el reglamento.
+    \item La institución, el responsable y los integrantes autorizaron el uso de sus datos para el registro.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Desde \ruta{/registro/}, seleccione \botoninterfaz{Ir al formulario de colegios}.}
+\paso{2}{Complete la institución, responsable, nombre del robot, teléfono y correo.}
+\paso{3}{Complete el líder del equipo y su documento.}
+\paso{4}{Agregue integrante \#2 o integrante \#3 solo si tiene sus datos completos.}
+\paso{5}{Revise que el nombre del robot no sea igual o demasiado parecido a otro ya registrado.}
+\paso{6}{Presione \botoninterfaz{Enviar inscripción}.}
+
+\figuraManual{capturas/finales/MU-005-registro-escolar.png}{Formulario escolar diligenciado con datos de demostración; los valores visibles no son instrucciones obligatorias para registros reales.}{fig:bloque1-mu-005}
+
+\begin{resultadoesperado}
+Si la información es válida, la plataforma guarda el registro y muestra la pantalla de inscripción registrada.
+\end{resultadoesperado}
+
+\section{Registro universitario}
+
+\begin{procedimiento}{Registrar robot universitario}{Participante o responsable de registro}
+Permite enviar la inscripción de un robot que representa una universidad.
+\end{procedimiento}
+
+El formulario universitario conserva los campos principales del formulario escolar y agrega \campointerfaz{Semestre actual}. La interfaz valida que los estudiantes universitarios participen hasta el semestre permitido.
+
+\paso{1}{Desde \ruta{/registro/}, seleccione \botoninterfaz{Ir al formulario universitario}.}
+\paso{2}{Complete institución, responsable, robot, semestre, datos de contacto y líder.}
+\paso{3}{Verifique que el semestre actual no supere el límite indicado por el formulario.}
+\paso{4}{Presione \botoninterfaz{Enviar inscripción}.}
+
+\figuraManual{capturas/finales/MU-007-registro-universitario.png}{Formulario universitario con el campo de semestre visible, además de los datos principales del robot y del responsable.}{fig:bloque1-mu-007}
+
+\begin{advertencia}
+No use nombres ficticios, correos de prueba ni documentos inventados en un registro real. Las capturas del manual usan datos de demostración únicamente para explicar la pantalla.
+\end{advertencia}
+
+\section{Validaciones y corrección de errores}
+
+La plataforma puede mostrar errores cuando falta información, cuando un correo ya fue usado, cuando el nombre del robot ya está reservado o cuando un documento aparece repetido. También puede advertir si no existe una edición activa del torneo.
+
+\figuraManual{capturas/finales/MU-006-registro-escolar-error.png}{Ejemplo de validación del formulario cuando los datos enviados no cumplen las condiciones del registro.}{fig:bloque1-mu-006}
+
+\begin{procedimiento}{Corregir errores antes de enviar}{Participante}
+Permite revisar los mensajes del formulario y corregir la información sin abandonar la pantalla.
+\end{procedimiento}
+
+\paso{1}{Lea el mensaje mostrado junto al campo o en la parte superior del formulario.}
+\paso{2}{Corrija únicamente el dato señalado.}
+\paso{3}{Si el error indica duplicidad, use un nombre de robot, correo o documento correcto; no agregue números para simular otro registro.}
+\paso{4}{Vuelva a presionar \botoninterfaz{Enviar inscripción}.}
+
+\begin{fallas}
+Si el formulario indica que no hay edición activa, no intente registrar el equipo por otra ruta. Espere confirmación de la organización. Si el correo de confirmación no llega después de un envío exitoso, revise la dirección registrada y comuníquese con la organización.
+\end{fallas}
+
+\section{Confirmación de registro}
+
+Después de enviar correctamente el formulario, la pantalla de éxito indica que la solicitud quedó almacenada. También aclara que, si el correo está configurado, el responsable recibirá un mensaje de confirmación de registro.
+
+\figuraManual{capturas/finales/MU-008-registro-exito.png}{Pantalla que confirma que la inscripción fue recibida y permite registrar otro equipo o volver al inicio.}{fig:bloque1-mu-008}
+
+\begin{nota}
+La confirmación visual del sitio indica que el registro fue recibido. La participación en el cuadro oficial depende de la confirmación de asistencia y de los procesos definidos por la organización.
+\end{nota}
+
+\section{Confirmación de asistencia}
+
+La organización puede enviar un enlace de confirmación de asistencia. Ese enlace permite validar que el equipo realmente asistirá al torneo. El enlace contiene un identificador propio del registro; por seguridad, no debe compartirse.
+
+\begin{procedimiento}{Confirmar asistencia por enlace}{Participante o responsable de registro}
+Permite confirmar que el equipo participará y podrá ser tenido en cuenta por la organización.
+\end{procedimiento}
+
+\paso{1}{Abra el enlace de confirmación recibido por el canal autorizado.}
+\paso{2}{Revise el resumen mostrado: institución, categoría, robot, responsable y correo.}
+\paso{3}{Si la información corresponde a su equipo, presione \botoninterfaz{Confirmar asistencia}.}
+\paso{4}{Espere el mensaje de confirmación o el estado de asistencia ya confirmada.}
+
+\figuraManual{capturas/finales/MU-009-confirmacion-asistencia.png}{Pantalla de confirmación donde el responsable revisa los datos del equipo antes de confirmar asistencia.}{fig:bloque1-mu-009}
+
+\figuraManual{capturas/finales/MU-010-asistencia-confirmada.png}{Estado mostrado cuando la asistencia del robot ya fue confirmada previamente.}{fig:bloque1-mu-010}
+
+\begin{advertencia}
+No reenvíe el enlace de confirmación a personas no autorizadas. Si el enlace llega a un correo equivocado o muestra un equipo que no corresponde, no confirme la asistencia y comuníquese con la organización.
+\end{advertencia}
+
+\section{Enlace no válido}
+
+Si el enlace no existe o no corresponde a un registro activo, la plataforma muestra la pantalla \campointerfaz{Enlace no válido}. Esta pantalla no confirma asistencia ni modifica información.
+
+\figuraManual{capturas/finales/MU-011-token-invalido.png}{Mensaje mostrado cuando el enlace de confirmación no corresponde a un registro activo del torneo.}{fig:bloque1-mu-011}
+
+\begin{fallas}
+Si considera que el enlace debería funcionar, comuníquese con la organización del torneo. No intente construir manualmente otra dirección ni compartir capturas del enlace recibido.
+\end{fallas}
+
+\section{Recomendaciones antes de enviar}
+
+\begin{itemize}
+    \item Revise el reglamento antes de registrar el robot.
+    \item Confirme la categoría correcta: escolar o universitaria.
+    \item Verifique que el correo del responsable esté bien escrito.
+    \item No duplique documentos entre integrantes.
+    \item Use un nombre de robot único y reconocible.
+    \item En registros universitarios, confirme el semestre actual antes del envío.
+\end{itemize}
+
+\begin{resultadoesperado}
+Al finalizar este capítulo, el participante debe poder elegir la categoría correcta, completar el formulario, interpretar errores, reconocer la confirmación de registro y confirmar asistencia de forma segura.
+\end{resultadoesperado}

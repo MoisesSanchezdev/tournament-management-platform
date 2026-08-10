@@ -1,0 +1,92 @@
+\chapter{Riesgos y limitaciones}
+\label{chap:riesgos-limitaciones}
+
+\section{Criterio de clasificacion}
+\label{sec:riesgos-criterio}
+
+Los riesgos de este capitulo provienen de la auditoria validada y de los capitulos anteriores. No se agregan riesgos hipoteticos sin evidencia. Cada riesgo se clasifica por impacto, probabilidad estimada y mitigacion tecnica.
+
+La clasificacion es operativa: sirve para priorizar mantenimiento, pruebas y decisiones antes de usar el sistema en un evento real.
+
+\section{Matriz de riesgos tecnicos}
+\label{sec:riesgos-matriz}
+
+\begin{longtable}{p{1.3cm}p{3.4cm}p{2cm}p{2.2cm}p{4.1cm}}
+\caption{Matriz de riesgos tecnicos principales.}
+\label{tab:riesgos-matriz}\\
+\toprule
+ID & Riesgo & Impacto & Probabilidad & Mitigacion \\
+\midrule
+R-01 & Alta concentracion de logica en \archivo{apps/tournament/services.py}. & Alto & Media & Dividir servicios por subdominio y ampliar pruebas de regresion. \\
+R-02 & Cobertura de pruebas insuficiente. & Alto & Alta & Ejecutar plan de pruebas de \cref{chap:pruebas-calidad}. \\
+R-03 & \comando{reset_tournament_demo} elimina datos operativos. & Alto & Media & Restringir a demo y exigir respaldo previo. \\
+R-04 & Dependencia externa de LibreOffice. & Medio & Media & Validar \variable{LIBREOFFICE_BINARY} y conversion antes de envios. \\
+R-05 & Uso de JSON dinamico en \variable{DivisionCompetition.configuration}. & Medio & Media & Documentar schema y validar migraciones de estructura. \\
+R-06 & Acoplamiento entre templates y \archivo{control.js}. & Medio & Media & Tratar \variable{data-*} como contrato y probar panel tras cambios. \\
+R-07 & Roles internos no granulares. & Medio & Media & Definir permisos por accion y modulo. \\
+R-08 & Datos personales en previews/logs. & Medio & Media & Revisar retencion, privacidad y contenido de \clase{CommunicationLog}. \\
+R-09 & Recursos externos en paginas publicas. & Bajo & Media & Evaluar reemplazo local si se requiere disponibilidad controlada. \\
+R-10 & Despliegue productivo no definido. & Medio & Alta & Completar decisiones de \cref{chap:despliegue}. \\
+R-11 & Acciones operativas en Django Admin. & Medio & Media & Crear procedimiento y pruebas para acciones administrativas. \\
+\bottomrule
+\end{longtable}
+
+\section{Riesgos funcionales}
+\label{sec:riesgos-funcionales}
+
+Los riesgos funcionales se concentran en la competencia y comunicaciones:
+
+\begin{itemize}
+  \item cambiar reglas del torneo durante el evento puede invalidar estados ya generados;
+  \item guardar clasificados incorrectos arrastra batallas posteriores;
+  \item abrir repechaje en momento equivocado altera participantes vivos;
+  \item una correccion manual sin revision puede producir historial dificil de interpretar;
+  \item un fallo SMTP impide enviar confirmaciones o invitaciones;
+  \item un fallo de PDF impide adjuntar invitaciones en el formato previsto.
+\end{itemize}
+
+Los controles existentes reducen estos riesgos: \funcion{stage_is_closed}, \clase{ManualCorrectionRequired}, firmas de propuesta manual, dry-run de comunicaciones, validacion SMTP y logs.
+
+\section{Limitaciones confirmadas}
+\label{sec:riesgos-limitaciones-confirmadas}
+
+\begin{longtable}{p{4.3cm}p{4.2cm}p{4.2cm}}
+\caption{Limitaciones actuales del sistema.}
+\label{tab:riesgos-limitaciones}\\
+\toprule
+Limitacion & Efecto & Capitulo relacionado \\
+\midrule
+No hay produccion final definida. & El manual no puede cerrar servidor, dominio, HTTPS, backups ni monitoreo. & \cref{chap:despliegue} \\
+Pruebas parciales. & Cambios criticos requieren validacion manual amplia. & \cref{chap:pruebas-calidad} \\
+Sin politica formal de datos personales. & No se puede declarar cumplimiento de privacidad. & \cref{chap:seguridad} \\
+Sin backup confirmado. & Recuperacion depende de politica futura. & \cref{chap:respaldo-recuperacion} \\
+Frontend interno acoplado a HTML. & Cambios de template pueden romper JavaScript. & \cref{chap:javascript-ajax} \\
+Roles internos binarios. & Staff y superuser concentran permisos. & \cref{chap:seguridad} \\
+\bottomrule
+\end{longtable}
+
+\section{Riesgos documentales}
+\label{sec:riesgos-documentales}
+
+La revision de calidad de la auditoria marco observaciones que este manual debe conservar como pendientes controlados:
+
+\begin{itemize}
+  \item schema completo de \variable{DivisionCompetition.configuration} aun no especificado campo por campo;
+  \item plan de pruebas end-to-end pendiente de implementacion;
+  \item despliegue real pendiente de infraestructura;
+  \item politica de privacidad y backups pendiente de aprobacion;
+  \item procedimientos finales de Admin pendientes de formalizacion.
+\end{itemize}
+
+Estos puntos no invalidan la arquitectura, pero si delimitan el alcance profesional del manual: hay evidencia suficiente para mantenimiento tecnico, no para declarar produccion cerrada.
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:riesgos-recomendaciones}
+
+\begin{itemize}
+  \item Atender primero R-02, porque mayor cobertura de pruebas reduce el impacto de casi todos los cambios posteriores.
+  \item Reducir R-01 separando servicios de torneo por responsabilidades.
+  \item Documentar y validar \variable{DivisionCompetition.configuration} antes de agregar nuevos formatos.
+  \item Aislar comandos destructivos y acciones administrativas con procedimientos y permisos.
+  \item Cerrar decisiones de despliegue, backups y privacidad antes de operar con datos reales.
+\end{itemize}

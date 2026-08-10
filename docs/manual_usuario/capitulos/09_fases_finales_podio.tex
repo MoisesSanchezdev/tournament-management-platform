@@ -1,0 +1,122 @@
+\chapter{Fases finales y podio}
+\label{cap:fases-finales-podio}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador del torneo}
+Guiar el registro de resultados finales y el guardado del podio visible de la competencia.
+\end{procedimiento}
+
+Las fases finales usan los mismos principios de guardado explicados en \cref{cap:eliminatorias-repechaje}: seleccionar resultados, guardar, verificar tras recargar y no avanzar con datos incompletos. Este capitulo se enfoca en semifinales, final y podio.
+
+\section{Identificar fases finales}
+
+\begin{procedimiento}{Reconocer semifinales y final}{Operador del torneo}
+Use este procedimiento cuando la navegacion de la categoria muestre fases finales disponibles.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item Las fases anteriores fueron guardadas.
+    \item La navegacion muestra una fase final, semifinal o equivalente.
+    \item Los participantes de la fase coinciden con los resultados previos.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la categoria correspondiente.}
+\paso{2}{Revise la navegacion de fases.}
+\paso{3}{Seleccione la fase final o semifinal que corresponda.}
+\paso{4}{Revise cada batalla visible y confirme participantes antes de guardar resultados.}
+\paso{5}{Si una fase esperada no aparece, vuelva a la fase anterior y compruebe que todos los resultados quedaron guardados.}
+
+\begin{resultadoesperado}
+El operador identifica que esta en la fase correcta y no registra resultados finales sobre una categoria o ronda equivocada.
+\end{resultadoesperado}
+
+\section{Registrar semifinales y final}
+
+\figuraManual{capturas/finales/MU-031-podio-final.png}{Fase final con batalla visible, ganador seleccionado y barra de guardado operativo. El formulario de podio aparece mas abajo, dentro de la misma pantalla.}{fig:bloque3-mu-031}
+
+\begin{procedimiento}{Guardar resultado de una fase final}{Operador del torneo}
+Use este procedimiento para semifinales, gran final u otra batalla final con ganador unico.
+\end{procedimiento}
+
+\paso{1}{Ubique la batalla final o semifinal.}
+\paso{2}{Confirme que los participantes coinciden con los clasificados de la fase anterior.}
+\paso{3}{Presione \botoninterfaz{Marcar ganador} sobre el robot ganador.}
+\paso{4}{Revise que el ganador quede resaltado y que el otro participante aparezca como salida de ronda.}
+\paso{5}{Presione \botoninterfaz{Guardar este ganador} o use \botoninterfaz{Guardar todos los resultados} si hay varias batallas visibles revisadas.}
+\paso{6}{Confirme el dialogo si aparece.}
+\paso{7}{Recargue la fase y verifique que el ganador continua seleccionado.}
+
+\begin{resultadoesperado}
+El panel lateral \campointerfaz{Ganadores} refleja el avance de la ronda y la batalla queda con estado finalizado cuando el resultado fue guardado.
+\end{resultadoesperado}
+
+\begin{advertencia}
+Cambiar un ganador en semifinal o final puede afectar finalistas, tercer lugar o podio. Si la interfaz solicita una confirmacion especial por correccion de resultados, consulte el procedimiento de correccion de resultados del capitulo correspondiente.
+\end{advertencia}
+
+\section{Guardar podio final}
+
+Cuando la fase final esta disponible, baje por la misma pantalla hasta la seccion \campointerfaz{Resultado final}. Alli aparece el formulario \campointerfaz{Podio del torneo}. Los campos visibles son \campointerfaz{Campeon}, \campointerfaz{Segundo lugar} y, si hay mas de dos participantes disponibles, \campointerfaz{Tercer lugar}. El boton aparece como \botoninterfaz{Guardar podio final} o \botoninterfaz{Actualizar podio} si ya existe un podio guardado.
+
+\begin{procedimiento}{Registrar y guardar podio}{Operador del torneo}
+Use este procedimiento despues de confirmar los resultados finales.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La fase final esta visible.
+    \item El campeon y el segundo lugar fueron determinados.
+    \item El tercer lugar fue definido si la interfaz lo solicita.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Baje hasta la seccion \campointerfaz{Resultado final}.}
+\paso{2}{En \campointerfaz{Campeon}, seleccione el robot que gano la final.}
+\paso{3}{En \campointerfaz{Segundo lugar}, seleccione el robot que ocupo la segunda posicion.}
+\paso{4}{Si aparece \campointerfaz{Tercer lugar}, seleccione el robot correspondiente.}
+\paso{5}{Revise que las posiciones no esten duplicadas.}
+\paso{6}{Presione \botoninterfaz{Guardar podio final}. Si el podio ya existia, el boton puede mostrar \botoninterfaz{Actualizar podio}.}
+\paso{7}{Lea el dialogo de confirmacion del navegador: \campointerfaz{Se guardará el podio final y el torneo quedará completado. ¿Deseas continuar?}.}
+\paso{8}{Confirme solo si la organizacion ya aprobo el resultado final.}
+\paso{9}{Revise el mensaje de resultado y vuelva a la fase final para confirmar que las posiciones permanecen.}
+
+\begin{resultadoesperado}
+El podio queda guardado en la pantalla final. La confirmacion visual debe comprobarse en la misma fase antes de declarar cerrado el evento por fuera de la plataforma.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si el sistema rechaza el guardado, revise que campeon, segundo y tercer lugar sean participantes distintos y que la final tenga resultados completos. Si falta tercer lugar y la interfaz lo solicita, complete la seleccion antes de guardar.
+\end{fallas}
+
+\section{Diferencias operativas}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Concepto & Significado para el operador\\
+\midrule
+Resultado calculado o propagado & Participantes que aparecen en una fase final como consecuencia de resultados anteriores guardados.\\
+Resultado seleccionado manualmente & Ganador o clasificado elegido por el operador en una batalla visible.\\
+Podio propuesto & Seleccion hecha en los campos de podio antes de presionar el boton de guardado.\\
+Podio guardado & Posiciones confirmadas despues del envio del formulario y persistentes al recargar.\\
+\bottomrule
+\end{tabularx}
+
+\section{Fase manual en el cierre}
+
+Si la organizacion necesita una fase manual antes de la final, use el procedimiento de fase manual de \cref{cap:eliminatorias-repechaje}. No cree una fase manual final para corregir un error de resultado sin revisar primero las fases anteriores.
+
+\begin{operacionsensible}
+Una fase manual cerca del cierre puede modificar finalistas o candidatos al podio. Debe utilizarse solo con autorizacion operativa y despues de confirmar que no quedan resultados pendientes.
+\end{operacionsensible}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Finalistas correctos frente a fases anteriores.
+    \item Resultado final confirmado y guardado.
+    \item Tercer lugar revisado cuando aplica.
+    \item Podio revisado antes de confirmar.
+    \item Podio guardado y verificado tras recargar.
+    \item Sin fases pendientes antes de declarar cierre operativo.
+\end{itemize}

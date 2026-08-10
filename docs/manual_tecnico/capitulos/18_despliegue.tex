@@ -1,0 +1,138 @@
+\chapter{Despliegue}
+\label{chap:despliegue}
+
+\section{Alcance del despliegue documentado}
+\label{sec:despliegue-alcance}
+
+El proyecto esta preparado tecnicamente para ejecutarse como aplicacion Django con WSGI o ASGI, variables de entorno, archivos estaticos recolectables, media local y base PostgreSQL fuera de desarrollo. Sin embargo, no hay evidencia de proveedor de hosting, dominio, certificado HTTPS, reverse proxy, servidor de aplicaciones, almacenamiento externo de media ni pipeline CI/CD.
+
+Por tanto, este capitulo describe el proceso recomendado con base en archivos existentes. Todo dato de infraestructura final se marca como PENDIENTE DE DEFINICION PARA PRODUCCION.
+
+\section{Entornos}
+\label{sec:despliegue-entornos}
+
+\begin{longtable}{p{3.2cm}p{4.7cm}p{4.8cm}}
+\caption{Diferencias entre desarrollo y produccion.}
+\label{tab:despliegue-entornos}\\
+\toprule
+Aspecto & Desarrollo & Produccion \\
+\midrule
+\variable{DEBUG} & \variable{True} permitido. & \variable{False} obligatorio. \\
+Base de datos & SQLite permitido si \variable{DJANGO_DATABASE=sqlite}. & PostgreSQL requerido por configuracion. \\
+\variable{SECRET_KEY} & Puede usar clave local de desarrollo. & Debe ser secreto real generado fuera del repositorio. \\
+\variable{ALLOWED_HOSTS} & Puede incluir localhost y testserver. & Debe contener dominio o hosts reales. \\
+Archivos estaticos & Servidos por \comando{runserver}. & Requieren \comando{collectstatic} y servicio de estaticos. \\
+Media & Local en \archivo{media/}. & Estrategia final PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Correo & Consola o SMTP de prueba. & SMTP real validado y confirmado. \\
+PDF invitaciones & LibreOffice opcional si no se prueban PDFs. & LibreOffice requerido para conversion DOCX a PDF. \\
+\bottomrule
+\end{longtable}
+
+\section{Proceso recomendado}
+\label{sec:despliegue-proceso}
+
+El flujo recomendado de preparacion es:
+
+\begin{enumerate}
+  \item crear entorno virtual de Python;
+  \item instalar dependencias desde \archivo{requirements.txt};
+  \item crear \archivo{.env} real fuera de control de versiones;
+  \item configurar \variable{DJANGO_DEBUG=False};
+  \item configurar \variable{DJANGO_SECRET_KEY}, \variable{DJANGO_ALLOWED_HOSTS} y origenes CSRF;
+  \item configurar PostgreSQL con variables \variable{POSTGRES_*};
+  \item aplicar migraciones;
+  \item crear superusuario;
+  \item recolectar estaticos;
+  \item validar \comando{manage.py check --deploy};
+  \item configurar servidor WSGI o ASGI final;
+  \item validar SMTP y LibreOffice si se usaran comunicaciones.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash,caption={Comandos base de despliegue Django.},label={lst:despliegue-comandos}]
+python -m venv .venv
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py collectstatic
+python manage.py check --deploy
+\end{lstlisting}
+
+\begin{advertencia}
+Los comandos de migracion, creacion de superusuario y recoleccion de estaticos modifican el entorno donde se ejecutan. Deben correr en una instancia preparada para despliegue, no durante revision documental ni sobre datos productivos sin respaldo.
+\end{advertencia}
+
+\section{Variables obligatorias}
+\label{sec:despliegue-variables}
+
+\begin{longtable}{p{4.2cm}p{5.5cm}p{3.2cm}}
+\caption{Variables de entorno criticas para despliegue.}
+\label{tab:despliegue-variables}\\
+\toprule
+Variable & Uso & Estado \\
+\midrule
+\variable{DJANGO_SECRET_KEY} & Clave criptografica de Django. & Obligatoria en produccion. \\
+\variable{DJANGO_DEBUG} & Controla modo debug. & Debe ser \variable{False}. \\
+\variable{DJANGO_ALLOWED_HOSTS} & Hosts aceptados por Django. & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+\variable{DJANGO_CSRF_TRUSTED_ORIGINS} & Origenes confiables para CSRF. & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+\variable{POSTGRES_DB} & Nombre de base PostgreSQL. & Obligatoria fuera de SQLite. \\
+\variable{POSTGRES_USER} & Usuario PostgreSQL. & Obligatoria fuera de SQLite. \\
+\variable{POSTGRES_PASSWORD} & Password PostgreSQL. & Obligatoria fuera de SQLite. \\
+\variable{POSTGRES_HOST} & Host PostgreSQL. & Obligatoria fuera de SQLite. \\
+\variable{POSTGRES_PORT} & Puerto PostgreSQL. & Predeterminado \variable{5432}. \\
+\variable{EMAIL_*} & SMTP para comunicaciones reales. & Requerido si hay envios. \\
+\variable{LIBREOFFICE_BINARY} & Conversor DOCX a PDF si no esta en PATH. & Requerido para invitaciones PDF. \\
+\bottomrule
+\end{longtable}
+
+\section{Archivos estaticos, media y documentos}
+\label{sec:despliegue-static-media}
+
+La configuracion define \variable{STATIC_ROOT} como \archivo{staticfiles/}, \variable{STATICFILES_DIRS} como \archivo{static/}, \variable{MEDIA_ROOT} como \archivo{media/} y \variable{MEDIA_URL} como \ruta{media/}. En desarrollo, \comando{runserver} puede resolver estaticos. En produccion, el servicio de archivos estaticos queda PENDIENTE DE DEFINICION PARA PRODUCCION.
+
+El almacenamiento de media tambien queda pendiente. La aplicacion puede generar o almacenar archivos asociados a comunicaciones y cargas administrativas; antes de operar con datos reales se debe definir respaldo y retencion para \archivo{media/}.
+
+\section{Comunicaciones en produccion}
+\label{sec:despliegue-comunicaciones}
+
+Para envio real se requiere SMTP completo y validado. El proyecto bloquea envios oficiales sin confirmacion. Antes de habilitar envios reales debe probarse:
+
+\begin{itemize}
+  \item configuracion SMTP con valores reales;
+  \item envio en modo test hacia \variable{test_recipient};
+  \item conversion DOCX a PDF con LibreOffice;
+  \item ausencia de placeholders en credenciales;
+  \item plantillas y destinatarios con datos ficticios o autorizados.
+\end{itemize}
+
+\section{Elementos no definidos}
+\label{sec:despliegue-pendientes}
+
+\begin{longtable}{p{4.5cm}p{7.8cm}}
+\caption{Elementos pendientes para produccion.}
+\label{tab:despliegue-pendientes}\\
+\toprule
+Elemento & Estado \\
+\midrule
+Proveedor de hosting & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Dominio final & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+HTTPS y certificados & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Reverse proxy & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Servidor WSGI o ASGI final & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Servicio de static files & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Servicio de media files & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Backups de base y media & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Monitoreo de errores & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+CI/CD & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+\bottomrule
+\end{longtable}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:despliegue-recomendaciones}
+
+\begin{itemize}
+  \item Crear una guia de produccion cuando se confirme proveedor, dominio, HTTPS, servidor de aplicacion y estrategia de static/media.
+  \item Agregar checklist de despliegue versionado con responsables, fecha y resultado de pruebas.
+  \item Validar \comando{manage.py check --deploy} en el entorno final antes de abrir el sistema al publico.
+  \item Documentar procedimiento de rollback de version y restauracion de base de datos.
+  \item Automatizar despliegue solo despues de definir repositorio remoto, secretos, migraciones y backups.
+\end{itemize}

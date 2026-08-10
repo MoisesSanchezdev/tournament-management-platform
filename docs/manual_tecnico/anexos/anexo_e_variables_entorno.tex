@@ -1,0 +1,54 @@
+\chapter{Variables de entorno}
+\label{anexo:variables-entorno}
+
+Este anexo documenta variables confirmadas por \archivo{.env.example} y \archivo{config/settings.py}. Los valores reales de produccion no deben escribirse en el manual ni versionarse en el repositorio.
+
+\begin{longtable}{p{4.2cm}p{4.5cm}p{3.8cm}}
+\caption{Variables Django y seguridad.}
+\label{tab:anexo-variables-django}\\
+\toprule
+Variable & Proposito & Ejemplo seguro \\
+\midrule
+\variable{DJANGO_SECRET_KEY} & Clave secreta de Django. Obligatoria en produccion. & \variable{replace-with-a-long-random-secret-key} \\
+\variable{DJANGO_DEBUG} & Activa modo desarrollo. Debe ser \variable{False} en produccion. & \variable{True} solo local \\
+\variable{DJANGO_ALLOWED_HOSTS} & Hosts aceptados por Django. & \variable{127.0.0.1,localhost,testserver} \\
+\variable{DJANGO_CSRF_TRUSTED_ORIGINS} & Origenes confiables para CSRF cuando hay dominio real. & \variable{http://localhost:8000} \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{4.2cm}p{4.5cm}p{3.8cm}}
+\caption{Variables de base de datos.}
+\label{tab:anexo-variables-db}\\
+\toprule
+Variable & Proposito & Ejemplo seguro \\
+\midrule
+\variable{DJANGO_DATABASE} & Selecciona backend local o productivo. & \variable{sqlite} en desarrollo \\
+\variable{POSTGRES_DB} & Nombre de base PostgreSQL. & \variable{robot_tournament} \\
+\variable{POSTGRES_USER} & Usuario tecnico de base de datos. & \variable{robot_app} \\
+\variable{POSTGRES_PASSWORD} & Contrasena de base de datos. & No publicar valor real \\
+\variable{POSTGRES_HOST} & Host de PostgreSQL. & \variable{127.0.0.1} \\
+\variable{POSTGRES_PORT} & Puerto de PostgreSQL. & \variable{5432} \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{4.2cm}p{4.5cm}p{3.8cm}}
+\caption{Variables de comunicaciones y PDF.}
+\label{tab:anexo-variables-comunicaciones}\\
+\toprule
+Variable & Proposito & Ejemplo seguro \\
+\midrule
+\variable{DJANGO_EMAIL_BACKEND} & Backend de correo. & \variable{django.core.mail.backends.smtp.EmailBackend} \\
+\variable{EMAIL_HOST} & Servidor SMTP. & \variable{smtp.example.org} \\
+\variable{EMAIL_PORT} & Puerto SMTP. & \variable{587} \\
+\variable{EMAIL_USE_TLS} & Activa TLS. & \variable{True} \\
+\variable{EMAIL_USE_SSL} & Activa SSL directo. & \variable{False} \\
+\variable{EMAIL_HOST_USER} & Usuario SMTP. & \variable{correo@dominio.edu.co} \\
+\variable{EMAIL_HOST_PASSWORD} & Credencial SMTP. & No publicar valor real \\
+\variable{DEFAULT_FROM_EMAIL} & Remitente por defecto. & \variable{correo@dominio.edu.co} \\
+\variable{LIBREOFFICE_BINARY} & Ruta al ejecutable para convertir DOCX a PDF. & Ruta local segun sistema operativo \\
+\bottomrule
+\end{longtable}
+
+\begin{advertencia}
+Los ejemplos son ilustrativos y no deben copiarse a produccion sin reemplazo por valores reales, secretos generados fuera del repositorio y aprobacion operativa.
+\end{advertencia}

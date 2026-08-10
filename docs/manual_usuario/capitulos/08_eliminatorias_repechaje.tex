@@ -1,0 +1,215 @@
+\chapter{Eliminatorias y repechaje}
+\label{cap:eliminatorias-repechaje}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador del torneo}
+Explicar como registrar ganadores, guardar clasificados multiples, abrir una fase recomendada, evaluar repechaje y crear fases manuales cuando la interfaz lo permita.
+\end{procedimiento}
+
+Las eliminatorias y fases posteriores solo deben operarse cuando la fase anterior ya quedo guardada. Si la pantalla solicita completar resultados antes de avanzar, vuelva a la fase anterior y cierre las selecciones pendientes.
+
+\section{Tipos de operacion}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.5cm}X}
+\toprule
+Operacion & Uso en la interfaz\\
+\midrule
+Eliminatoria con ganador & Cada batalla requiere seleccionar un ganador unico con \botoninterfaz{Marcar ganador} y guardar con \botoninterfaz{Guardar este ganador}.\\
+Batalla multi-clasificador & La batalla permite seleccionar varios clasificados; la tarjeta muestra \campointerfaz{Clasifican n} y se guarda con \botoninterfaz{Guardar clasificados}.\\
+Repechaje & Se ofrece desde el modal de avance cuando existen candidatos suficientes para volver a competir antes de la fase recomendada.\\
+Fase manual & Permite preparar una fase personalizada con participantes vivos o eliminados disponibles, distribucion y clasificados por grupo.\\
+\bottomrule
+\end{tabularx}
+
+\section{Registrar ganador de batalla}
+
+\figuraManual{capturas/finales/MU-026-batalla-ganador.png}{Batallas eliminatorias con ganador seleccionado, participante perdedor y panel lateral de avance de ronda.}{fig:bloque3-mu-026}
+
+\begin{procedimiento}{Guardar ganador de una batalla}{Operador del torneo}
+Use este procedimiento en fases donde cada batalla tiene un unico ganador.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La fase esta materializada y aparece en la navegacion.
+    \item La batalla tiene participantes visibles.
+    \item El resultado oficial ya fue confirmado por mesa o jueces.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la pestana de la fase correspondiente, por ejemplo una semifinal o batalla de clasificados.}
+\paso{2}{Ubique la tarjeta de la batalla.}
+\paso{3}{Revise los participantes y el estado visible de la batalla.}
+\paso{4}{Presione \botoninterfaz{Marcar ganador} en el equipo que gano.}
+\paso{5}{Verifique que el ganador quede resaltado y que los demas queden como salida de ronda.}
+\paso{6}{Presione \botoninterfaz{Guardar este ganador}.}
+\paso{7}{Confirme el dialogo del navegador si aparece.}
+\paso{8}{Revise el mensaje de resultado y el panel lateral \campointerfaz{Ganadores}.}
+
+\begin{resultadoesperado}
+La plataforma muestra un mensaje como \campointerfaz{Se registro el ganador de Semifinal demo 1.} y conserva la seleccion al recargar.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si intenta guardar sin elegir ganador, la interfaz puede mostrar \campointerfaz{selecciona un ganador antes de guardar}. Si el cambio requiere confirmacion por afectar fases posteriores, consulte el procedimiento de correccion de resultados del capitulo correspondiente.
+\end{fallas}
+
+\section{Guardar clasificados multiples}
+
+\figuraManual{capturas/finales/MU-027-batalla-clasificados.png}{Batalla multi-clasificador con contador de seleccion, clasificados resaltados y boton de guardado.}{fig:bloque3-mu-027}
+
+\begin{procedimiento}{Guardar clasificados de una batalla multiple}{Operador del torneo}
+Use este procedimiento cuando una batalla indica que clasifican varios participantes.
+\end{procedimiento}
+
+\paso{1}{Abra la fase donde aparece la batalla multi-clasificador.}
+\paso{2}{Revise la etiqueta \campointerfaz{Clasifican n}. La cantidad depende de la fase y no debe asumirse fija.}
+\paso{3}{Marque cada equipo clasificado con \botoninterfaz{Clasificar}.}
+\paso{4}{Revise el contador \campointerfaz{Seleccionados: x / n}.}
+\paso{5}{Corrija la seleccion antes de guardar si el contador no coincide.}
+\paso{6}{Presione \botoninterfaz{Guardar clasificados}.}
+\paso{7}{Verifique que los clasificados sigan resaltados y aparezcan en el panel lateral de ganadores.}
+
+\begin{resultadoesperado}
+La plataforma muestra un mensaje como \campointerfaz{Se guardaron los clasificados de Batalla multi-clasificador demo.}
+\end{resultadoesperado}
+
+\begin{fallas}
+Si selecciona menos o mas participantes que los requeridos, la interfaz informa la cantidad esperada y la cantidad actual. Ajuste la seleccion y vuelva a guardar.
+\end{fallas}
+
+\section{Guardado general en fases posteriores}
+
+El boton \botoninterfaz{Guardar todos los resultados} tambien aparece en fases eliminatorias. Funciona sobre formularios modificados visibles: batallas con ganador cambiado o batallas con clasificados multiples editados.
+
+\begin{procedimiento}{Guardar varias batallas visibles}{Operador del torneo}
+Use este recorrido cuando haya cambios revisados en mas de una batalla.
+\end{procedimiento}
+
+\paso{1}{Revise cada batalla visible.}
+\paso{2}{Confirme que todas las batallas modificadas cumplen su validacion: ganador unico o cantidad exacta de clasificados.}
+\paso{3}{Presione \botoninterfaz{Guardar todos los resultados}.}
+\paso{4}{Confirme el dialogo \campointerfaz{Seguro que deseas guardar estas selecciones? Podras editarlas despues, pero verifica bien antes de continuar.}}
+\paso{5}{Revise el mensaje final con las selecciones guardadas.}
+\paso{6}{Si una operacion falla parcialmente, revise el mensaje, recargue la fase y confirme cuales batallas quedaron guardadas.}
+
+\begin{advertencia}
+El guardado general no reemplaza la revision de mesa. Use esta accion solo cuando todas las selecciones visibles ya fueron verificadas.
+\end{advertencia}
+
+\section{Abrir una fase progresiva}
+
+\figuraManual{capturas/finales/MU-021-modal-siguiente-fase.png}{Modal para pasar a la siguiente fase con recomendacion principal, metricas y alternativas.}{fig:bloque3-mu-021}
+
+\begin{procedimiento}{Revisar el modal de avance}{Operador del torneo}
+Use este procedimiento cuando el boton \botoninterfaz{Pasar a la siguiente fase} este habilitado.
+\end{procedimiento}
+
+\paso{1}{Revise que todos los resultados de la fase actual esten guardados.}
+\paso{2}{Presione \botoninterfaz{Pasar a la siguiente fase}.}
+\paso{3}{Lea la recomendacion principal, participantes vivos, eliminados recientes, repechables y formato sugerido.}
+\paso{4}{Revise la seccion de \campointerfaz{Alternativas} y \campointerfaz{Advertencias}.}
+\paso{5}{Use \botoninterfaz{Cancelar} o cierre el modal si necesita volver a revisar resultados.}
+
+\begin{resultadoesperado}
+El operador entiende que el modal es una vista previa: aun no se crea una fase ni se modifican datos hasta confirmar una opcion.
+\end{resultadoesperado}
+
+\figuraManual{capturas/finales/MU-022-crear-fase-recomendada.png}{Modal de avance con marcadores editoriales sobre la decision de fase y la zona de revision.}{fig:bloque3-mu-022}
+
+En \cref{fig:bloque3-mu-022}, el marcador 1 senala el area de decision de avance y el marcador 2 encierra la zona que debe revisarse antes de usar la recomendacion.
+
+\begin{procedimiento}{Crear la fase recomendada}{Operador del torneo}
+Use esta accion cuando la recomendacion coincide con la decision de la organizacion.
+\end{procedimiento}
+
+\paso{1}{Dentro del modal, presione \botoninterfaz{Usar recomendacion del sistema}.}
+\paso{2}{Revise la vista previa de creacion: participantes, formato, estructura y unidades.}
+\paso{3}{Si aparece decision de repechaje, elija continuar sin repechaje solo si la organizacion asi lo define.}
+\paso{4}{Presione \botoninterfaz{Confirmar creacion} o \botoninterfaz{Crear final y tercer lugar}, segun el texto visible.}
+\paso{5}{Confirme el dialogo del navegador si aparece.}
+\paso{6}{Verifique que la nueva fase aparece en la navegacion y queda disponible para operar.}
+
+\begin{advertencia}
+No cree una fase recomendada con resultados incompletos. Si la interfaz muestra \campointerfaz{Completa y guarda todos los resultados antes de pasar a la siguiente fase.}, vuelva a la fase actual y cierre los resultados pendientes.
+\end{advertencia}
+
+\section{Repechaje}
+
+\figuraManual{capturas/finales/MU-023-repechaje.png}{Modal de avance con area de evaluacion para repechaje y advertencias de revision.}{fig:bloque3-mu-023}
+
+\begin{procedimiento}{Evaluar o abrir repechaje}{Operador del torneo}
+Use este procedimiento solo cuando el modal muestra candidatos suficientes para repechaje.
+\end{procedimiento}
+
+\paso{1}{Abra \botoninterfaz{Pasar a la siguiente fase} despues de cerrar la fase actual.}
+\paso{2}{Revise el conteo \campointerfaz{Repechables}.}
+\paso{3}{Presione \botoninterfaz{Evaluar/Abrir repechaje} si la opcion esta habilitada.}
+\paso{4}{Revise candidatos, cupos de retorno, estado y creacion real.}
+\paso{5}{Si la organizacion decide usar repechaje, presione \botoninterfaz{Confirmar repechaje}.}
+\paso{6}{Confirme el dialogo del navegador: la fase real de repechaje se creara con los candidatos actuales y no se creara todavia la fase principal.}
+\paso{7}{Verifique que el repechaje aparece como fase operable y registre sus resultados como una batalla normal o multi-clasificador segun la pantalla.}
+
+\begin{operacionsensible}
+El repechaje reincorpora participantes eliminados o recientes candidatos al flujo. Antes de confirmarlo, revise que los candidatos sean correctos y que la fase anterior este completa. Evite modificar resultados anteriores sin revisar consecuencias.
+\end{operacionsensible}
+
+\section{Fase manual}
+
+\figuraManual{capturas/finales/MU-024-asistente-manual.png}{Modal de avance con opcion de configurar manualmente una fase personalizada.}{fig:bloque3-mu-024}
+
+\begin{procedimiento}{Generar propuesta de fase manual}{Operador del torneo}
+Use una fase manual cuando la recomendacion no cubre la decision operativa o cuando la organizacion necesita una distribucion personalizada.
+\end{procedimiento}
+
+\paso{1}{Abra el modal de avance.}
+\paso{2}{Presione \botoninterfaz{Configurar manualmente}.}
+\paso{3}{Elija \campointerfaz{Fase normal} o \campointerfaz{Repechaje}, segun el origen de participantes.}
+\paso{4}{Seleccione una distribucion o use \campointerfaz{Grupos balanceados personalizados}.}
+\paso{5}{Defina \campointerfaz{Cantidad de grupos} cuando el modo personalizado lo solicite.}
+\paso{6}{Defina \campointerfaz{Clasificados por grupo}.}
+\paso{7}{Revise \campointerfaz{Nombre de fase}.}
+\paso{8}{Revise el resumen: participantes disponibles, grupos, clasificados y eliminados previstos.}
+\paso{9}{Presione \botoninterfaz{Generar propuesta}.}
+
+\figuraManual{capturas/finales/MU-025-propuesta-manual.png}{Recorte de la vista de propuesta manual dentro del modal de avance.}{fig:bloque3-mu-025}
+
+\begin{procedimiento}{Confirmar una propuesta manual}{Operador del torneo}
+Use esta accion solo despues de revisar la propuesta generada.
+\end{procedimiento}
+
+\paso{1}{Revise participantes asignados, clasificados previstos y eliminados previstos.}
+\paso{2}{Si la propuesta muestra grupos, revise cada participante y su grupo destino.}
+\paso{3}{Use los selectores \campointerfaz{Mover a} si necesita reasignar participantes dentro de la propuesta.}
+\paso{4}{Presione \botoninterfaz{Regenerar grupos} si la propuesta no es aceptable.}
+\paso{5}{Presione \botoninterfaz{Confirmar y crear fase} si la propuesta fue aprobada.}
+\paso{6}{Use \botoninterfaz{Cancelar} o \botoninterfaz{Cancelar propuesta} si no debe crearse la fase.}
+\paso{7}{Verifique que la nueva fase aparece en la navegacion y que sus participantes coinciden con la propuesta.}
+
+\begin{operacionsensible}
+Una fase manual puede crear cruces distintos a la recomendacion. Debe usarla un operador autorizado y con validacion de la organizacion. Si la fase no coincide con resultados anteriores, cancele y revise antes de confirmar.
+\end{operacionsensible}
+
+\section{Estados visibles en batallas}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.8cm}X}
+\toprule
+Estado visual & Interpretacion operativa\\
+\midrule
+Pendiente & La batalla aun no tiene ganador o clasificados guardados.\\
+Ganador & El participante fue seleccionado como ganador unico de la batalla.\\
+Clasificado & El participante fue seleccionado en una batalla multi-clasificador.\\
+Perdedor o eliminado & La seleccion ya existe y el participante no avanza desde esa batalla.\\
+Finalizado & La batalla ya tiene resultado guardado.\\
+Bloqueado o incompleto & La fase no puede avanzar porque faltan resultados o candidatos suficientes.\\
+\bottomrule
+\end{tabularx}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Batallas completas y con cantidad correcta de resultados.
+    \item Ganadores o clasificados revisados antes de guardar.
+    \item Repechaje evaluado solo si la interfaz lo ofrece.
+    \item Fase siguiente habilitada despues de guardar todo.
+    \item Cambios verificados al recargar la fase.
+\end{itemize}

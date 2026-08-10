@@ -1,0 +1,113 @@
+\chapter{Respaldo y recuperacion}
+\label{chap:respaldo-recuperacion}
+
+\section{Situacion actual}
+\label{sec:respaldo-situacion}
+
+No existe una politica formal de backups confirmada para la plataforma. La auditoria solo confirma que el proyecto soporta SQLite para desarrollo local y PostgreSQL fuera de desarrollo, que \archivo{db.sqlite3} esta excluido del repositorio y que \archivo{media/} tambien esta ignorado. No se detecto procedimiento operativo de respaldo, restauracion, retencion, cifrado, monitoreo ni pruebas de recuperacion.
+
+Por esa razon, este capitulo separa hechos confirmados, buenas practicas recomendadas y aspectos pendientes. No debe interpretarse como politica institucional aprobada.
+
+\section{Activos que requieren respaldo}
+\label{sec:respaldo-activos}
+
+\begin{longtable}{p{3.5cm}p{4.2cm}p{4.9cm}}
+\caption{Activos que deben considerarse en respaldo.}
+\label{tab:respaldo-activos}\\
+\toprule
+Activo & Ubicacion confirmada & Motivo \\
+\midrule
+Base de datos & SQLite local o PostgreSQL segun entorno. & Contiene registros, equipos, torneo, estados, historial y comunicaciones. \\
+Media & \archivo{media/}. & Puede contener archivos cargados o generados por operacion. \\
+Plantillas de comunicacion & Modelos y archivos asociados al modulo de invitaciones. & Necesarias para regenerar invitaciones y trazabilidad. \\
+Archivos estaticos fuente & \archivo{static/}. & Versionados; se restauran desde repositorio. \\
+Configuracion de entorno & \archivo{.env} real fuera del repositorio. & Necesaria para iniciar servicio, DB, SMTP y LibreOffice. \\
+Documentacion tecnica & \archivo{docs/manual_tecnico/}. & Permite recuperacion operativa y transferencia tecnica. \\
+\bottomrule
+\end{longtable}
+
+El repositorio por si solo no recupera una operacion real. Sin base de datos, media y variables de entorno, el sistema puede arrancar como codigo, pero perderia participantes, estados de competencia, historial, lotes y configuracion productiva.
+
+\section{Buenas practicas recomendadas}
+\label{sec:respaldo-buenas-practicas}
+
+Para un entorno productivo se recomienda definir un procedimiento con tres respaldos minimos:
+
+\begin{itemize}
+  \item respaldo de base de datos PostgreSQL;
+  \item respaldo de \archivo{media/};
+  \item respaldo seguro de variables y secretos operativos, gestionado fuera del repositorio.
+\end{itemize}
+
+La frecuencia no esta definida por el proyecto. Debe decidirse segun calendario del evento, volumen de registros y tolerancia a perdida de datos. Como criterio tecnico, durante dias de inscripcion y competencia la frecuencia debe ser mayor que durante periodos sin operacion.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de respaldo y restauracion de base de datos, media y configuracion de entorno. Fuente prevista: inventario de diagramas de operacion.}}
+  \caption{Marcador para flujo de respaldo y restauracion.}
+  \label{fig:respaldo-flujo}
+\end{figure}
+
+\section{Recuperacion ante fallos}
+\label{sec:respaldo-recuperacion-fallos}
+
+La recuperacion debe partir del tipo de falla:
+
+\begin{longtable}{p{3.6cm}p{4.3cm}p{4.6cm}}
+\caption{Escenarios de recuperacion.}
+\label{tab:respaldo-escenarios}\\
+\toprule
+Escenario & Impacto & Respuesta recomendada \\
+\midrule
+Perdida de base de datos & Perdida de registros, competencia e historial. & Restaurar ultimo backup PostgreSQL verificado y revisar consistencia de media. \\
+Perdida de \archivo{media/} & Archivos cargados o generados no disponibles. & Restaurar backup de media compatible con la fecha de la base. \\
+Error de despliegue & Aplicacion no inicia o pierde assets. & Revertir version de codigo, revisar variables y ejecutar \comando{manage.py check}. \\
+Fallo SMTP & No se envian comunicaciones. & Pasar a modo dry-run o test, corregir SMTP y reintentar solo destinatarios pendientes. \\
+Fallo LibreOffice & Invitaciones PDF no se generan. & Corregir \variable{LIBREOFFICE_BINARY} y probar conversion antes de envio real. \\
+Error operativo en torneo & Clasificados o ganadores incorrectos. & Usar correccion manual documentada en \cref{chap:servicios-logica-negocio} y validar historial. \\
+\bottomrule
+\end{longtable}
+
+\section{Verificacion de restauracion}
+\label{sec:respaldo-verificacion}
+
+Un respaldo no debe considerarse valido hasta probar una restauracion en entorno no productivo. La prueba debe confirmar:
+
+\begin{itemize}
+  \item arranque de Django con variables no productivas;
+  \item acceso a panel interno con usuario de prueba;
+  \item existencia de edicion, registros, equipos, grupos, batallas e historial esperados;
+  \item carga de archivos media requeridos;
+  \item funcionamiento de paginas publicas y panel interno;
+  \item no uso de SMTP real durante la prueba, salvo prueba controlada.
+\end{itemize}
+
+\section{Aspectos pendientes}
+\label{sec:respaldo-pendientes}
+
+\begin{longtable}{p{4.8cm}p{7.4cm}}
+\caption{Aspectos pendientes de politica de respaldo.}
+\label{tab:respaldo-pendientes}\\
+\toprule
+Aspecto & Estado \\
+\midrule
+Responsable de respaldos & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Frecuencia de backups & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Retencion historica & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Cifrado de respaldos & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Ubicacion de almacenamiento & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Procedimiento de restauracion aprobado & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Prueba periodica de recuperacion & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+\bottomrule
+\end{longtable}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:respaldo-recomendaciones}
+
+\begin{itemize}
+  \item Definir politica de respaldo antes de operar con datos reales de participantes.
+  \item Crear scripts o runbooks de backup y restauracion para PostgreSQL y \archivo{media/}.
+  \item Probar restauracion completa antes del evento y despues de cambios de modelo.
+  \item Mantener respaldo previo a migraciones y antes de ejecutar comandos destructivos o acciones masivas.
+  \item Documentar responsable, frecuencia, retencion y ubicacion de backups en una version futura del manual.
+\end{itemize}

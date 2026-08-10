@@ -1,0 +1,31 @@
+\chapter*{Perfiles de usuario}
+\addcontentsline{toc}{chapter}{Perfiles de usuario}
+
+La plataforma distingue entre usuarios sin cuenta, usuarios con acceso administrativo y responsabilidades operativas asumidas por personas autorizadas. Los perfiles de operador del torneo y operador de comunicaciones son funciones de trabajo; no implican necesariamente cuentas separadas dentro del sistema.
+
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.5cm}}
+\toprule
+Perfil & Para qué usa la plataforma & Secciones habituales & Precaución\\
+\midrule
+Visitante público & Consulta información general del torneo antes de participar o acompañar el evento. & Inicio, reglas, patrocinadores y vista pública del torneo. & Baja: no modifica datos.\\
+Participante o responsable de registro & Registra un robot y confirma asistencia cuando recibe el enlace correspondiente. & Registro, formulario escolar o universitario, confirmación de asistencia. & Alta: envía datos personales y de contacto.\\
+Organizador & Accede al panel interno y coordina la operación general. & Panel de organización, divisiones, comunicaciones. & Media: puede iniciar acciones internas.\\
+Operador del torneo & Gestiona grupos, resultados, fases, repechajes, correcciones y podio. & Panel de torneo, fases, modales de participante. & Alta: cambia el estado de la competencia.\\
+Operador de comunicaciones & Gestiona plantillas, destinatarios, invitaciones, solicitudes de asistencia e historial. & Comunicaciones, plantillas, invitaciones, confirmaciones. & Alta: maneja correos y envíos.\\
+Superusuario & Revisa y corrige datos desde el administrador cuando la operación lo requiere. & Django Admin y modelos registrados. & Crítica: modifica datos directamente.\\
+\bottomrule
+\end{tabularx}
+
+\section*{Acciones que no deben ejecutarse sin autorización}
+
+\begin{itemize}
+    \item Un visitante no debe intentar acceder al panel interno ni al administrador.
+    \item Un participante no debe compartir enlaces de confirmación de asistencia.
+    \item Un organizador no debe operar resultados si no tiene asignada esa responsabilidad.
+    \item Un operador de comunicaciones no debe realizar envíos reales sin validación previa.
+    \item Un superusuario no debe hacer cambios masivos sin respaldo y autorización.
+\end{itemize}
+
+\begin{advertencia}
+Este manual no publica credenciales, usuarios reales ni datos de acceso. Cada cuenta debe ser entregada por la organización mediante un canal seguro.
+\end{advertencia}

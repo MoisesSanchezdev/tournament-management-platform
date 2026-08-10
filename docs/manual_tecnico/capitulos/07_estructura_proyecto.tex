@@ -1,0 +1,232 @@
+\chapter{Estructura del proyecto}
+\label{chap:estructura-proyecto}
+
+\section{Proposito de la organizacion}
+\label{sec:estructura-proposito}
+
+La estructura del proyecto separa configuracion, dominios de aplicacion, documentacion, recursos estaticos, archivos media y comandos operativos. Esta separacion favorece el mantenimiento porque cada cambio tiene una zona natural: la configuracion general vive en \archivo{config/}, la regla funcional en \archivo{apps/}, los assets compartidos en \archivo{static/} y la documentacion tecnica en \archivo{docs/}.
+
+El criterio dominante es organizar por dominio de negocio. Registro, torneo y comunicaciones no estan mezclados en una sola aplicacion Django. Esto permite revisar un flujo sin recorrer todo el repositorio: si el cambio afecta inscripciones, empieza en \archivo{apps/participants}; si afecta grupos, batallas o podio, empieza en \archivo{apps/tournament}; si afecta plantillas, lotes o correos, empieza en \archivo{apps/invitations}.
+
+\section{Arbol principal}
+\label{sec:estructura-arbol}
+
+El siguiente arbol resume la estructura mantenible del proyecto. Se excluyen artefactos locales o generados como \archivo{__pycache__/}, \archivo{.venv/}, \archivo{.env}, bases SQLite, \archivo{media/} operativo y caches.
+
+\begin{lstlisting}[caption={Arbol principal del proyecto},label={lst:estructura-arbol-principal}]
+pre_explotaglobos/
+  apps/
+    common/
+    core/
+    invitations/
+    participants/
+    tournament/
+  config/
+  docs/
+    auditoria_tecnica/
+    correos/
+    manual_tecnico/
+    screenshots/
+  logos_patrocinadores/
+  static/
+    css/
+    docs/
+    js/
+    sponsors/
+  manage.py
+  requirements.txt
+  README.md
+  .env.example
+\end{lstlisting}
+
+El arbol completo puede ampliarse en \cref{anexo:arbol-proyecto}. En este capitulo se prioriza explicar responsabilidades y relaciones para que la estructura sea util durante mantenimiento.
+
+\section{Raiz del proyecto}
+\label{sec:estructura-raiz}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Elemento & Responsabilidad \\
+\midrule
+\archivo{manage.py} & Entrada de comandos Django. Se usa para validaciones, migraciones, superusuario, servidor local y comandos de gestion. \\
+\archivo{requirements.txt} & Dependencias Python declaradas del proyecto. Es la fuente para reproducir el entorno de aplicacion. \\
+\archivo{README.md} & Descripcion general existente del proyecto. No sustituye este Manual Tecnico. \\
+\archivo{.env.example} & Plantilla segura de variables de entorno con placeholders. Debe copiarse a \archivo{.env} y completarse fuera del control de versiones. \\
+\archivo{.gitignore} & Excluye entornos virtuales, secretos, SQLite, media, staticfiles, caches y listados reales de comunicaciones. \\
+\bottomrule
+\end{longtable}
+
+La raiz conserva pocos archivos porque la logica de aplicacion esta delegada a \archivo{apps/}. Esta convencion reduce el acoplamiento accidental: los archivos de arranque y dependencias no compiten con modelos, vistas o servicios.
+
+\section{Configuracion central}
+\label{sec:estructura-config}
+
+La carpeta \archivo{config/} contiene la configuracion central Django.
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Archivo & Responsabilidad \\
+\midrule
+\archivo{settings.py} & Carga variables de entorno, define apps instaladas, middleware, base de datos, static/media, correo, LibreOffice y controles de seguridad. \\
+\archivo{urls.py} & Distribuye rutas raiz hacia admin, sitio publico, registro, comunicaciones y torneo. \\
+\archivo{asgi.py} & Punto de entrada ASGI preparado por Django. \\
+\archivo{wsgi.py} & Punto de entrada WSGI preparado para servidores compatibles. \\
+\bottomrule
+\end{longtable}
+
+\archivo{settings.py} es especialmente importante porque aplica reglas de seguridad por entorno. La configuracion bloquea SQLite si \variable{DEBUG=False}, exige \variable{DJANGO_SECRET_KEY} y \variable{DJANGO_ALLOWED_HOSTS} fuera de debug y activa controles como cookies seguras, redireccion SSL y HSTS en entornos no debug.
+
+\section{Aplicaciones locales}
+\label{sec:estructura-apps}
+
+Las aplicaciones locales viven bajo \archivo{apps/}. Cada una sigue convenciones Django, pero el proyecto agrega servicios de dominio para evitar que las vistas acumulen regla de negocio compleja.
+
+\subsection{apps.common}
+
+\archivo{apps.common} contiene \clase{TimeStampedModel}, modelo abstracto reutilizable con campos temporales. Su existencia evita repetir definiciones de \variable{created_at} y \variable{updated_at} en modelos de participantes, torneo e invitaciones. No tiene migraciones numeradas confirmadas, solo paquete \archivo{migrations/}.
+
+\subsection{apps.core}
+
+\archivo{apps.core} agrupa la parte publica general:
+
+\begin{itemize}
+  \item \archivo{views.py}: vistas \funcion{sponsor_catalog}, \funcion{home}, \funcion{rules_page} y \funcion{sponsors_page}.
+  \item \archivo{urls.py}: rutas publicas \ruta{/}, \ruta{/reglas/} y \ruta{/patrocinadores/}.
+  \item \archivo{templates/core/}: base publica, home, reglas y patrocinadores.
+\end{itemize}
+
+Su responsabilidad es presentar informacion del evento y no ejecutar operaciones internas de torneo. Esta frontera evita que la capa publica termine mezclada con acciones protegidas.
+
+\subsection{apps.participants}
+
+\archivo{apps.participants} contiene registro publico, asistencia y sincronizacion hacia equipos:
+
+\begin{itemize}
+  \item \archivo{models.py}: registros, participantes, instituciones, equipos y miembros.
+  \item \archivo{forms.py}: validaciones de registro de colegio y universidad.
+  \item \archivo{views.py}: seleccion de tipo de registro, formularios, exito y confirmacion por token.
+  \item \archivo{services.py}: correos de registro/asistencia, confirmacion y sincronizacion hacia \clase{Team}.
+  \item \archivo{admin.py}: administracion de registros, equipos e instituciones; incluye acciones de solicitud de asistencia y sincronizacion.
+  \item \archivo{templates/participants/}: pantallas publicas de registro y confirmacion.
+\end{itemize}
+
+Esta app conecta el mundo publico con el mundo competitivo. Por eso la regla de sincronizacion no queda solo en una vista: \funcion{confirm_attendance} delega creacion o actualizacion de equipos y puede activar inicializacion de competencia si corresponde.
+
+\subsection{apps.tournament}
+
+\archivo{apps.tournament} es el nucleo de competencia:
+
+\begin{itemize}
+  \item \archivo{models.py}: ediciones, reglas, fases, competencias, grupos, batallas, entradas, estados e historial.
+  \item \archivo{formats.py}: perfiles automaticos y distribuciones por cantidad de equipos.
+  \item \archivo{planner.py}: planificacion de divisiones y asignaciones.
+  \item \archivo{recommendations.py}: recomendaciones de siguiente fase, repechaje y tercer lugar.
+  \item \archivo{services.py}: inicializacion, grupos, batallas, repechajes, fases manuales, sincronizacion y podio.
+  \item \archivo{views.py}: vista publica del torneo y panel interno.
+  \item \archivo{admin.py}: administracion de modelos de torneo.
+  \item \archivo{tests.py}: pruebas de distribuciones manuales.
+  \item \archivo{management/commands/}: comandos \comando{bootstrap_tournament} y \comando{reset_tournament_demo}.
+\end{itemize}
+
+La concentracion de servicios en esta app facilita ubicar la logica competitiva. El riesgo asociado es que \archivo{services.py} tiene alta responsabilidad y debe modificarse con pruebas y revision de efectos colaterales.
+
+\begin{advertencia}
+El comando \comando{reset_tournament_demo} fue identificado como destructivo por la auditoria porque borra datos operativos antes de sembrar una simulacion. No debe tratarse como comando de mantenimiento rutinario ni ejecutarse en ambientes reales.
+\end{advertencia}
+
+\subsection{apps.invitations}
+
+\archivo{apps.invitations} implementa comunicaciones:
+
+\begin{itemize}
+  \item \archivo{models.py}: plantillas, destinatarios, lotes y logs.
+  \item \archivo{forms.py}: formularios de plantilla, destinatarios y lotes.
+  \item \archivo{services.py}: marcadores DOCX, render, conversion PDF, XLSX, correo, logs y asistencia.
+  \item \archivo{views.py}: dashboard, plantillas, previsualizacion, invitaciones, confirmaciones e historial.
+  \item \archivo{admin.py}: administracion de plantillas, destinatarios, lotes y logs.
+  \item \archivo{tests.py}: pruebas de conversion PDF y correo.
+  \item \archivo{management/commands/}: comandos \comando{send_invitations} y \comando{send_attendance_requests}.
+\end{itemize}
+
+Esta separacion evita que el envio de comunicaciones quede disperso en participantes o torneo. Tambien permite implementar controles de simulacion, destinatario de prueba y logs por destinatario sin contaminar la logica competitiva.
+
+\section{Templates y recursos estaticos}
+\label{sec:estructura-templates-static}
+
+Los templates se ubican dentro de cada aplicacion, siguiendo el dominio al que pertenecen:
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Ruta & Uso \\
+\midrule
+\archivo{apps/core/templates/core/} & Base publica, home, reglas y patrocinadores. \\
+\archivo{apps/participants/templates/participants/} & Registro, confirmacion de asistencia, errores y exito de registro. \\
+\archivo{apps/tournament/templates/tournament/} & Vista publica del torneo, login interno, dashboard, division, fase, detalle y asistente manual. \\
+\archivo{apps/invitations/templates/invitations/} & Dashboard de comunicaciones, plantillas, previsualizacion, invitaciones, confirmaciones e historial. \\
+\bottomrule
+\end{longtable}
+
+Los recursos compartidos estan en \archivo{static/}:
+
+\begin{itemize}
+  \item \archivo{static/css/app.css}: estilos globales publicos e internos.
+  \item \archivo{static/js/app.js}: comportamiento publico.
+  \item \archivo{static/js/control.js}: panel interno, AJAX y modales.
+  \item \archivo{static/docs/ExplotaGlobos.pdf}: documento publico.
+  \item \archivo{static/sponsors/}: logos utilizados en vistas publicas.
+\end{itemize}
+
+Esta organizacion separa templates por dominio y assets por tipo. El mantenimiento del frontend debe revisar ambas zonas: el template que emite atributos \variable{data-*} y el JavaScript que los consume.
+
+\section{Documentacion}
+\label{sec:estructura-docs}
+
+\archivo{docs/} contiene documentacion y soportes del proyecto:
+
+\begin{itemize}
+  \item \archivo{docs/auditoria_tecnica/}: auditoria tecnica validada.
+  \item \archivo{docs/manual_tecnico/}: arquitectura y redaccion del presente manual.
+  \item \archivo{docs/correos/}: insumos y ejemplos para comunicaciones.
+  \item \archivo{docs/screenshots/}: capturas referenciadas por documentacion previa.
+\end{itemize}
+
+Los listados reales de comunicaciones y archivos sensibles dentro de \archivo{docs/correos/} estan protegidos por \archivo{.gitignore}. Esta regla evita versionar destinatarios reales o datos personales por accidente.
+
+\section{Flujo entre aplicaciones}
+\label{sec:estructura-flujo-apps}
+
+El flujo entre aplicaciones puede entenderse en cuatro pasos:
+
+\begin{enumerate}
+  \item \archivo{apps.core} presenta informacion publica y direcciona al registro.
+  \item \archivo{apps.participants} crea registros, confirma asistencia y transforma registros confirmados en equipos.
+  \item \archivo{apps.tournament} consume equipos para construir competencia, fases, batallas y estados.
+  \item \archivo{apps.invitations} se apoya en registros y confirmaciones para comunicaciones y trazabilidad de envios.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo entre aplicaciones desde registro hasta competencia y comunicaciones. Fuente prevista: DIA-03 y DIA-07 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de flujo entre aplicaciones del proyecto.}
+  \label{fig:estructura-flujo-aplicaciones}
+\end{figure}
+
+\section{Buenas practicas observadas}
+\label{sec:estructura-buenas-practicas}
+
+La estructura aplica varias practicas utiles para mantenimiento:
+
+\begin{itemize}
+  \item Separacion por dominio mediante apps locales.
+  \item Uso de servicios para logica que no debe vivir directamente en vistas.
+  \item Plantillas ubicadas dentro de la app que las usa.
+  \item Configuracion externa mediante variables de entorno.
+  \item Exclusiones de \archivo{.gitignore} para secretos, bases locales, media, caches y listados reales.
+  \item Comandos de gestion ubicados dentro de la app responsable.
+  \item Tests colocados junto a los dominios que validan.
+\end{itemize}
+
+\section{Cierre del capitulo}
+\label{sec:estructura-cierre}
+
+La estructura del proyecto favorece una lectura por dominio: publico, participantes, torneo, comunicaciones y comun. Esta organizacion hace que el mantenimiento sea mas predecible porque permite rastrear cada flujo desde la ruta hasta la vista, servicio, modelo, template y asset relacionado. El punto que requiere mayor disciplina es el nucleo de torneo, donde la cantidad de responsabilidades de \archivo{apps/tournament/services.py} hace indispensable documentar contratos y ampliar pruebas antes de cambios profundos.

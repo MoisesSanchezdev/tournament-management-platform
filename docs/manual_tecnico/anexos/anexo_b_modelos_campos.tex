@@ -1,0 +1,53 @@
+\chapter{Modelos y campos}
+\label{anexo:modelos-campos}
+
+Este anexo complementa \cref{chap:modelo-datos}. No reproduce cada atributo administrativo de Django; concentra los modelos propios del proyecto, sus campos de dominio y restricciones confirmadas por introspeccion del ORM.
+
+\begin{longtable}{p{3.4cm}p{3.5cm}p{5.3cm}}
+\caption{Modelos del dominio de participantes.}
+\label{tab:anexo-modelos-participants}\\
+\toprule
+Modelo & Campos principales & Restricciones y relaciones \\
+\midrule
+\clase{SchoolRegistration} & \variable{edition}, \variable{institution_name}, \variable{responsible_name}, \variable{robot_name}, \variable{contact_phone}, \variable{contact_email}, \variable{status}, \variable{attendance_token}, marcas de correo/asistencia/sincronizacion. & Pertenece a \clase{TournamentEdition}; restriccion \variable{unique_school_robot_registration}; token de asistencia unico. \\
+\clase{UniversityRegistration} & Campos equivalentes a registro escolar mas \variable{semester}. & Pertenece a \clase{TournamentEdition}; restriccion \variable{unique_university_robot_registration}; token de asistencia unico. \\
+\clase{SchoolParticipant} & \variable{full_name}, \variable{document_number}, \variable{role}, \variable{is_team_lead}. & Depende de \clase{SchoolRegistration}. \\
+\clase{UniversityParticipant} & \variable{full_name}, \variable{document_number}, \variable{role}, \variable{is_team_lead}. & Depende de \clase{UniversityRegistration}. \\
+\clase{Institution} & \variable{name}, \variable{institution_type}, \variable{city}, \variable{department}, contacto. & \variable{name} es unico; alimenta equipos operativos. \\
+\clase{Team} & \variable{edition}, \variable{name}, \variable{institution}, \variable{category_label}, \variable{robot_name}, datos de coach, estado y notas. & Pertenece a \clase{TournamentEdition} e \clase{Institution}; restriccion \variable{unique_team_per_edition}. \\
+\clase{TeamMember} & \variable{team}, \variable{full_name}, \variable{document_number}, \variable{email}, \variable{age}, \variable{role}, \variable{is_team_lead}. & Depende de \clase{Team}; \variable{document_number} es unico. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3.7cm}p{3.8cm}p{4.9cm}}
+\caption{Modelos del dominio de torneo.}
+\label{tab:anexo-modelos-tournament}\\
+\toprule
+Modelo & Campos principales & Restricciones y relaciones \\
+\midrule
+\clase{TournamentEdition} & \variable{name}, \variable{description}, fechas, \variable{location}, \variable{is_active}. & \variable{name} es unico; restriccion \variable{single_active_tournament_edition}. \\
+\clase{RuleSection} & \variable{edition}, \variable{title}, \variable{summary}, \variable{body}, \variable{order}, \variable{is_published}. & Puede depender de una edicion. \\
+\clase{TournamentPhase} & \variable{edition}, \variable{name}, \variable{phase_type}, \variable{order}, \variable{is_public}, \variable{configuration}. & Usa \variable{JSONField} para configuracion de fase. \\
+\clase{DivisionCompetition} & \variable{edition}, \variable{division}, \variable{name}, \variable{format_key}, \variable{configuration}, \variable{status}, \variable{shuffle_seed}. & Restriccion \variable{unique_competition_per_division}. \\
+\clase{DivisionGroup} & \variable{competition}, \variable{label}, \variable{order}, \variable{expected_size}. & Restricciones de etiqueta y orden por competencia. \\
+\clase{DivisionGroupEntry} & \variable{group}, \variable{team}, \variable{slot_order}, \variable{final_rank}, \variable{qualified_from_group}. & Evita repetir equipo, slot y ranking dentro de grupo. \\
+\clase{CompetitionBattle} & \variable{competition}, \variable{stage}, \variable{format_type}, \variable{order}, \variable{name}, \variable{status}, \variable{winner}, \variable{arena}, notas. & Restriccion \variable{unique_battle_order_per_stage}; ganador referencia \clase{Team}. \\
+\clase{CompetitionBattleEntry} & \variable{battle}, \variable{team}, \variable{slot_order}, \variable{origin_label}. & Evita repetir equipo y slot dentro de batalla. \\
+\clase{TeamCompetitionState} & \variable{competition}, \variable{team}, \variable{current_stage}, \variable{current_status}, grupo/batalla actual, override manual y notas. & Restriccion \variable{unique_state_per_team_competition}. \\
+\clase{CompetitionHistoryEntry} & \variable{competition}, \variable{team}, \variable{action_type}, stage/status previo y nuevo, grupo previo/nuevo, \variable{battle}, \variable{metadata}. & Registra trazabilidad de cambios de estado. \\
+\clase{Match} & \variable{phase}, equipos A/B, puntajes, ganador, estado, metadatos. & Restriccion \variable{prevent_self_match}. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3.7cm}p{3.8cm}p{4.9cm}}
+\caption{Modelos del dominio de comunicaciones.}
+\label{tab:anexo-modelos-invitations}\\
+\toprule
+Modelo & Campos principales & Uso operativo \\
+\midrule
+\clase{CommunicationTemplate} & \variable{name}, \variable{template_type}, \variable{file}, \variable{required_markers}, descripcion, activo, errores de validacion. & Define plantillas DOCX para comunicaciones. \\
+\clase{CommunicationRecipient} & \variable{name}, \variable{email}, \variable{recipient_type}, \variable{institution_name}, \variable{extra_data}. & Representa destinatarios importados o gestionados. \\
+\clase{CommunicationBatch} & \variable{name}, \variable{communication_type}, \variable{template}, \variable{status}, \variable{send_mode}, \variable{dry_run}, \variable{test_recipient}, \variable{created_by}, \variable{sent_at}. & Controla envios por lote y modo de prueba. \\
+\clase{CommunicationLog} & \variable{batch}, datos de destinatario, tipo, asunto, \variable{status}, error, preview renderizado y fecha de envio. & Conserva trazabilidad de cada intento de comunicacion. \\
+\bottomrule
+\end{longtable}

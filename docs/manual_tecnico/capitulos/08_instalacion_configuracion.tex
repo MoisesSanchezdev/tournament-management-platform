@@ -1,0 +1,237 @@
+\chapter{Instalacion y configuracion}
+\label{chap:instalacion-configuracion}
+
+\section{Alcance del procedimiento}
+\label{sec:instalacion-alcance}
+
+Este capitulo describe como preparar el proyecto en un entorno de desarrollo y que condiciones deben cumplirse antes de llevarlo a un entorno no local. Los comandos son ejemplos seguros y no contienen secretos. La infraestructura final de produccion, dominio, servidor, reverse proxy, certificados y estrategia de backups permanecen como \MarcadorProduccionPendiente.
+
+El proyecto esta preparado para ejecutarse como aplicacion Django. La instalacion requiere crear un entorno Python, instalar dependencias, configurar variables, aplicar migraciones y validar el estado del sistema. Para comunicaciones PDF se requiere LibreOffice; para envios reales se requiere SMTP configurado y validado.
+
+\section{Obtencion del codigo}
+\label{sec:instalacion-clonacion}
+
+El primer paso es obtener el repositorio desde la fuente oficial definida por el equipo. La URL remota no esta documentada en la auditoria, por lo que debe completarse con confirmacion humana.
+
+\begin{lstlisting}[language=bash,caption={Clonacion con URL pendiente de confirmacion},label={lst:instalacion-clonar}]
+git clone URL_OFICIAL_DEL_REPOSITORIO pre_explotaglobos
+cd pre_explotaglobos
+\end{lstlisting}
+
+\begin{advertencia}
+No se debe trabajar sobre copias antiguas ni carpetas de respaldo. La documentacion tecnica de este manual asume la copia oficial del proyecto y no valida variantes externas.
+\end{advertencia}
+
+\section{Entorno virtual}
+\label{sec:instalacion-venv}
+
+El proyecto fue validado localmente con Python 3.12.10 dentro de \archivo{.venv}. La version exacta de Python en produccion sigue pendiente, pero debe ser compatible con las dependencias declaradas.
+
+\begin{lstlisting}[language=bash,caption={Creacion de entorno virtual},label={lst:instalacion-venv}]
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+\end{lstlisting}
+
+En Windows, no es obligatorio activar el entorno si se invoca directamente el interprete de \archivo{.venv}. Este manual usa esa forma porque evita ambiguedad cuando el comando generico \comando{python} apunta a otro interprete.
+
+\section{Instalacion de dependencias}
+\label{sec:instalacion-dependencias}
+
+Las dependencias se instalan desde \archivo{requirements.txt}.
+
+\begin{lstlisting}[language=bash,caption={Instalacion de dependencias del proyecto},label={lst:instalacion-dependencias}]
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+\end{lstlisting}
+
+Esta instalacion cubre Django, PostgreSQL mediante \archivo{psycopg}, carga de \archivo{.env}, lectura de XLSX y procesamiento DOCX. No instala LibreOffice; si se requiere conversion PDF, LibreOffice debe existir en el sistema o estar referenciado mediante \variable{LIBREOFFICE_BINARY}.
+
+\section{Variables de entorno}
+\label{sec:instalacion-variables}
+
+La configuracion usa \archivo{python-dotenv} para cargar \archivo{.env}. El archivo \archivo{.env.example} debe copiarse y ajustarse localmente. El archivo real \archivo{.env} esta ignorado por Git y no debe versionarse.
+
+\begin{lstlisting}[language=bash,caption={Preparacion del archivo de entorno},label={lst:instalacion-env}]
+copy .env.example .env
+\end{lstlisting}
+
+Para desarrollo local con SQLite, el conjunto minimo seguro se basa en placeholders y valores locales:
+
+\begin{lstlisting}[language=bash,caption={Ejemplo seguro de variables de desarrollo},label={lst:instalacion-env-dev}]
+# Definir DJANGO_SECRET_KEY en .env con un valor local no versionado.
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,testserver
+DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+DJANGO_DATABASE=sqlite
+DJANGO_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+\end{lstlisting}
+
+Para produccion o entorno no local, el manual no define valores. Deben existir variables reales, gestionadas fuera del repositorio, para:
+
+\begin{itemize}
+  \item \variable{DJANGO_SECRET_KEY}
+  \item \variable{DJANGO_DEBUG=False}
+  \item \variable{DJANGO_ALLOWED_HOSTS}
+  \item \variable{DJANGO_CSRF_TRUSTED_ORIGINS}
+  \item \variable{POSTGRES_DB}, \variable{POSTGRES_USER}, \variable{POSTGRES_PASSWORD}, \variable{POSTGRES_HOST}, \variable{POSTGRES_PORT}
+  \item Variables SMTP si se enviaran correos reales
+  \item \variable{LIBREOFFICE_BINARY} si LibreOffice no esta disponible por PATH
+\end{itemize}
+
+\begin{advertencia}
+No copiar al manual valores reales de \archivo{.env}. Las claves, usuarios, passwords, hosts reales y credenciales SMTP deben administrarse como secretos.
+\end{advertencia}
+
+\section{Base de datos y migraciones}
+\label{sec:instalacion-migraciones}
+
+En desarrollo local puede usarse SQLite con \variable{DJANGO_DATABASE=sqlite} y \variable{DJANGO_DEBUG=True}. La configuracion impide SQLite cuando \variable{DEBUG=False}. En entornos no locales debe configurarse PostgreSQL.
+
+Una vez configuradas las variables, se aplican migraciones:
+
+\begin{lstlisting}[language=bash,caption={Aplicacion de migraciones},label={lst:instalacion-migrate}]
+.venv\Scripts\python.exe manage.py migrate
+\end{lstlisting}
+
+Las migraciones existentes cubren participantes, torneo e invitaciones. \archivo{apps.common} y \archivo{apps.core} solo tienen paquete de migraciones sin migraciones numeradas confirmadas. Antes de despliegue se recomienda inspeccionar el estado:
+
+\begin{lstlisting}[language=bash,caption={Verificacion de migraciones},label={lst:instalacion-showmigrations}]
+.venv\Scripts\python.exe manage.py showmigrations
+\end{lstlisting}
+
+\begin{recomendacion}
+Antes de aplicar migraciones en un entorno con datos reales, realizar respaldo de base de datos y media. La politica formal de respaldos esta pendiente de aprobacion y debe desarrollarse antes de produccion.
+\end{recomendacion}
+
+\section{Superusuario y acceso interno}
+\label{sec:instalacion-superusuario}
+
+El panel interno de torneo y comunicaciones requiere usuario autenticado con \variable{is_staff} o \variable{is_superuser}. Para preparar un entorno local se puede crear un superusuario:
+
+\begin{lstlisting}[language=bash,caption={Creacion de superusuario},label={lst:instalacion-superuser}]
+.venv\Scripts\python.exe manage.py createsuperuser
+\end{lstlisting}
+
+Ese usuario permite acceder a \ruta{/admin/}, \ruta{/torneo/control/} y \ruta{/comunicaciones/} si cumple los permisos requeridos. En produccion deben definirse responsables y permisos operativos antes de usar cuentas reales.
+
+\section{Archivos estaticos y media}
+\label{sec:instalacion-static-media}
+
+En desarrollo, \funcion{runserver} sirve estaticos y media en condiciones locales. La configuracion define:
+
+\begin{itemize}
+  \item \variable{STATIC_URL=static/}
+  \item \variable{STATICFILES_DIRS=BASE_DIR / static}
+  \item \variable{STATIC_ROOT=BASE_DIR / staticfiles}
+  \item \variable{MEDIA_URL=media/}
+  \item \variable{MEDIA_ROOT=BASE_DIR / media}
+\end{itemize}
+
+Para un entorno no local se debe recolectar estaticos:
+
+\begin{lstlisting}[language=bash,caption={Recoleccion de archivos estaticos},label={lst:instalacion-collectstatic}]
+.venv\Scripts\python.exe manage.py collectstatic
+\end{lstlisting}
+
+\begin{advertencia}
+El servicio final de \archivo{staticfiles/} y \archivo{media/} no esta confirmado. Debe definirse antes de produccion para evitar que el panel interno pierda CSS, JavaScript o archivos cargados.
+\end{advertencia}
+
+\section{Ejecucion en desarrollo}
+\label{sec:instalacion-runserver}
+
+Con dependencias, entorno y migraciones listos, se ejecuta el servidor local:
+
+\begin{lstlisting}[language=bash,caption={Ejecucion del servidor local},label={lst:instalacion-runserver}]
+.venv\Scripts\python.exe manage.py runserver
+\end{lstlisting}
+
+Despues del arranque se deben revisar, como minimo:
+
+\begin{itemize}
+  \item \ruta{/}: pagina publica.
+  \item \ruta{/registro/}: entrada de registro.
+  \item \ruta{/torneo/}: vista publica del torneo.
+  \item \ruta{/torneo/control/}: panel interno con usuario autorizado.
+  \item \ruta{/comunicaciones/}: dashboard de comunicaciones con usuario autorizado.
+  \item \ruta{/admin/}: administracion Django.
+\end{itemize}
+
+\section{Verificaciones posteriores}
+\label{sec:instalacion-verificaciones}
+
+Antes de iniciar trabajo tecnico se recomienda ejecutar:
+
+\begin{lstlisting}[language=bash,caption={Validaciones iniciales del proyecto},label={lst:instalacion-check}]
+.venv\Scripts\python.exe manage.py check
+.venv\Scripts\python.exe manage.py showmigrations
+\end{lstlisting}
+
+Antes de despliegue, Django ofrece una verificacion orientada a produccion:
+
+\begin{lstlisting}[language=bash,caption={Validacion Django para despliegue},label={lst:instalacion-check-deploy}]
+.venv\Scripts\python.exe manage.py check --deploy
+\end{lstlisting}
+
+El resultado de \comando{check --deploy} debe interpretarse junto con la configuracion real del servidor. No reemplaza decisiones de infraestructura, certificados, reverse proxy, backups o monitoreo.
+
+\section{Comunicaciones y PDF}
+\label{sec:instalacion-comunicaciones-pdf}
+
+Para comunicaciones reales se requieren variables SMTP y confirmacion explicita del flujo de envio. En desarrollo se recomienda usar consola o modos de simulacion. Para PDF, debe existir LibreOffice.
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Elemento & Verificacion requerida \\
+\midrule
+SMTP & Variables \variable{DJANGO_EMAIL_BACKEND}, \variable{EMAIL_HOST}, \variable{EMAIL_PORT}, \variable{EMAIL_HOST_USER}, \variable{EMAIL_HOST_PASSWORD} y \variable{DEFAULT_FROM_EMAIL}. \\
+Envio real & Confirmacion operativa antes de usar envio oficial; preferir prueba controlada primero. \\
+LibreOffice & Binario disponible por PATH o \variable{LIBREOFFICE_BINARY}. \\
+Plantillas DOCX & Marcadores requeridos validados por servicios de invitaciones. \\
+Destinatarios XLSX & Archivo revisado antes de cargarlo en comunicaciones. \\
+\bottomrule
+\end{longtable}
+
+\section{Problemas frecuentes}
+\label{sec:instalacion-problemas}
+
+\begin{longtable}{p{4.2cm}p{4.5cm}p{4.5cm}}
+\toprule
+Sintoma & Causa probable & Accion recomendada \\
+\midrule
+Django no inicia con \variable{DEBUG=False} & Falta \variable{DJANGO_SECRET_KEY} o \variable{DJANGO_ALLOWED_HOSTS} & Definir variables reales fuera del repositorio. \\
+Error de base de datos en entorno no local & Variables \variable{POSTGRES_*} incompletas o inaccesibles & Validar host, usuario, password, base y red. \\
+PDF no se genera & LibreOffice no disponible & Instalarlo en el sistema o configurar \variable{LIBREOFFICE_BINARY}. \\
+Panel sin estilos o JavaScript & Static files no servidos & Revisar \comando{collectstatic} y servicio de estaticos. \\
+Correos no salen & SMTP incompleto o placeholders & Validar configuracion y usar prueba controlada. \\
+Acceso denegado al panel & Usuario sin \variable{is_staff} o \variable{is_superuser} & Ajustar permisos desde admin con responsable autorizado. \\
+\bottomrule
+\end{longtable}
+
+\section{Recomendaciones antes del despliegue}
+\label{sec:instalacion-recomendaciones-despliegue}
+
+Antes de un despliegue real deben completarse estas decisiones:
+
+\begin{itemize}
+  \item Confirmar servidor WSGI o ASGI.
+  \item Confirmar dominio, HTTPS y reverse proxy.
+  \item Definir servicio de archivos estaticos y media.
+  \item Validar PostgreSQL con datos reales de conexion.
+  \item Ejecutar \comando{check --deploy} con variables finales.
+  \item Probar SMTP con destinatario controlado.
+  \item Probar conversion DOCX a PDF con LibreOffice del entorno final.
+  \item Definir backups antes de aplicar migraciones con datos reales.
+  \item Definir responsables de cuentas staff y superuser.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo de instalacion, configuracion y verificacion. Fuente prevista: DIA-14 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para diagrama de instalacion y preparacion de despliegue.}
+  \label{fig:instalacion-flujo-configuracion}
+\end{figure}
+
+\section{Cierre del capitulo}
+\label{sec:instalacion-cierre}
+
+La instalacion local del proyecto es reproducible con entorno virtual, dependencias, \archivo{.env}, migraciones y servidor de desarrollo. La preparacion productiva requiere decisiones adicionales que aun no estan confirmadas: infraestructura, dominio, HTTPS, static/media, backups, SMTP real y disponibilidad de LibreOffice. Esta diferencia debe mantenerse visible para evitar que un procedimiento de desarrollo se use como receta completa de produccion.

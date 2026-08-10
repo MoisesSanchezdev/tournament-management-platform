@@ -1,0 +1,12 @@
+Proyecto: Plataforma Web Robot Explota Globos
+Documento: Manual Tecnico
+Version: 1.0
+Estado: PUBLICADO
+Fecha de publicacion: 2026-07-15
+Motor LaTeX: LuaLaTeX
+Bibliografia: Biber
+Responsable del proyecto: Yurley Tatiana Tovar Martinez
+Desarrolladores: Moises Sanchez Naranjo; Tomas Bermudez Londono
+Institucion: Universidad Tecnologica de Pereira
+Semillero: Semillero de Investigacion Kilby
+Observacion: Permanecen pendientes solo datos institucionales que requieren confirmacion humana formal.

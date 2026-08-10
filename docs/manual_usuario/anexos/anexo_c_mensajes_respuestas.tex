@@ -1,0 +1,26 @@
+\chapter{Mensajes y respuestas}
+\label{anexo:mensajes-respuestas}
+
+Resumen de respuesta por tipo de mensaje. Las confirmaciones sensibles completas se documentan en \cref{cap:correcciones-manuales}.
+
+\begin{longtable}{p{3.4cm}p{5.6cm}p{5.4cm}}
+\toprule
+Tipo de mensaje & Ejemplo funcional & Accion\\
+\midrule
+\endhead
+Exito & Inscripcion recibida, asistencia confirmada, clasificados guardados o podio final guardado. & Verifique que el dato quedo visible al recargar o en historial.\\
+Informacion & Fase ya existente, propuesta manual cancelada o estado ya conocido. & Continue si coincide con lo esperado.\\
+Advertencia & Correo no enviado, solicitud ya enviada o registros omitidos. & Revise causa antes de repetir.\\
+Confirmacion & Guardar resultados, crear fase, repechaje, fase manual o podio. & Lea el texto y cancele si hay duda.\\
+Validacion & Falta ganador, cantidad incorrecta, campo obligatorio o marcador de plantilla faltante. & Corrija el formulario; no avance.\\
+Error & No fue posible guardar, confirmar asistencia, generar propuesta o procesar lote. & Recargue, revise estado y escale si persiste.\\
+Error de red & Respuesta AJAX inesperada o boton sin resultado despues de enviar. & No asuma guardado; verifique estado persistido.\\
+Operacion sensible & Correccion de resultado, envio real, accion masiva Admin o cambio manual de participante. & Ejecutar solo con autorizacion.\\
+SMTP bloqueado & Envio real bloqueado por configuracion de correo. & Use simulacion o espere configuracion aprobada.\\
+Enlace invalido & Token de asistencia no corresponde a registro activo. & Solicite enlace valido; no comparta tokens.\\
+\bottomrule
+\end{longtable}
+
+\section{Datos para soporte}
+
+Antes de pedir ayuda, prepare pantalla, hora aproximada, accion, mensaje, resultado esperado y resultado obtenido. No incluya contrasenas, tokens, claves secretas ni credenciales de correo. Canal de soporte: \campointerfaz{PENDIENTE DE DEFINICION INSTITUCIONAL}.

@@ -1,0 +1,20 @@
+\chapter{Problemas frecuentes}
+\label{anexo:problemas-frecuentes}
+
+\begin{longtable}{p{3.5cm}p{4.2cm}p{4.6cm}}
+\caption{Problemas frecuentes y accion recomendada.}
+\label{tab:anexo-problemas-frecuentes}\\
+\toprule
+Sintoma & Causa probable & Accion recomendada \\
+\midrule
+La aplicacion no inicia en produccion. & Falta \variable{DJANGO_SECRET_KEY} o \variable{DJANGO_ALLOWED_HOSTS} con \variable{DEBUG=False}. & Revisar \archivo{.env} real y ejecutar \comando{manage.py check}. \\
+Error CSRF en POST o AJAX. & Origen no declarado, token ausente o atributo esperado por \archivo{control.js} modificado. & Revisar \variable{DJANGO_CSRF_TRUSTED_ORIGINS}, templates y cabecera \variable{X-CSRFToken}. \\
+No se guardan resultados del panel. & Contrato AJAX roto, formulario invalido o servicio exige confirmacion manual. & Revisar respuesta JSON, consola del navegador y flujo de \variable{manual_override}. \\
+Participante no aparece en torneo. & Asistencia no confirmada o sincronizacion a \clase{Team} pendiente. & Revisar registro, token de asistencia y servicio de sincronizacion. \\
+Clasificacion incoherente. & Cambio manual posterior o ranking/grupo invalido. & Revisar historial y aplicar correccion manual controlada. \\
+No se genera PDF. & \variable{LIBREOFFICE_BINARY} ausente o LibreOffice no disponible. & Configurar ruta y probar conversion antes de enviar comunicaciones. \\
+Correo no sale. & SMTP no configurado, modo dry-run o confirmacion real ausente. & Validar backend, prueba controlada y \variable{confirm_real_send}. \\
+Archivos estaticos no cargan. & \comando{collectstatic} no ejecutado o servidor de static no configurado. & Ejecutar checklist de \cref{anexo:checklist-despliegue}. \\
+Datos perdidos tras reset demo. & Uso indebido de \comando{reset_tournament_demo}. & Restaurar respaldo; restringir el comando a entornos demo. \\
+\bottomrule
+\end{longtable}

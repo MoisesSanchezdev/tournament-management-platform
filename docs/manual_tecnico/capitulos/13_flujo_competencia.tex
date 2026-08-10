@@ -1,0 +1,229 @@
+\chapter{Flujo de competencia}
+\label{chap:flujo-competencia}
+
+\section{Vision completa del ciclo}
+\label{sec:flujo-vision}
+
+El flujo de competencia empieza antes del panel de torneo. La plataforma construye el torneo a partir de registros publicos confirmados. Un equipo solo entra al dominio competitivo despues de confirmar asistencia y sincronizarse como \clase{Team}. Desde ese punto, los servicios de torneo crean grupos, batallas, estados, historial y podio.
+
+El ciclo completo es:
+
+\begin{enumerate}
+  \item inscripcion publica;
+  \item validacion de formulario;
+  \item confirmacion de asistencia por token;
+  \item creacion o actualizacion de equipo operativo;
+  \item seleccion de division;
+  \item inicializacion de competencia;
+  \item fase de grupos;
+  \item clasificacion;
+  \item eliminatorias, repechajes o fases progresivas;
+  \item correcciones manuales cuando corresponden;
+  \item sincronizacion de estados e historial;
+  \item final y podio.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo completo del torneo desde registro hasta ganador final. Fuente prevista: DIA-08 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo completo de competencia.}
+  \label{fig:flujo-completo-torneo}
+\end{figure}
+
+\section{Inscripcion, validacion y asistencia}
+\label{sec:flujo-inscripcion}
+
+El flujo inicia en \archivo{apps.participants}. \clase{SchoolRegistrationForm} y \clase{UniversityRegistrationForm} validan que exista edicion activa, que los integrantes tengan datos consistentes, que el nombre del robot no duplique variantes normalizadas en la edicion, que el correo no se repita y que los documentos no existan ya en otros registros de la edicion.
+
+Al guardar, se crea \clase{SchoolRegistration} o \clase{UniversityRegistration} con estado \variable{submitted}, junto con sus participantes. Ese registro aun no es un equipo de competencia. El cambio ocurre en la confirmacion de asistencia: \funcion{confirm_attendance} marca asistencia, aprueba registro, llama \funcion{sync_registration_to_team} y puede invocar \funcion{initialize_competition} para la division correspondiente.
+
+La razon de este diseño es evitar competencias con inscritos que no asistieron. El dato que alimenta el torneo no es la intencion de participar, sino la asistencia confirmada y sincronizada.
+
+\section{Divisiones y competencia operativa}
+\label{sec:flujo-divisiones}
+
+El sistema separa competencias por division mediante \clase{DivisionType}: colegios y universidades. Cada \clase{DivisionCompetition} pertenece a una edicion y una division, con restriccion de unicidad por par edicion/division. Esto evita que el panel tenga dos competencias operativas simultaneas para la misma categoria.
+
+La competencia contiene:
+
+\begin{itemize}
+  \item \variable{format_key}: perfil aplicado;
+  \item \variable{configuration}: configuracion flexible de perfil, stages, propuestas, podio y otros datos dinamicos;
+  \item \variable{status}: estado global de competencia;
+  \item \variable{shuffle_seed}: semilla usada para asignaciones.
+\end{itemize}
+
+Los equipos entran a la competencia desde \clase{Team}. Los servicios crean grupos, entries, batallas y estados por equipo. La persistencia conserva tanto estructura como avance.
+
+\section{Inicializacion y perfiles}
+\label{sec:flujo-inicializacion}
+
+\funcion{initialize_competition} obtiene equipos confirmados de la edicion y division, calcula perfil, crea o reutiliza \clase{DivisionCompetition} y llama a servicios de reconstruccion si es seguro hacerlo. Si la competencia ya tiene progreso o historial, el servicio bloquea cambios de configuracion que podrian invalidar resultados.
+
+\begin{longtable}{p{3.2cm}p{9.5cm}}
+\toprule
+Cantidad de equipos & Estructura aplicada \\
+\midrule
+Menos de 4 & Modo pendiente; no se genera torneo automatico. \\
+4 a 15 & 2 grupos, 2 clasificados por grupo, semifinal y final. \\
+16 a 31 & 4 grupos, 2 clasificados, cuartos, semifinal y final. \\
+32 a 63 & 8 grupos, 2 clasificados y repechaje 1. \\
+64 o mas & 16 grupos, ronda de 32 y repechaje 1. \\
+\bottomrule
+\end{longtable}
+
+La configuracion manual del perfil permite ajustar grupos y clasificados desde el panel. Sin embargo, esos ajustes quedan sometidos a validaciones de progreso. La plataforma privilegia consistencia de resultados sobre flexibilidad tardia.
+
+\section{Fase de grupos}
+\label{sec:flujo-grupos}
+
+La fase de grupos usa \clase{DivisionGroup} y \clase{DivisionGroupEntry}. La asignacion balanceada procura distribuir equipos y separar instituciones. En el panel, el operador selecciona clasificados por grupo. \funcion{set_group_qualifiers} exige que la cantidad seleccionada coincida con \variable{qualifiers_per_group}.
+
+Cuando se guardan clasificados:
+
+\begin{itemize}
+  \item se actualizan entries del grupo;
+  \item se registra historial por equipo;
+  \item se sincronizan estados de competencia;
+  \item se habilita la construccion de fases posteriores si los grupos estan completos.
+\end{itemize}
+
+Si ya hay progreso posterior, el servicio puede exigir \variable{manual_override}. Esta proteccion evita que una correccion de grupos borre implicitamente el significado de batallas ya creadas.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: transicion entre fase de grupos y fases posteriores. Fuente prevista: DIA-09 y DIA-10.}}
+  \caption{Marcador para transicion entre fases.}
+  \label{fig:flujo-transicion-fases}
+\end{figure}
+
+\section{Eliminatorias}
+\label{sec:flujo-eliminatorias}
+
+Las eliminatorias se basan en \clase{CompetitionBattle}. Una batalla puede ser duelo, triangular, campal o grupo. Las etapas se identifican con \clase{CompetitionStage}: ronda de 32, octavos, cuartos, semifinal, tercer lugar y final, entre otras.
+
+El avance se materializa con servicios de siembra y recomendacion. \funcion{seed_duel_stage} carga cruces desde clasificados. \funcion{seed_next_duel_stage} usa ganadores de fase anterior. \funcion{wire_final_stages} conecta semifinal, tercer lugar y final cuando aplica. Los resultados se guardan con \funcion{set_battle_winner} o \funcion{set_battle_qualifiers}.
+
+La informacion evoluciona en tres niveles:
+
+\begin{enumerate}
+  \item batalla: ganador o clasificados;
+  \item estado de equipo: stage y status actual;
+  \item historial: evento que explica el movimiento.
+\end{enumerate}
+
+Este triple registro permite mostrar el estado actual sin perder la explicacion del avance.
+
+\section{Repechajes}
+\label{sec:flujo-repechajes}
+
+El repechaje permite reintegrar participantes bajo condiciones controladas. \funcion{materialize_repechage_stage} sincroniza estados, calcula candidatos, define formato seguro y revisa si ya existe una etapa abierta. Si ya hay un repechaje disponible, el servicio evita crear duplicados.
+
+El flujo de repechaje no es un formulario independiente: depende de estados eliminados, recientes o repechables. Por eso se apoya en \archivo{apps/tournament/recommendations.py}, que calcula preview y alternativas. La materializacion crea batallas y marca estados como \variable{repechage} cuando corresponde.
+
+\section{Fases manuales y correcciones}
+\label{sec:flujo-fases-manuales}
+
+Las fases manuales cubren escenarios donde la recomendacion automatica no debe decidir sola. El operador genera una propuesta, revisa distribucion, puede reasignar grupos y confirma. La propuesta se guarda temporalmente en \variable{DivisionCompetition.configuration}.
+
+El servicio valida firmas antes de materializar:
+
+\begin{itemize}
+  \item firma de propuesta;
+  \item firma de participantes elegibles;
+  \item etapa origen;
+  \item grupos no vacios;
+  \item participantes sin duplicados;
+  \item clasificados validos por grupo.
+\end{itemize}
+
+La correccion manual de resultados usa otro mecanismo: \clase{ManualCorrectionRequired}. Si una accion puede afectar progreso posterior, el servicio detiene la operacion y la vista responde con \variable{requires_confirmation}. \archivo{control.js} muestra confirmacion y reintenta con \variable{manual_override}. Esto conserva control humano sobre cambios riesgosos sin eliminar validaciones de consistencia.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: correccion manual con excepcion controlada, confirmacion AJAX y reintento con \variable{manual_override}. Fuente prevista: DIA-12 y DIA-13.}}
+  \caption{Marcador para correccion manual y AJAX.}
+  \label{fig:flujo-correccion-manual}
+\end{figure}
+
+\section{Actualizacion de estados}
+\label{sec:flujo-estados}
+
+\funcion{sync_team_states} y \funcion{sync_competition} mantienen coherencia entre estructura y estado. La competencia no depende solo de saber que batalla existe; necesita saber donde esta cada equipo y que estado tiene: activo, eliminado, repechaje, clasificado o retirado.
+
+\clase{TeamCompetitionState} actua como fotografia actual. \clase{CompetitionHistoryEntry} conserva eventos. Cuando se guarda un resultado, la plataforma actualiza ambas capas. Esta separacion permite que el panel muestre participantes por etapa y que el modal de participante muestre historial.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: propagacion de estados desde grupos y batallas hacia TeamCompetitionState e historial.}}
+  \caption{Marcador para propagacion de estados.}
+  \label{fig:flujo-propagacion-estados}
+\end{figure}
+
+\section{Historial de competencia}
+\label{sec:flujo-historial}
+
+Cada movimiento relevante puede generar \clase{CompetitionHistoryEntry}. El historial registra accion, stage, status, titulo, descripcion, estados previos y nuevos, grupos, batalla y metadata. Esto permite reconstruir decisiones sin depender de memoria del operador.
+
+La conservacion de historial tambien protege configuraciones posteriores. El codigo revisa si hay historial para decidir si una competencia puede reconstruirse o si un perfil puede cambiar. Por tanto, el historial no solo sirve para auditoria visual; participa en decisiones de consistencia.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: persistencia del historial de competencia y uso en bloqueos de reconstruccion.}}
+  \caption{Marcador para persistencia del historial.}
+  \label{fig:flujo-persistencia-historial}
+\end{figure}
+
+\section{Cierre y ganador final}
+\label{sec:flujo-cierre}
+
+La competencia se cierra con \funcion{save_final_podium}. El servicio valida que exista final, que las posiciones pertenezcan a participantes de la final, que el tercer lugar exista cuando la final tenga tres o mas participantes y que las posiciones sean equipos distintos. Luego guarda \variable{final_podium} en \variable{competition.configuration}, marca la competencia como \variable{completed} y registra historial para las posiciones.
+
+El ganador final no es solo un campo aislado. Queda conectado a la batalla final, al podio persistido, al estado de competencia y al historial. Esa redundancia controlada facilita mostrar el resultado final y revisar como se obtuvo.
+
+\section{Escenarios alternos relevantes}
+\label{sec:flujo-escenarios-alternos}
+
+La auditoria de calidad identifico que el manual debe cubrir escenarios no lineales. En este bloque se documentan los mecanismos que los soportan:
+
+\begin{itemize}
+  \item \textbf{Tres finalistas}: \funcion{save_final_podium} exige tercer lugar cuando la final tiene tres o mas participantes.
+  \item \textbf{Multiples clasificados}: \funcion{set_battle_qualifiers} maneja batallas donde clasifican varios equipos.
+  \item \textbf{Repechaje existente}: \funcion{materialize_repechage_stage} revisa fases abiertas y evita duplicados.
+  \item \textbf{Fase manual cancelada}: \funcion{cancel_manual_phase_proposal} elimina una propuesta pendiente sin materializarla.
+  \item \textbf{Participantes cambiantes}: las firmas de propuesta manual fuerzan regenerar si los elegibles cambiaron.
+  \item \textbf{Correccion posterior}: \clase{ManualCorrectionRequired} exige confirmacion antes de modificar resultados con progreso posterior.
+\end{itemize}
+
+\section{Impacto de modificacion}
+\label{sec:flujo-impacto-modificacion}
+
+\begin{longtable}{p{3.7cm}p{4.2cm}p{2.6cm}p{3.4cm}}
+\toprule
+Componente & Componentes relacionados & Riesgo & Accion recomendada \\
+\midrule
+Registro y asistencia & Participantes, equipos, inicializacion & Alto & Probar confirmacion y sincronizacion por division. \\
+Perfiles automaticos & Inicializacion, grupos, stages, vistas & Alto & Probar rangos de equipos y overrides manuales. \\
+Fase de grupos & Entries, estados, historial, siguiente fase & Alto & Probar cantidad exacta de clasificados y correccion. \\
+Eliminatorias & Batallas, ganadores, podio, historial & Alto & Probar duelos, multiples clasificados y fases posteriores. \\
+Repechaje & Estados eliminados, recomendaciones, batallas & Medio & Probar candidatos 2, 3, 4, 6 y fase ya existente. \\
+Fase manual & Configuration, firmas, elegibles, batallas & Alto & Probar generacion, reasignacion, confirmacion y cancelacion. \\
+Historial & Estados, modales, reconstruccion & Medio & Verificar que cada accion critica registre evento. \\
+Podio & Final, configuration, historial, status & Alto & Probar posiciones distintas y final con tercer lugar. \\
+\bottomrule
+\end{longtable}
+
+\section{Consideraciones de mantenimiento}
+\label{sec:flujo-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{apps/participants/services.py}, \archivo{apps/tournament/services.py}, \archivo{formats.py}, \archivo{recommendations.py}, \archivo{views.py}, \archivo{models.py}, \archivo{static/js/control.js} y templates de torneo. \\
+Pruebas recomendadas & Registro, asistencia, inicializacion, perfiles, grupos, eliminatorias, repechaje, fase manual, correccion AJAX, propagacion de estados y podio. \\
+Riesgos & Cambios en una etapa pueden invalidar estados posteriores, historial, configuration o UI del panel. \\
+Dependencias & \clase{Team}, \clase{DivisionCompetition}, \clase{DivisionGroup}, \clase{CompetitionBattle}, \clase{TeamCompetitionState}, \clase{CompetitionHistoryEntry} y \archivo{control.js}. \\
+Buenas practicas & No modificar flujo por pantalla aislada; revisar servicios, modelos, vistas, templates y JavaScript como una unidad; mantener historial y validar cambios con datos de ejemplo. \\
+\bottomrule
+\end{longtable}

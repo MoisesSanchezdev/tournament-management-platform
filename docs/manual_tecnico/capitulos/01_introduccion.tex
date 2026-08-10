@@ -1,0 +1,42 @@
+\chapter{Introduccion}
+\label{chap:introduccion}
+
+\section{Contexto del documento}
+\label{sec:introduccion-contexto}
+
+Este Manual Tecnico formaliza la arquitectura, componentes y decisiones tecnicas de la Plataforma Web Robot Explota Globos. El documento se redacta para que el sistema pueda ser mantenido, revisado y extendido sin depender de conocimiento informal de los desarrolladores originales. Su foco no es describir una idea de producto, sino documentar el proyecto implementado: sus aplicaciones Django, sus flujos de registro, su logica de competencia, sus comunicaciones, su frontend, sus controles de seguridad y sus riesgos tecnicos conocidos.
+
+El proyecto se encuentra asociado a la Universidad Tecnologica de Pereira y al Semillero de Investigacion Kilby. La responsable del proyecto es \ResponsableProyecto. Los desarrolladores registrados para este manual son \DesarrolladorUno{} y \DesarrolladorDos. Cualquier dato institucional no confirmado, como codigos formales de documento, cargos de aprobacion o lineamientos de portada oficial, se mantiene como marcador pendiente y no se completa por inferencia.
+
+\section{Base documental}
+\label{sec:introduccion-base-documental}
+
+La redaccion parte de una auditoria tecnica validada en \archivo{docs/auditoria_tecnica/}. Esa auditoria fue revisada contra el codigo fuente del proyecto y recibio una calificacion global de 88/100, con recomendacion \textit{aprobada con observaciones}. La aprobacion indica que la documentacion tecnica existente es suficiente para construir el Manual Tecnico; las observaciones indican puntos que deben ampliarse durante la redaccion de los capitulos tecnicos posteriores.
+
+Las fuentes principales para este bloque son:
+
+\begin{itemize}
+  \item \archivo{00_resumen_ejecutivo.md}, que consolida el estado confirmado del proyecto.
+  \item \archivo{01_estructura_proyecto.md}, que identifica la estructura de carpetas y responsabilidades.
+  \item \archivo{04_apps.md}, que describe las aplicaciones Django y sus dependencias.
+  \item \archivo{06_urls.md}, que registra rutas, vistas y proteccion de areas internas.
+  \item \archivo{09_servicios.md}, que resume servicios de dominio y logica critica.
+  \item \archivo{10_flujo_competencia.md}, que documenta la operacion del torneo.
+  \item \archivo{13_javascript.md}, que identifica comportamiento dinamico y AJAX.
+  \item \archivo{15_seguridad.md}, que registra controles y riesgos de seguridad.
+  \item \archivo{24_revision_calidad.md}, que contiene el dictamen de calidad de la auditoria.
+\end{itemize}
+
+\section{Proposito del manual}
+\label{sec:introduccion-proposito}
+
+El manual tiene tres propositos operativos. Primero, permitir que un desarrollador nuevo entienda donde esta cada responsabilidad dentro del proyecto y que archivos debe revisar antes de modificar un flujo. Segundo, entregar una referencia tecnica para operar el sistema durante un evento, especialmente en los procesos de registro, confirmacion de asistencia, comunicaciones y control de competencia. Tercero, dejar trazabilidad sobre riesgos y pendientes que afectan despliegue, pruebas, mantenimiento y continuidad operativa.
+
+La plataforma integra flujos publicos y flujos internos. Esta combinacion exige documentacion precisa porque un cambio en registro puede afectar equipos, competencias, comunicaciones y resultados. Por ejemplo, confirmar asistencia no solo cambia el estado de un registro: tambien sincroniza informacion hacia \clase{Team} y \clase{TeamMember}, y puede inicializar o actualizar una competencia por division. Esa cadena de efectos explica por que el manual describe relaciones entre aplicaciones, servicios y persistencia desde los primeros capitulos.
+
+\section{Criterio de redaccion}
+\label{sec:introduccion-criterio}
+
+Este documento no completa datos no verificados. La auditoria identifico informacion de produccion no confirmada: servidor final, dominio, reverse proxy, HTTPS, politica formal de backups, version exacta de Python en produccion y politica de privacidad. Esos elementos se tratan como pendientes y, cuando correspondan a entorno productivo, se marcaran con el texto \MarcadorProduccionPendiente. Esta regla evita que el manual se convierta en una fuente de configuraciones falsas o decisiones institucionales no aprobadas.
+
+Los capitulos tecnicos posteriores deberan conservar el mismo criterio: afirmar solo lo respaldado por auditoria, codigo fuente o confirmacion humana. Las recomendaciones se presentaran como recomendaciones, no como caracteristicas ya implementadas.

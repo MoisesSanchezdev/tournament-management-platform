@@ -1,0 +1,145 @@
+\chapter{Correcciones y confirmacion manual}
+\label{cap:correcciones-manuales}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador del torneo}
+Explicar como corregir resultados ya guardados, cuando cancelar una confirmacion sensible y como usar el modal de participante solo como herramienta de soporte controlado.
+\end{procedimiento}
+
+Este capitulo no reemplaza los procedimientos de grupos, batallas ni fases manuales. Se usa cuando ya existe un resultado persistido y el operador necesita corregirlo despues de revisar el impacto sobre fases posteriores.
+
+\section{Cuando una correccion es sensible}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.8cm}X}
+\toprule
+Situacion & Criterio operativo\\
+\midrule
+Seleccion sin guardar & Puede ajustarse desde la misma pantalla antes de presionar el boton de guardado. No hay cambio persistido todavia.\\
+Resultado guardado en la fase actual & Debe corregirse desde la misma tarjeta de grupo o batalla y volver a guardar. Revise que el mensaje de exito aparezca al final.\\
+Resultado guardado con fases posteriores iniciadas & Es una operacion sensible. La plataforma solicita una confirmacion adicional porque la correccion puede afectar cruces, estados o historial ya generados.\\
+Participante con estado incoherente & Revise el modal de participante antes de editar. Use la edicion manual solo si la organizacion identifica una inconsistencia concreta.\\
+\bottomrule
+\end{tabularx}
+
+\begin{operacionsensible}
+No aplique correcciones durante una prueba, demostracion publica o transmision del torneo sin autorizacion de la mesa. Antes de aceptar una correccion, anote la fase, el grupo o batalla, el resultado anterior, el resultado nuevo y la razon operativa.
+\end{operacionsensible}
+
+\section{Corregir un resultado guardado}
+
+\figuraManual{capturas/finales/MU-028-confirmacion-correccion.png}{Estado previo a una confirmacion de correccion sensible en una fase posterior.}{fig:bloque4-mu-028}
+
+\begin{procedimiento}{Aplicar una correccion de resultado}{Operador del torneo}
+Use este procedimiento para cambiar un clasificado de grupo, un ganador de batalla o los clasificados multiples de una batalla cuando el resultado anterior ya fue guardado.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item El operador esta autenticado en el panel interno.
+    \item El resultado oficial corregido fue validado por la organizacion.
+    \item Se conoce que fase, grupo o batalla contiene el dato equivocado.
+    \item La pantalla muestra los equipos ficticios o reales que corresponden a la operacion actual.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la division y la fase donde esta el resultado a corregir.}
+\paso{2}{Ubique el grupo o la batalla afectada.}
+\paso{3}{Compare la seleccion guardada con el acta o decision oficial.}
+\paso{4}{Cambie la seleccion en la tarjeta correspondiente: \botoninterfaz{Marcar ganador}, \botoninterfaz{Clasificar} o el control visible equivalente.}
+\paso{5}{Revise el contador o el ganador resaltado antes de guardar.}
+\paso{6}{Presione \botoninterfaz{Guardar este grupo}, \botoninterfaz{Guardar este ganador}, \botoninterfaz{Guardar clasificados} o \botoninterfaz{Guardar todos los resultados}, segun el caso.}
+\paso{7}{Si aparece la confirmacion de guardado, aceptela solo despues de revisar la seleccion visible.}
+\paso{8}{Si aparece la confirmacion adicional de correccion, lea el texto completo y decida aceptar o cancelar.}
+\paso{9}{Espere el mensaje de exito y vuelva a revisar la fase posterior afectada.}
+\paso{10}{Registre la correccion en la bitacora operativa del evento.}
+
+\input{elementos_editoriales/confirmacion_operacion_sensible}
+
+\input{elementos_editoriales/confirmacion_manual_override}
+
+\begin{resultadoesperado}
+La plataforma muestra \campointerfaz{Correccion aplicada. Revisa las fases posteriores afectadas.} cuando la correccion sensible fue aceptada y procesada por el servidor.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si cancela el dialogo, el resultado anterior se conserva. Si no aparece mensaje de exito, no avance: recargue la fase, revise cual resultado quedo guardado y repita el procedimiento solo con la informacion confirmada.
+\end{fallas}
+
+\section{Correcciones por tipo de resultado}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.6cm}X}
+\toprule
+Tipo & Revision antes de guardar\\
+\midrule
+Clasificados de grupo & El contador debe coincidir con la cantidad requerida para ese grupo. Si el grupo pide dos clasificados, no deje uno ni tres.\\
+Ganador unico & Solo un equipo debe quedar marcado como ganador. Revise que el perdedor visible corresponda al resultado oficial.\\
+Clasificados multiples & La etiqueta \campointerfaz{Clasifican n} define la cantidad exacta. No use la memoria de otra fase como referencia.\\
+Guardado general & Revise todos los formularios modificados visibles, porque el boton global procesa mas de una tarjeta si hay cambios pendientes.\\
+\bottomrule
+\end{tabularx}
+
+\section{Modal de participante}
+
+\figuraManual{capturas/finales/MU-029-modal-participante.png}{Modal de participante con datos de estado, ubicacion actual e historial.}{fig:bloque4-mu-029}
+
+El modal de participante ayuda a verificar donde esta un equipo dentro de la competencia. Sirve para consultar fase, grupo, batalla, estado actual e historial antes de decidir si una correccion es necesaria.
+
+\begin{procedimiento}{Consultar el detalle de un participante}{Operador del torneo}
+Use este recorrido antes de editar manualmente el estado de un equipo.
+\end{procedimiento}
+
+\paso{1}{Abra la fase donde aparece el participante.}
+\paso{2}{Pulse la tarjeta o control de detalle del participante si esta disponible.}
+\paso{3}{Revise el resumen del equipo, su fase actual, grupo o batalla actual y estado.}
+\paso{4}{Lea el historial para identificar el ultimo cambio registrado.}
+\paso{5}{Cierre el modal si la informacion coincide con la competencia real.}
+
+\begin{resultadoesperado}
+El operador comprende el estado actual del participante sin modificar datos.
+\end{resultadoesperado}
+
+\section{Edicion manual de participante}
+
+\figuraManual{capturas/finales/MU-030-edicion-participante.png}{Campos editables del modal de participante para soporte operativo controlado.}{fig:bloque4-mu-030}
+
+\begin{procedimiento}{Editar estado de participante}{Operador del torneo}
+Use esta accion solo para una correccion puntual aprobada. No la use para operar resultados normales.
+\end{procedimiento}
+
+\paso{1}{Abra el modal del participante y confirme que se trata del equipo correcto.}
+\paso{2}{Revise la fase actual, el grupo actual, la batalla actual y el estado manual.}
+\paso{3}{Cambie solo el campo necesario para resolver la inconsistencia.}
+\paso{4}{Escriba una nota breve con la razon de la correccion si el formulario la solicita.}
+\paso{5}{Presione \botoninterfaz{Guardar cambios}.}
+\paso{6}{Verifique que el modal y la fase muestran el estado actualizado.}
+\paso{7}{Revise cualquier fase posterior que dependiera de ese participante.}
+
+\begin{advertencia}
+Mover un participante a una fase, grupo o batalla incompatible puede dejar la competencia dificil de interpretar para otros operadores. Si el destino no es claro, cancele y revise primero desde Django Admin o con el responsable tecnico.
+\end{advertencia}
+
+\section{Tabla de recuperacion}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.2cm}X}
+\toprule
+Problema & Accion recomendada\\
+\midrule
+Se selecciono el equipo equivocado antes de guardar & Corrija la seleccion en pantalla y guarde solo cuando el contador o ganador sea correcto.\\
+Se acepto una correccion equivocada & No haga cambios encadenados. Documente el error, recargue la fase y determine el ultimo estado persistido antes de corregir de nuevo.\\
+No aparece la confirmacion sensible & Puede que aun no existan fases posteriores afectadas. Aun asi, revise el resultado y el mensaje de exito.\\
+El servidor devuelve error de validacion & Ajuste la cantidad de clasificados, ganador o destino indicado por el mensaje.\\
+La fase posterior quedo desactualizada & Revise sus batallas, participantes vivos y eliminados antes de operar nuevos resultados.\\
+Hay duda sobre el impacto & Cancele la operacion. Una correccion sensible cancelada conserva el estado anterior.\\
+\bottomrule
+\end{tabularx}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Resultado anterior identificado por fase, grupo o batalla.
+    \item Resultado nuevo validado por la organizacion.
+    \item Cantidad de clasificados o ganador unico revisado antes de guardar.
+    \item Confirmacion de guardado leida antes de aceptar.
+    \item Confirmacion adicional aceptada solo si el impacto fue entendido.
+    \item Fases posteriores revisadas despues de la correccion.
+    \item Correccion registrada fuera de la plataforma si el evento lo exige.
+\end{itemize}

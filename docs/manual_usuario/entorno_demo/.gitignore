@@ -1,0 +1,10 @@
+﻿# Archivos locales del entorno demo
+credenciales_demo.local.json
+evidencia_entorno_demo.json
+datos/*.json
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+mail_outbox/
+edge-profile/
+chrome-profile/

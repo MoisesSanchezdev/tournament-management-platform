@@ -1,0 +1,127 @@
+\chapter{Tecnologias}
+\label{chap:tecnologias}
+
+\section{Criterio de inventario}
+\label{sec:tecnologias-criterio}
+
+Este capitulo documenta las tecnologias confirmadas en el proyecto Robot Explota Globos. La fuente principal es \archivo{requirements.txt}, complementada con \archivo{config/settings.py}, la estructura de aplicaciones y la auditoria tecnica validada. No se incluyen tecnologias no presentes en el repositorio ni componentes de produccion que no hayan sido confirmados.
+
+La plataforma resuelve tres necesidades tecnicas principales: recibir informacion publica de participantes, administrar internamente una competencia con reglas variables y emitir comunicaciones con documentos personalizados. Las tecnologias seleccionadas en el proyecto se agrupan alrededor de esas necesidades: Django para estructura web y persistencia, dependencias Python especializadas para documentos y Excel, assets estaticos para interfaz, y servicios externos configurables para correo y conversion PDF.
+
+\section{Stack confirmado}
+\label{sec:tecnologias-stack}
+
+\begin{longtable}{p{3.3cm}p{4cm}p{6.2cm}}
+\toprule
+Capa & Tecnologia confirmada & Proposito dentro de la plataforma \\
+\midrule
+Backend & Python con Django & Ejecuta vistas, formularios, servicios, autenticacion, administracion, ORM, comandos de gestion y renderizado de templates. \\
+ORM & Django ORM & Persiste registros, equipos, competencias, grupos, batallas, estados, historial, plantillas, destinatarios, lotes y logs. \\
+Base local & SQLite en desarrollo & Permite preparar y validar el proyecto localmente cuando \variable{DJANGO_DATABASE=sqlite} y \variable{DJANGO_DEBUG=True}. \\
+Base no local & PostgreSQL & Configuracion prevista para entornos no locales mediante variables \variable{POSTGRES_*}. \\
+Frontend & Django Templates, HTML, CSS y JavaScript & Renderiza vistas publicas e internas sin introducir una aplicacion cliente separada. \\
+Assets & Directorio \archivo{static/} & Contiene CSS, JavaScript, PDF publico del reglamento y logos de patrocinadores. \\
+Correo & \archivo{django.core.mail}, SMTP o consola & Soporta comunicaciones, pruebas controladas y envios reales segun variables de entorno. \\
+Documentos & DOCX y PDF & Usa plantillas DOCX para comunicaciones y convierte salidas a PDF mediante LibreOffice. \\
+Excel & XLSX & Carga destinatarios para comunicaciones desde archivos de hoja de calculo. \\
+\bottomrule
+\end{longtable}
+
+La interaccion entre estas capas aparece en los flujos centrales del sistema. Un registro publico entra por una vista Django, se valida mediante formularios, se persiste con el ORM y despues puede activar servicios que crean equipos y competencias. Un envio de invitaciones parte de plantillas DOCX y destinatarios XLSX, genera documentos personalizados, invoca LibreOffice para PDF y registra resultados en modelos de comunicaciones. El panel interno usa templates y JavaScript para enviar acciones AJAX a vistas Django, que delegan cambios en servicios de torneo.
+
+\section{Dependencias Python}
+\label{sec:tecnologias-dependencias-python}
+
+Las dependencias declaradas en \archivo{requirements.txt} son reducidas y estan alineadas con funcionalidades verificadas en el codigo. Esta seleccion favorece mantenimiento porque evita un ecosistema amplio de paquetes para tareas que Django ya cubre.
+
+\begin{longtable}{p{3.2cm}p{3cm}p{7.2cm}}
+\toprule
+Dependencia & Version declarada & Uso confirmado \\
+\midrule
+\archivo{Django} & \variable{>=5.2,<5.3} & Framework principal del sistema: URLs, vistas, templates, formularios, ORM, autenticacion, admin, seguridad base y comandos de gestion. \\
+\archivo{psycopg[binary]} & \variable{>=3.2,<3.3} & Driver PostgreSQL usado cuando la configuracion no selecciona SQLite local. \\
+\archivo{python-dotenv} & \variable{>=1.0,<2.0} & Carga el archivo \archivo{.env} desde \archivo{config/settings.py} para separar configuracion y secretos del codigo. \\
+\archivo{openpyxl} & \variable{>=3.1,<3.2} & Permite leer archivos XLSX de destinatarios en el modulo de comunicaciones. \\
+\archivo{python-docx} & \variable{>=1.1,<1.2} & Permite inspeccionar marcadores y renderizar plantillas DOCX usadas para invitaciones y solicitudes. \\
+\bottomrule
+\end{longtable}
+
+La version exacta de Python validada en el entorno virtual local es 3.12.10. La version exacta de Python en produccion permanece como \MarcadorProduccionPendiente. Por esa razon, los capitulos de despliegue y operacion deben validar compatibilidad del servidor final antes de usar esta documentacion como procedimiento productivo cerrado.
+
+\section{Django dentro del proyecto}
+\label{sec:tecnologias-django-proyecto}
+
+Django se usa como plataforma de integracion, no solo como capa HTTP. En este proyecto aporta:
+
+\begin{itemize}
+  \item \textbf{Rutas y vistas}: \archivo{config/urls.py} distribuye solicitudes hacia \archivo{apps.core}, \archivo{apps.participants}, \archivo{apps.tournament} e \archivo{apps.invitations}.
+  \item \textbf{ORM}: los modelos persistidos representan inscripciones, equipos, competencias, batallas, estados, historial, plantillas y logs.
+  \item \textbf{Forms}: las validaciones de registro y comunicaciones se concentran en formularios Django, lo que evita dispersar reglas basicas en templates o JavaScript.
+  \item \textbf{Templates}: las interfaces publicas e internas se renderizan en servidor y se complementan con JavaScript puntual.
+  \item \textbf{Autenticacion y autorizacion}: las areas internas usan login y validacion de usuario organizador.
+  \item \textbf{Admin}: se usa para inspeccion y operaciones administrativas sobre participantes, torneo e invitaciones.
+  \item \textbf{Comandos}: existen comandos de gestion para bootstrap de torneo, demo, invitaciones y solicitudes de asistencia.
+\end{itemize}
+
+Esta concentracion en Django reduce la cantidad de componentes externos necesarios para operar la plataforma. La contrapartida es que los cambios deben respetar las fronteras internas del proyecto: vistas para entrada HTTP, servicios para regla de negocio, modelos para persistencia y templates/JavaScript para presentacion.
+
+\section{Persistencia}
+\label{sec:tecnologias-persistencia}
+
+La configuracion distingue desarrollo local y entornos no locales. SQLite se permite solo cuando el proyecto esta en modo desarrollo. Si \variable{USE_SQLITE=True} y \variable{DEBUG=False}, \archivo{config/settings.py} lanza \clase{ImproperlyConfigured}. Esta restriccion evita que una instancia con configuracion de produccion arranque accidentalmente sobre una base local.
+
+Cuando no se usa SQLite, la configuracion exige \variable{POSTGRES_DB}, \variable{POSTGRES_USER}, \variable{POSTGRES_PASSWORD} y \variable{POSTGRES_HOST}. PostgreSQL esta soportado por \archivo{psycopg[binary]}. El puerto se toma de \variable{POSTGRES_PORT} y el valor de ejemplo es 5432.
+
+\begin{advertencia}
+El soporte PostgreSQL esta preparado en el codigo, pero el servidor final de produccion, proveedor, host, politica de backups y parametros reales siguen como \MarcadorProduccionPendiente. No se deben copiar al manual valores de un archivo \archivo{.env} real.
+\end{advertencia}
+
+\section{Frontend y assets}
+\label{sec:tecnologias-frontend-assets}
+
+El frontend se organiza con templates Django y archivos estaticos. La auditoria confirma:
+
+\begin{itemize}
+  \item \archivo{static/css/app.css}: estilos publicos e internos.
+  \item \archivo{static/js/app.js}: tema, accesibilidad del boton de tema, comportamiento del header y animaciones publicas.
+  \item \archivo{static/js/control.js}: interacciones del panel interno, modales, resultados, guardado AJAX y refresco parcial.
+  \item \archivo{static/docs/ExplotaGlobos.pdf}: documento publico embebido.
+  \item \archivo{static/sponsors/}: logos de patrocinadores usados por el sitio publico.
+\end{itemize}
+
+No se observa un gestor de paquetes frontend ni un bundler dentro del repositorio. Esta decision simplifica la preparacion local: no requiere instalar Node.js ni ejecutar compilaciones de assets para que el proyecto funcione. El costo tecnico es que los contratos entre templates y \archivo{control.js} deben mantenerse manualmente, especialmente los atributos \variable{data-*} usados por el panel.
+
+\section{Comunicaciones y documentos}
+\label{sec:tecnologias-comunicaciones}
+
+El modulo de comunicaciones usa tres piezas externas al nucleo Django:
+
+\begin{itemize}
+  \item \archivo{python-docx}, para leer plantillas DOCX y reemplazar marcadores.
+  \item \archivo{openpyxl}, para importar destinatarios desde XLSX.
+  \item LibreOffice en modo headless, para convertir documentos DOCX renderizados a PDF.
+\end{itemize}
+
+La conversion PDF no depende de una libreria Python pura. El servicio busca LibreOffice por PATH o por \variable{LIBREOFFICE_BINARY}. Esta dependencia es aceptable para el caso de uso porque el sistema necesita generar adjuntos PDF desde plantillas editables, pero debe validarse antes de usar comunicaciones reales en otro ambiente.
+
+\section{Tecnologias no confirmadas}
+\label{sec:tecnologias-no-confirmadas}
+
+\begin{longtable}{p{5cm}p{8.2cm}}
+\toprule
+Elemento & Estado documental \\
+\midrule
+Servidor WSGI o ASGI de produccion & \MarcadorProduccionPendiente \\
+Proveedor de hosting & \MarcadorProduccionPendiente \\
+Version exacta de Python en produccion & \MarcadorProduccionPendiente \\
+Servicio SMTP real & Configuracion soportada; valores reales no confirmados \\
+Binario LibreOffice en entorno final & Requerido para PDF; ubicacion no confirmada \\
+Servicio final de archivos estaticos & \MarcadorProduccionPendiente \\
+Servicio final de media & \MarcadorProduccionPendiente \\
+\bottomrule
+\end{longtable}
+
+\section{Cierre del capitulo}
+\label{sec:tecnologias-cierre}
+
+El stack del proyecto es deliberadamente compacto: Django cubre la mayor parte de la aplicacion, y las dependencias adicionales responden a necesidades especificas de PostgreSQL, configuracion por entorno, Excel, DOCX y PDF. Esta composicion favorece la mantenibilidad porque cada paquete tiene una responsabilidad clara. Los principales puntos de atencion no estan en la cantidad de tecnologias, sino en las dependencias operativas externas: PostgreSQL en entornos no locales, SMTP real y LibreOffice.

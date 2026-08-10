@@ -1,0 +1,32 @@
+\newcommand{\estadoDocumento}{PUBLICADO}
+
+\newtcolorbox{procedimiento}[2]{
+  enhanced,
+  colback=MUFondo,
+  colframe=MUPrincipal,
+  title={#1},
+  fonttitle=\bfseries\sffamily,
+  subtitle style={colback=MUBorde},
+  before upper={\textbf{Perfil:} #2\par}
+}
+\newtcolorbox{precondiciones}{colback=white,colframe=MUBorde,title={Precondiciones}}
+\newtcolorbox{resultadoesperado}{colback=white,colframe=MUSegura,title={Resultado esperado}}
+\newtcolorbox{nota}{colback=MUFondo,colframe=MUPrincipal,title={Nota}}
+\newtcolorbox{advertencia}{colback=white,colframe=MUAdvertencia,title={Advertencia}}
+\newtcolorbox{operacionsensible}{colback=white,colframe=MUAdvertencia,title={Operación sensible}}
+\newtcolorbox{fallas}{colback=MUFondo,colframe=MUAdvertencia,title={Si algo falla}}
+\newcommand{\paso}[2]{\par\textbf{Paso #1.} #2\par}
+\newcommand{\capturasprevistas}[1]{\textbf{Capturas previstas:} #1\par}
+\newcommand{\procedimientosprevistos}[1]{\textbf{Procedimientos previstos:} #1\par}
+\newcommand{\campointerfaz}[1]{\textbf{#1}}
+\newcommand{\botoninterfaz}[1]{\textbf{#1}}
+\newcommand{\ruta}[1]{\texttt{#1}}
+\newcommand{\casilla}{\raisebox{0.1ex}{\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}}}
+\newcommand{\figuraManual}[3]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth,height=.62\textheight,keepaspectratio]{#1}
+    \caption{#2}
+    \label{#3}
+  \end{figure}
+}

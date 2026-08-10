@@ -1,0 +1,90 @@
+\chapter{Objetivos y alcance}
+\label{chap:objetivos-alcance}
+
+\section{Objetivo general}
+\label{sec:objetivo-general}
+
+Documentar tecnicamente la Plataforma Web Robot Explota Globos para que su estructura, componentes, flujos operativos, configuracion, riesgos y criterios de mantenimiento puedan ser comprendidos y utilizados por desarrolladores, responsables tecnicos y operadores del sistema.
+
+El objetivo responde a una necesidad concreta del proyecto: la plataforma no es solo un sitio informativo. Registra participantes, confirma asistencia, genera equipos, administra comunicaciones y controla un torneo con fases automaticas, manuales y de repechaje. Sin una documentacion tecnica estructurada, cualquier ajuste sobre modelos, servicios o vistas puede romper flujos posteriores que dependen de esos datos.
+
+\section{Objetivos especificos}
+\label{sec:objetivos-especificos}
+
+\begin{enumerate}
+  \item Describir la arquitectura Django implementada, incluyendo aplicaciones locales, dependencias, rutas, vistas, servicios, templates, frontend y persistencia.
+  \item Explicar el flujo funcional que conecta registro publico, confirmacion de asistencia, creacion de equipos y construccion de competencias por division.
+  \item Documentar el componente de torneo con suficiente detalle para entender grupos, eliminatorias, repechajes, fases manuales, sincronizacion de estados y podio.
+  \item Registrar el funcionamiento del modulo de comunicaciones, incluyendo plantillas DOCX, destinatarios XLSX, conversion PDF, lotes, logs y controles de envio.
+  \item Identificar controles de seguridad existentes y riesgos pendientes sin afirmar politicas institucionales que no hayan sido confirmadas.
+  \item Separar hechos implementados, informacion no confirmada y recomendaciones para que el manual sea util como base de mantenimiento y no como lista de supuestos.
+  \item Mantener trazabilidad entre manual, auditoria tecnica y codigo fuente, de manera que las decisiones documentadas puedan verificarse.
+\end{enumerate}
+
+\section{Alcance tecnico}
+\label{sec:alcance-tecnico}
+
+Este manual cubre el proyecto Django ubicado oficialmente en el repositorio de la Plataforma Web Robot Explota Globos. El alcance incluye:
+
+\begin{itemize}
+  \item Configuracion del proyecto Django en \archivo{config/}, incluyendo \archivo{settings.py}, URL raiz, ASGI y WSGI.
+  \item Aplicaciones locales \archivo{apps.core}, \archivo{apps.common}, \archivo{apps.participants}, \archivo{apps.tournament} y \archivo{apps.invitations}.
+  \item Modelos, relaciones y restricciones documentadas para registros, participantes, equipos, competencias, grupos, batallas, estados, historial y comunicaciones.
+  \item URLs publicas e internas, vistas asociadas, formularios y proteccion de rutas administrativas.
+  \item Servicios de participantes, torneo, recomendaciones e invitaciones.
+  \item Templates Django, CSS, JavaScript publico y JavaScript del panel interno.
+  \item Configuracion de base de datos para SQLite local y PostgreSQL en entornos no locales.
+  \item Controles de seguridad confirmados por configuracion y codigo.
+  \item Pruebas existentes, brechas de cobertura, riesgos y recomendaciones de mantenimiento.
+\end{itemize}
+
+\section{Alcance operativo}
+\label{sec:alcance-operativo}
+
+Desde la perspectiva operativa, el manual cubre los flujos que permiten usar el sistema durante el ciclo de un evento:
+
+\begin{itemize}
+  \item Publicacion de informacion publica, reglas y patrocinadores.
+  \item Registro de equipos de colegio y universidad.
+  \item Confirmacion de asistencia mediante token.
+  \item Sincronizacion de registros confirmados hacia equipos operativos.
+  \item Control de competencia por division desde panel interno.
+  \item Registro de resultados, clasificados, correcciones manuales y podio.
+  \item Gestion de comunicaciones con destinatarios, plantillas, lotes y logs.
+\end{itemize}
+
+El manual no reemplaza la capacitacion de operadores durante un evento, pero define como esta construido el sistema que esos operadores usan. Esta diferencia es relevante: las instrucciones operativas pueden cambiar por protocolo institucional; la estructura tecnica debe mantenerse consistente con el codigo.
+
+\section{Exclusiones}
+\label{sec:exclusiones}
+
+No forman parte del alcance de este manual:
+
+\begin{itemize}
+  \item Redaccion de politicas institucionales de privacidad, tratamiento de datos o seguridad de la informacion.
+  \item Definicion de dominio final, proveedor de hosting, IP, reverse proxy, certificados HTTPS o arquitectura final de infraestructura.
+  \item Manual de usuario final para participantes externos.
+  \item Manual grafico institucional o definicion de identidad visual.
+  \item Cambios en codigo fuente, modelos, vistas, formularios, servicios, templates, migraciones o base de datos.
+  \item Procedimientos de despliegue no respaldados por archivos existentes o confirmacion tecnica.
+\end{itemize}
+
+\section{Informacion pendiente de confirmacion}
+\label{sec:informacion-pendiente}
+
+Los siguientes elementos fueron identificados por la auditoria como no confirmados y deben permanecer como pendientes hasta recibir evidencia o aprobacion humana:
+
+\begin{longtable}{p{6cm}p{7cm}}
+\toprule
+Elemento & Tratamiento documental \\
+\midrule
+Servidor, dominio, HTTPS y reverse proxy de produccion & \MarcadorProduccionPendiente \\
+Proveedor de hosting e IP productiva & \MarcadorProduccionPendiente \\
+Politica formal de backups & Diferenciar situacion actual, procedimiento recomendado y politica pendiente de aprobacion \\
+Politica de privacidad y tratamiento de datos personales & Documentar solo controles comprobables; no afirmar cumplimiento no verificado \\
+Version exacta de Python en produccion & \MarcadorProduccionPendiente \\
+Servicio SMTP real & Confirmar antes de documentar valores operativos \\
+Estructura exhaustiva de \variable{DivisionCompetition.configuration} & Ampliar en el capitulo de modelo de datos y servicios \\
+Matriz completa de pruebas funcionales end-to-end & Desarrollar en el capitulo de pruebas y calidad \\
+\bottomrule
+\end{longtable}

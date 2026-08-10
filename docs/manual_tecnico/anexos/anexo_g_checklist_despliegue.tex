@@ -1,0 +1,32 @@
+\chapter{Checklist de despliegue}
+\label{anexo:checklist-despliegue}
+
+Este checklist no reemplaza un procedimiento institucional de despliegue. Su funcion es evitar omisiones tecnicas confirmadas en la auditoria.
+
+\begin{longtable}{p{1.2cm}p{5cm}p{6cm}}
+\caption{Checklist previo a despliegue.}
+\label{tab:anexo-checklist-despliegue}\\
+\toprule
+Estado & Verificacion & Criterio de aceptacion \\
+\midrule
+Pendiente & Definir proveedor, dominio, HTTPS y proxy. & PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Pendiente & Configurar \variable{DJANGO_DEBUG=False}. & El entorno no expone modo debug. \\
+Pendiente & Configurar \variable{DJANGO_SECRET_KEY}. & Valor real, largo y fuera del repositorio. \\
+Pendiente & Configurar \variable{DJANGO_ALLOWED_HOSTS}. & Incluye solo hosts reales aprobados. \\
+Pendiente & Configurar \variable{DJANGO_CSRF_TRUSTED_ORIGINS}. & Coincide con dominios HTTPS reales. \\
+Pendiente & Usar PostgreSQL fuera de desarrollo. & \variable{DJANGO_DATABASE} no queda en SQLite. \\
+Pendiente & Ejecutar migraciones en entorno controlado. & Base de datos actualizada y respaldada. \\
+Pendiente & Ejecutar \comando{collectstatic}. & Archivos estaticos disponibles para servidor. \\
+Pendiente & Configurar media. & Estrategia de almacenamiento PENDIENTE DE DEFINICION PARA PRODUCCION. \\
+Pendiente & Validar SMTP. & Prueba controlada exitosa antes de envio real. \\
+Pendiente & Validar LibreOffice. & Conversion DOCX a PDF exitosa. \\
+Pendiente & Ejecutar pruebas automaticas. & Suite disponible sin fallos. \\
+Pendiente & Ejecutar simulacion de torneo. & Registro, asistencia, competencia y podio validados. \\
+Pendiente & Definir backups. & Frecuencia, responsable, retencion y restauracion aprobados. \\
+Pendiente & Ejecutar \comando{manage.py check --deploy}. & Sin advertencias criticas no atendidas. \\
+\bottomrule
+\end{longtable}
+
+\begin{advertencia}
+No ejecutar comandos destructivos ni migraciones sobre datos reales sin respaldo verificado y ventana operativa aprobada.
+\end{advertencia}

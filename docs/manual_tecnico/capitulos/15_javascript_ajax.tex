@@ -1,0 +1,250 @@
+\chapter{JavaScript y AJAX}
+\label{chap:javascript-ajax}
+
+\section{Funcion del JavaScript en el sistema}
+\label{sec:javascript-funcion}
+
+El JavaScript del proyecto cumple una funcion de mejora progresiva. No contiene la regla principal del torneo ni reemplaza las validaciones del backend. Su trabajo es hacer operable la interfaz: sincronizar tema visual, actualizar estados de seleccion, abrir modales, validar selecciones antes de enviar, ejecutar guardados AJAX y refrescar el HTML renderizado por Django.
+
+El proyecto usa dos archivos globales:
+
+\begin{itemize}
+  \item \archivo{static/js/app.js}, cargado por el layout publico;
+  \item \archivo{static/js/control.js}, cargado por el layout interno del torneo y comunicaciones.
+\end{itemize}
+
+Existe ademas un script inline en \archivo{apps/invitations/templates/invitations/invitations.html}. Ese script filtra plantillas de correo por tipo de comunicacion dentro de la pagina ya renderizada; no ejecuta peticiones AJAX ni participa en el flujo de competencia.
+
+La decision de mantener JavaScript sin empaquetador reduce requisitos de construccion y despliegue. La consecuencia es que los contratos entre HTML y scripts dependen directamente de nombres de clases, atributos \variable{data-*}, campos de formulario y respuestas de vistas Django.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: deteccion de cambios en formularios de resultados, validacion local, confirmacion del operador y envio al backend. Fuente prevista: DIA-19 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para deteccion y guardado de cambios.}
+  \label{fig:javascript-deteccion-guardado}
+\end{figure}
+
+\section{Comportamiento publico en app.js}
+\label{sec:javascript-app}
+
+\archivo{app.js} se ejecuta sobre paginas publicas que heredan de \archivo{core/base.html}. Sus responsabilidades confirmadas son acotadas:
+
+\begin{itemize}
+  \item leer y escribir la preferencia de tema en \variable{localStorage} con la clave \variable{preExplotaGlobosTheme};
+  \item aplicar el tema en \variable{document.documentElement.dataset.theme};
+  \item actualizar texto y atributo ARIA del boton de tema;
+  \item marcar el encabezado con \clase{is-scrolled} cuando el desplazamiento supera el umbral configurado;
+  \item aplicar revelado visual con \clase{is-visible} mediante \clase{IntersectionObserver};
+  \item calcular inclinacion del hero en dispositivos con puntero fino.
+\end{itemize}
+
+El script publico no envia formularios ni modifica datos del backend. Por eso, cualquier cambio en inscripcion, asistencia o reglas debe implementarse en vistas, formularios y templates, no en \archivo{app.js}. Su impacto principal es visual y de experiencia de uso.
+
+\section{Comportamiento interno en control.js}
+\label{sec:javascript-control}
+
+\archivo{control.js} concentra el comportamiento dinamico del panel interno. Reutiliza la logica de tema, pero agrega funciones especificas para torneo:
+
+\begin{itemize}
+  \item apertura y cierre del modal de participante;
+  \item carga JSON de detalle de participante;
+  \item envio JSON de actualizacion manual de participante;
+  \item control visual de tarjetas de resultado;
+  \item deteccion de formularios modificados;
+  \item validacion local de ganadores y clasificados requeridos;
+  \item guardado AJAX individual y masivo de resultados;
+  \item confirmacion de correcciones manuales cuando el backend responde \variable{requires_confirmation};
+  \item refresco parcial de \variable{data-control-main};
+  \item asistente de fase manual;
+  \item modal de decision de siguiente fase.
+\end{itemize}
+
+El archivo no calcula ganadores por su cuenta. Actualiza inputs y clases visuales para que el operador vea lo seleccionado, pero la persistencia se confirma en \funcion{control_division_stage} y en los servicios \funcion{set_group_qualifiers}, \funcion{set_battle_winner} y \funcion{set_battle_qualifiers}.
+
+\section{Contratos data y eventos}
+\label{sec:javascript-data-eventos}
+
+El contrato entre templates y JavaScript se expresa principalmente con atributos \variable{data-*}. Esta decision permite seleccionar elementos sin depender exclusivamente de clases CSS, que tambien cumplen funcion visual. Sin embargo, convierte esos atributos en parte de la API interna del frontend: si se renombra un atributo en la plantilla, el script deja de encontrar el elemento.
+
+\begin{longtable}{p{2.2cm}p{2.8cm}p{2.7cm}p{3cm}p{2.3cm}}
+\caption{Matriz de eventos JavaScript.}
+\label{tab:javascript-eventos}\\
+\toprule
+Evento & Elemento & Funcion & Peticion generada & Resultado \\
+\midrule
+\variable{click} & \variable{data-theme-toggle} & \funcion{setTheme} y \funcion{storeTheme} & Ninguna & Cambia \variable{data-theme} y persiste preferencia local \\
+\variable{scroll} & \variable{window} & \funcion{syncHeaderState} & Ninguna & Alterna \clase{is-scrolled} en el encabezado publico \\
+\variable{mousemove} / \variable{mouseleave} & \clase{hero-shell} & Manejadores de hero tilt & Ninguna & Actualiza variables CSS de inclinacion \\
+\variable{click} & \clase{participant-trigger} con \variable{data-participant-state-id} & \funcion{openParticipantModal} & GET JSON de detalle de participante & Renderiza modal con resumen, formulario e historial \\
+\variable{submit} & \clase{participant-modal-form} & Manejador creado en \funcion{renderParticipantModal} & POST JSON de actualizacion de participante & Actualiza estado, refresca panel y cierra modal \\
+\variable{click} & \variable{data-result-select} & Manejador en \funcion{bindResultControls} & Ninguna inmediata & Marca radio o checkbox y dispara \variable{change} \\
+\variable{change} & Inputs de resultado & \funcion{resultFormSignature}, \funcion{resultFormChanged}, \funcion{updateResultFormState} & Ninguna inmediata & Actualiza clases winner, loser o pending y marca formulario sucio \\
+\variable{submit} & \variable{data-result-form} & \funcion{validateResultForm} y \funcion{saveResultForm} & POST AJAX al URL del formulario & Guarda un grupo o batalla y refresca el panel \\
+\variable{click} & \variable{data-save-all-results} & Manejador de guardado masivo & POST AJAX secuencial por formulario modificado & Guarda selecciones pendientes y refresca panel \\
+\variable{click} & \variable{data-phase-decision-open} & \funcion{openPhaseDecisionModal} & Ninguna & Abre modal de decision de fase \\
+\variable{click} & \variable{data-phase-decision-use-recommendation} & \funcion{showPhaseDecisionPanel} & Ninguna & Muestra vista previa recomendada \\
+\variable{click} & \variable{data-phase-decision-manual} & \funcion{showPhaseDecisionPanel} & Ninguna & Muestra asistente manual \\
+\variable{change} / \variable{input} & Controles \variable{data-manual-*} & \funcion{updateManualPhaseForm} & Ninguna & Recalcula distribucion, clasificados y nombre de fase \\
+\variable{keydown} Escape & Documento & Manejador global & Ninguna & Cierra modal de decision activo \\
+\variable{change} & \variable{id_communication_type} & Script inline de invitaciones & Ninguna & Filtra opciones de plantilla disponibles \\
+\bottomrule
+\end{longtable}
+
+\section{Deteccion de cambios en resultados}
+\label{sec:javascript-deteccion-cambios}
+
+Los formularios de resultados se inicializan en \funcion{bindResultControls}. Para cada formulario se calcula una firma inicial mediante \funcion{resultFormSignature}. En grupos y batallas con varios clasificados, la firma se basa en los identificadores seleccionados y ordenados. En batallas de ganador unico, se basa en \variable{winner_team_id}.
+
+Cuando cambia un input de resultado, el script compara la firma actual contra \variable{data-initial-result-signature}. Si difieren, marca \variable{data-result-dirty} como verdadero. El guardado masivo obtiene solo formularios visibles y modificados mediante \funcion{visibleResultForms}. Esta estrategia evita reenviar resultados que el operador no cambio, y reduce el riesgo de sobrescribir datos por acciones repetitivas.
+
+La validacion local ocurre antes del envio:
+
+\begin{itemize}
+  \item una batalla de ganador unico debe tener un radio \variable{winner_team_id} seleccionado;
+  \item una clasificacion multiple debe tener al menos un clasificado;
+  \item si existe \variable{data-required-selections}, la cantidad seleccionada debe coincidir con el valor requerido.
+\end{itemize}
+
+Estas validaciones mejoran la operacion, pero no son la barrera definitiva. El backend vuelve a validar en servicios y puede devolver error JSON o solicitar confirmacion de correccion manual.
+
+\section{Guardado AJAX de resultados}
+\label{sec:javascript-guardado-ajax}
+
+\funcion{saveResultForm} crea un \clase{FormData} a partir del formulario, obtiene el token CSRF desde el DOM y ejecuta \funcion{fetch}. La cabecera \variable{X-CSRFToken} mantiene compatibilidad con proteccion CSRF de Django, y \variable{X-Requested-With} informa a la vista que debe responder como solicitud AJAX.
+
+El URL de envio se obtiene con \funcion{getFormActionUrl}. Esta funcion usa el getter nativo de \clase{HTMLFormElement} para leer \variable{action}. El detalle es relevante porque los formularios del panel tienen un input oculto llamado \variable{action}; acceder ingenuamente a \variable{form.action} puede quedar interferido por controles con el mismo nombre en algunos escenarios de DOM. El getter nativo conserva la URL real del formulario y usa \variable{window.location.href} como respaldo.
+
+Cuando el servidor responde JSON con \variable{requires_confirmation}, \archivo{control.js} muestra \funcion{window.confirm}. Si el operador acepta, reintenta el mismo formulario agregando \variable{manual_override=1}. Ese parametro es leido por \funcion{manual_override_requested} y permite que servicios como \funcion{set_group_qualifiers} y \funcion{set_battle_winner} apliquen una correccion que puede afectar fases posteriores.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: contrato AJAX entre formulario de resultado, \archivo{control.js}, \funcion{control_division_stage}, servicios de torneo y respuesta JSON. Fuente prevista: DIA-13 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para contrato AJAX de resultados.}
+  \label{fig:javascript-contrato-ajax}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: correccion manual con respuesta \variable{requires_confirmation}, confirmacion del operador, reintento con \variable{manual_override} y actualizacion de estados. Fuente prevista: DIA-12 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para correccion manual con confirmacion.}
+  \label{fig:javascript-correccion-confirmacion}
+\end{figure}
+
+\section{Inventario de contratos AJAX}
+\label{sec:javascript-contratos-ajax}
+
+\begin{longtable}{p{2cm}p{1.2cm}p{2.8cm}p{2.8cm}p{2.5cm}p{2cm}}
+\caption{Inventario de contratos AJAX.}
+\label{tab:javascript-contratos-ajax}\\
+\toprule
+Accion & Metodo & Entrada & Respuesta & Servicio o vista & Riesgo \\
+\midrule
+Detalle de participante & GET & \variable{competition_id} y \variable{state_id} en URL; cabecera \variable{X-Requested-With} & JSON con \variable{ok} y objeto \variable{participant} & \funcion{participant_modal_detail} & Exponer datos incompletos si cambia \funcion{participant_modal_payload} sin actualizar render del modal \\
+Actualizacion de participante & POST & \variable{target_stage}, \variable{target_group_id}, \variable{target_battle_id}, \variable{target_status_override}, \variable{note}, CSRF & JSON \variable{ok}, \variable{message} y \variable{participant}; error JSON si no valida & \funcion{participant_modal_update}, \funcion{update_participant_state} & Mover participante a fase, grupo o batalla incompatible \\
+Guardar clasificados de grupo & POST & \variable{action=save_group_qualifiers}, \variable{group_id}, lista \variable{qualified_entry_ids}, CSRF & JSON \variable{ok} y \variable{message}; puede devolver \variable{requires_confirmation} & \funcion{control_division_stage}, \funcion{set_group_qualifiers} & Alterar clasificacion despues de fases posteriores \\
+Guardar ganador de batalla & POST & \variable{action=save_battle_winner}, \variable{battle_id}, \variable{winner_team_id}, CSRF & JSON \variable{ok} y \variable{message}; puede devolver \variable{requires_confirmation} & \funcion{control_division_stage}, \funcion{set_battle_winner} & Cambiar ganador con cruces ya derivados \\
+Guardar clasificados de batalla & POST & \variable{action=save_battle_qualifiers}, \variable{battle_id}, lista \variable{qualified_team_ids}, CSRF & JSON \variable{ok} y \variable{message}; puede devolver \variable{requires_confirmation} & \funcion{control_division_stage}, \funcion{set_battle_qualifiers} & Cantidad de clasificados distinta del objetivo \\
+Refresco parcial de panel & GET & URL actual; cabecera \variable{X-Requested-With} & HTML completo de la pagina actual & \funcion{control_division_stage} o vista vigente & Fallar si el HTML no contiene \variable{data-control-main} \\
+\bottomrule
+\end{longtable}
+
+\begin{advertencia}
+Las acciones de creacion de fase, repechaje, propuesta manual, reinicio de competencia y guardado de podio final no estan implementadas como AJAX en el codigo revisado. Usan formularios POST tradicionales, mensajes Django y redireccion. Documentarlas como contratos AJAX produciria una descripcion incorrecta del sistema.
+\end{advertencia}
+
+\section{Modal de participante}
+\label{sec:javascript-modal-participante}
+
+El modal de participante se define en \archivo{control_base.html} y se llena en tiempo de ejecucion desde \funcion{renderParticipantModal}. El operador abre el modal al hacer clic sobre un elemento \clase{participant-trigger} con \variable{data-participant-state-id}. El script solicita el detalle a \ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/}.
+
+El payload JSON alimenta tres zonas:
+
+\begin{itemize}
+  \item resumen de grupo, fase y estado;
+  \item formulario de control manual con fase, grupo, batalla, estado y nota;
+  \item historial de resultados y movimientos.
+\end{itemize}
+
+Al enviar el formulario del modal, \archivo{control.js} hace POST a \ruta{/torneo/control/divisiones/<competition_id>/participantes/<state_id>/actualizar/}. Si la respuesta es correcta, llama \funcion{refreshControlContent} y cierra el modal. La vista persistente queda alineada con el backend porque el panel se vuelve a renderizar desde HTML producido por Django.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: carga dinamica del modal de participante, edicion manual, POST de actualizacion y refresco parcial del panel. Fuente prevista: DIA-22 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para carga dinamica del modal de participante.}
+  \label{fig:javascript-modal-participante}
+\end{figure}
+
+\section{Refresco parcial y consistencia visual}
+\label{sec:javascript-refresco-parcial}
+
+Despues de guardar resultados o actualizar un participante, \funcion{refreshControlContent} solicita la URL actual y analiza el HTML con \clase{DOMParser}. Luego busca \variable{data-control-main} en la respuesta y reemplaza el contenido del contenedor activo. Finalmente llama \funcion{bindDynamicControls} para volver a enlazar eventos sobre el HTML nuevo.
+
+La ventaja es que el frontend no necesita reconstruir manualmente cada tarjeta, contador o lista derivada. El backend vuelve a producir el estado visual desde la fuente persistida. La desventaja es que la plantilla debe conservar el contenedor \variable{data-control-main}; si desaparece o se renombra, el refresco parcial no actualiza el panel.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: guardado AJAX, respuesta positiva, solicitud HTML de refresco, reemplazo de \variable{data-control-main} y re-enlace de controles. Fuente prevista: DIA-23 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para actualizacion visual posterior al guardado.}
+  \label{fig:javascript-refresco-visual}
+\end{figure}
+
+\section{Asistente de fase y modales de decision}
+\label{sec:javascript-asistente-fase}
+
+El asistente de fase manual trabaja sobre \variable{data-manual-phase-form}. \funcion{updateManualPhaseForm} lee la operacion seleccionada, el total de participantes disponibles, la distribucion, el numero personalizado de grupos y la cantidad de clasificados por grupo. Con esos datos actualiza:
+
+\begin{itemize}
+  \item opciones visibles de distribucion segun operacion normal o repechaje;
+  \item numero de grupos;
+  \item resumen de participantes, clasificados y eliminados;
+  \item advertencia cuando la distribucion personalizada queda desbalanceada;
+  \item nombre sugerido de fase mientras el operador no lo haya editado;
+  \item disponibilidad del boton de envio.
+\end{itemize}
+
+El modal de decision de fase se enlaza mediante \funcion{bindPhaseDecisionModal}. El script abre, cierra, reinicia paneles y alterna seleccion entre recomendacion del sistema, repechaje y configuracion manual. La persistencia real sigue ocurriendo por formularios POST tradicionales contenidos en el modal.
+
+\section{Manejo de errores y confirmaciones}
+\label{sec:javascript-errores-confirmaciones}
+
+El manejo de errores es deliberadamente simple: \archivo{control.js} usa \funcion{alert} para mostrar errores de validacion local, errores devueltos por JSON y fallos de guardado. Usa \funcion{window.confirm} antes de guardar resultados y antes de aplicar correcciones manuales. Algunas acciones POST tradicionales del template usan \variable{onsubmit} con confirmacion nativa para reinicio, podio final, repechaje y creacion de fase.
+
+Si el servidor devuelve un tipo de contenido distinto de JSON durante un guardado AJAX, \funcion{saveResultForm} registra informacion en consola y lanza un error visible para el operador. Esta defensa es necesaria porque una redireccion HTML inesperada o una pagina de error no tiene el contrato \variable{ok} requerido por el script.
+
+\section{Impacto de modificacion}
+\label{sec:javascript-impacto-modificacion}
+
+\begin{longtable}{p{3.1cm}p{3.6cm}p{2.6cm}p{3.2cm}}
+\caption{Impacto de modificacion en JavaScript y AJAX.}
+\label{tab:javascript-impacto-modificacion}\\
+\toprule
+Componente & Elementos relacionados & Riesgo & Verificacion necesaria \\
+\midrule
+\archivo{static/js/app.js} & \archivo{core/base.html}, tema, encabezado, animaciones publicas & Degradar experiencia publica o romper preferencia de tema & Probar tema, scroll y paginas publicas principales \\
+\archivo{static/js/control.js} & \archivo{control_base.html}, \archivo{control_stage.html}, \archivo{control_division.html}, servicios de torneo & Romper guardado, modales o decisiones de fase & Probar flujo completo de panel con grupos, batallas, participante y fase \\
+\funcion{saveResultForm} & \funcion{control_division_stage}, CSRF, contratos JSON & Guardados silenciosamente fallidos o respuestas no interpretadas & Enviar guardado correcto, error de validacion y correccion manual \\
+\funcion{refreshControlContent} & \variable{data-control-main}, templates internos & Panel desactualizado tras guardar & Verificar que el HTML refrescado re-enlace botones y modales \\
+\funcion{renderParticipantModal} & \funcion{participant_modal_payload}, \funcion{participant_modal_update} & Campos del modal incompatibles con payload JSON & Abrir participante, mover fase/grupo/batalla y revisar historial \\
+\funcion{updateManualPhaseForm} & \archivo{_manual_phase_assistant.html}, propuestas manuales & Resumen manual incoherente con participantes disponibles & Cambiar distribucion normal, repechaje y grupos personalizados \\
+Script inline de invitaciones & \archivo{invitations/invitations.html}, formulario de envio & Plantilla filtrada incorrectamente por tipo & Cambiar tipo de comunicacion y enviar prueba controlada \\
+\bottomrule
+\end{longtable}
+
+\section{Consideraciones de mantenimiento}
+\label{sec:javascript-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{static/js/app.js}, \archivo{static/js/control.js}, \archivo{apps/core/templates/core/base.html}, \archivo{apps/tournament/templates/tournament/control_base.html}, \archivo{apps/tournament/templates/tournament/control_stage.html}, \archivo{apps/tournament/templates/tournament/control_division.html}, \archivo{apps/invitations/templates/invitations/invitations.html}. \\
+Dependencias & El JavaScript depende de atributos \variable{data-*}, clases de estado, campos POST, CSRF, respuestas JSON de \archivo{apps/tournament/views.py} y servicios de \archivo{apps/tournament/services.py}. \\
+Riesgos al modificar & Cambiar nombres de inputs, retirar \variable{data-control-main}, alterar payload JSON o renombrar atributos \variable{data-*} puede romper flujos sin error de compilacion. \\
+Pruebas manuales recomendadas & Cambiar tema, abrir modal de participante, editar participante, guardar grupo, guardar batalla, usar guardado masivo, provocar confirmacion manual, abrir decision de fase, probar asistente manual y filtrar plantillas de invitacion. \\
+Pruebas automatizadas recomendadas & Tests de vistas con cabecera \variable{X-Requested-With}, verificacion de JSON esperado, pruebas de CSRF en POST y pruebas de presencia de atributos criticos en templates renderizados. \\
+Impacto sobre otros modulos & El guardado AJAX impacta directamente reglas documentadas en \cref{chap:servicios-logica-negocio} y flujo de competencia de \cref{chap:flujo-competencia}. Los cambios en modal pueden afectar trazabilidad de \clase{TeamCompetitionState}. \\
+Buenas practicas & Tratar \variable{data-*} como API interna, mantener validaciones definitivas en backend, no agregar reglas de torneo exclusivamente en JavaScript, conservar respuestas JSON uniformes y probar cambios con datos que ya tengan fases posteriores. \\
+\bottomrule
+\end{longtable}
+
+El JavaScript del proyecto esta correctamente ubicado como capa operativa, no como autoridad del dominio. Su mantenimiento debe enfocarse en preservar contratos con HTML y backend, porque la consistencia del torneo depende de que cada interaccion dinamica termine en servicios Django y vuelva a renderizarse desde datos persistidos.

@@ -1,0 +1,97 @@
+\chapter{Estados y mensajes}
+\label{cap:estados-mensajes}
+
+\begin{procedimiento}{Objetivo del capitulo}{Todos}
+Interpretar estados visuales, mensajes de exito, advertencia, validacion y error sin repetir los procedimientos de los capitulos anteriores.
+\end{procedimiento}
+
+Este capitulo es una guia de lectura rapida. Si necesita ejecutar un flujo completo, use el capitulo relacionado: registro en \cref{cap:registro-participantes}, grupos en \cref{cap:fase-grupos}, eliminatorias en \cref{cap:eliminatorias-repechaje}, podio en \cref{cap:fases-finales-podio}, correcciones en \cref{cap:correcciones-manuales}, comunicaciones en \cref{cap:comunicaciones} y Admin en \cref{cap:django-admin}.
+
+\section{Estados operativos}
+
+\begin{longtable}{p{2.4cm}p{4.1cm}p{4.0cm}p{2.8cm}}
+\toprule
+Estado & Significado & Accion del usuario & Cuando preocuparse\\
+\midrule
+\endhead
+Pendiente & Falta completar una accion: resultado, fase, solicitud o log. & Revise que dato falta y complete el flujo correspondiente. & Si impide avanzar aunque todo parezca completo.\\
+Seleccionado & Hay una seleccion visible en pantalla, pero puede no estar guardada. & Guarde y espere mensaje de exito. & Si desaparece al recargar.\\
+Clasificado & El participante avanza desde grupo o batalla multiple. & Verifique contador y fase siguiente. & Si aparece clasificado en una fase equivocada.\\
+Ganador & El participante fue marcado como ganador de una batalla o final. & Confirme que es el resultado oficial antes de guardar. & Si otro operador reporta un ganador distinto.\\
+Perdedor o eliminado & El participante no avanza desde la seleccion guardada. & No lo modifique salvo correccion aprobada. & Si debia seguir activo o entrar a repechaje.\\
+Guardado & El servidor acepto la seleccion o formulario. & Recargue o revise la pantalla para confirmar persistencia. & Si el mensaje aparece pero el dato no se conserva.\\
+Modificado & La pantalla tiene cambios visibles sin guardar. & Use el boton de guardado indicado. & Si intenta avanzar con cambios pendientes.\\
+Incompleto & Faltan resultados, clasificados, campos o confirmaciones. & Complete el dato requerido antes de continuar. & Si no identifica que falta.\\
+Bloqueado & La interfaz no permite continuar por precondiciones o configuracion. & Lea el mensaje y regrese al paso anterior. & Si el bloqueo contradice datos ya verificados.\\
+Finalizado & La batalla, fase o competencia quedo cerrada. & Continue con la siguiente etapa o revise el cierre. & Si necesita corregir luego de avanzar.\\
+Enviado & Comunicacion o solicitud fue enviada fisicamente. & Revise historial y destinatario. & Si el envio no estaba autorizado.\\
+Simulado & Comunicacion procesada sin envio fisico. & Use el historial para validar datos. & Si se esperaba envio real.\\
+Error o fallido & El sistema no pudo completar la accion. & Lea el mensaje, no repita a ciegas y recopile evidencia. & Si afecta resultados, correos o acceso.\\
+\bottomrule
+\end{longtable}
+
+\section{Estados por area}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.5cm}X}
+\toprule
+Area & Estados visibles o demostrados\\
+\midrule
+Participantes & \campointerfaz{Activo}, \campointerfaz{Eliminado}, \campointerfaz{En repechaje}, \campointerfaz{Clasificado}, \campointerfaz{Retirado}. Revise el modal descrito en \cref{cap:correcciones-manuales} si el estado no coincide.\\
+Asistencia & \campointerfaz{Pendiente sin solicitud}, \campointerfaz{Solicitud enviada}, \campointerfaz{Confirmado}, \campointerfaz{Asistencia ya confirmada} y \campointerfaz{Enlace no valido}.\\
+Equipos & Registro enviado, aprobado o sincronizado al cuadro. Si el equipo no aparece en torneo, revise organizacion y Admin segun \cref{cap:gestion-organizacion,cap:django-admin}.\\
+Grupos & Pendiente, seleccionado, clasificado, guardado y avance pendiente. El contador define si el grupo esta completo.\\
+Batallas & \campointerfaz{Pendiente}, \campointerfaz{Listo}, \campointerfaz{En juego}, \campointerfaz{Finalizado} o \campointerfaz{Cancelado}; ademas ganador, clasificado o eliminado por participante.\\
+Fases & Grupos, rondas, repechaje, tercer lugar y final pueden estar disponibles, incompletas o cerradas para avanzar.\\
+Comunicaciones & \campointerfaz{Borrador}, \campointerfaz{Previsualizado}, \campointerfaz{En envio}, \campointerfaz{Enviado}, \campointerfaz{Fallido}, \campointerfaz{Cancelado}; logs \campointerfaz{Simulado}, \campointerfaz{Prueba enviada}, \campointerfaz{Omitido}.\\
+Podio & Podio propuesto antes de guardar y podio guardado cuando el servidor confirma el cierre.\\
+\bottomrule
+\end{tabularx}
+
+\section{Cambios pendientes}
+
+Una seleccion visual no siempre esta persistida. En grupos y batallas, cambiar un checkbox o radio solo prepara el formulario. El guardado ocurre al presionar \botoninterfaz{Guardar este grupo}, \botoninterfaz{Guardar este ganador}, \botoninterfaz{Guardar clasificados} o \botoninterfaz{Guardar todos los resultados}. Si no hay cambios, la interfaz puede indicar \campointerfaz{No hay cambios nuevos para guardar.}
+
+\begin{advertencia}
+No avance de fase ni cierre podio si hay cambios visibles sin mensaje de exito. La aplicacion no promete conservar cambios no guardados despues de cerrar, recargar o perder red.
+\end{advertencia}
+
+\section{Mensajes del sistema}
+
+\begin{longtable}{p{2.5cm}p{4.2cm}p{4.1cm}p{2.7cm}}
+\toprule
+Tipo & Que significa & Que debe hacer & Puede continuar\\
+\midrule
+\endhead
+Exito & La operacion fue aceptada: registro recibido, clasificados guardados, podio guardado o lote procesado. & Verifique persistencia en pantalla o historial. & Si, despues de revisar el dato.\\
+Informacion & La accion no fue un error: fase existente, propuesta cancelada o estado ya conocido. & Lea el mensaje y continue segun el flujo. & Si el estado coincide con lo esperado.\\
+Advertencia & Hay una condicion que requiere atencion: correo no enviado, solicitud ya enviada o correccion sensible. & No ignore el mensaje; revise el dato antes de repetir. & Solo si entiende el impacto.\\
+Confirmacion & El navegador pide aceptar o cancelar antes de enviar una accion. & Lea el texto completo. Cancele si hay duda. & Si acepta, verifique despues.\\
+Validacion & Falta un campo, hay duplicidad, cantidad incorrecta o plantilla invalida. & Corrija el formulario. & No, hasta corregir.\\
+Error & El servidor rechazo o no pudo completar la accion. & No encadene cambios. Recargue y recopile evidencia si persiste. & No, hasta verificar estado.\\
+Error de red & La operacion AJAX no obtuvo respuesta util. & Revise conexion, recargue y confirme que quedo guardado. & Solo tras comprobar persistencia.\\
+Operacion sensible & Puede afectar resultados, fases, correos reales o Admin. & Detenga la accion si no hay autorizacion. & Solo con aprobacion operativa.\\
+\bottomrule
+\end{longtable}
+
+\section{Mensajes frecuentes y respuesta}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.8cm}X}
+\toprule
+Mensaje funcional & Respuesta recomendada\\
+\midrule
+\campointerfaz{La asistencia quedo confirmada correctamente.} & La asistencia fue registrada. La organizacion puede revisar sincronizacion al cuadro.\\
+\campointerfaz{Enlace no valido} & No confirma asistencia. Solicite un enlace valido por el canal autorizado.\\
+\campointerfaz{Se guardaron los clasificados...} & Revise que el grupo o batalla conserve la seleccion al recargar.\\
+\campointerfaz{Completa y guarda todos los resultados...} & Falta cerrar la fase actual; vuelva a grupos o batallas.\\
+\campointerfaz{Correccion aplicada. Revisa las fases posteriores afectadas.} & Revise inmediatamente las fases dependientes; use \cref{cap:correcciones-manuales}.\\
+\campointerfaz{Lote procesado en simulacion segura.} & Consulte historial; no se enviaron correos fisicos.\\
+\campointerfaz{Debes confirmar explicitamente el envio real.} & Marque la confirmacion solo si el envio fue autorizado.\\
+\campointerfaz{Fallido} & Revise error, plantilla, destinatario o configuracion antes de repetir.\\
+\bottomrule
+\end{tabularx}
+
+\section{Cuando pedir soporte}
+
+Solicite soporte si el estado visible contradice el resultado esperado despues de recargar, si una operacion sensible fue aceptada por error, si un envio real no autorizado aparece en historial, si el Admin muestra datos inconsistentes o si el error se repite.
+
+Recopile pantalla, fecha y hora aproximada, division o fase, accion realizada, mensaje mostrado, captura sin datos sensibles, resultado esperado y resultado obtenido. No comparta contrasenas, tokens, claves secretas, credenciales SMTP ni informacion personal innecesaria. Contacto de soporte: \campointerfaz{PENDIENTE DE DEFINICION INSTITUCIONAL}.

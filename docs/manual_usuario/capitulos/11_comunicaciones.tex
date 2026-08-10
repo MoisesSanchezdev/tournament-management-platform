@@ -1,0 +1,228 @@
+\chapter{Comunicaciones}
+\label{cap:comunicaciones}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador de comunicaciones}
+Explicar como gestionar plantillas, destinatarios, lotes, solicitudes de asistencia e historial sin provocar envios reales accidentales.
+\end{procedimiento}
+
+El modulo de comunicaciones esta disponible para usuarios organizadores autenticados. Su proposito es preparar mensajes, validar plantillas y dejar trazabilidad de simulaciones, pruebas y envios. En operacion real, cualquier correo debe revisarse antes de usar modos que envian fisicamente mensajes.
+
+\section{Entrada al modulo}
+
+\figuraManual{capturas/finales/MU-032-dashboard-comunicaciones.png}{Dashboard de comunicaciones con estado de correo, totales y lotes recientes.}{fig:bloque4-mu-032}
+
+\begin{procedimiento}{Revisar el dashboard de comunicaciones}{Operador de comunicaciones}
+Use esta pantalla para conocer el estado general antes de crear plantillas o procesar lotes.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item El usuario tiene acceso al panel interno.
+    \item Los datos visibles pertenecen a un entorno autorizado para la operacion.
+    \item No se muestran credenciales ni tokens en pantalla.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la navegacion interna y seleccione \botoninterfaz{Comunicaciones}.}
+\paso{2}{Revise el bloque \campointerfaz{SMTP}. Puede indicar \campointerfaz{Configurado} o \campointerfaz{Bloqueado}.}
+\paso{3}{Revise \campointerfaz{Plantillas activas}, \campointerfaz{Confirmaciones}, \campointerfaz{Dry-run}, pruebas, envios y fallos.}
+\paso{4}{Abra \botoninterfaz{Ver historial} si necesita auditar lotes anteriores.}
+\paso{5}{Use la navegacion del modulo: \botoninterfaz{Plantillas}, \botoninterfaz{Invitaciones}, \botoninterfaz{Confirmaciones} e \botoninterfaz{Historial}.}
+
+\begin{resultadoesperado}
+El operador identifica si el modulo esta listo solo para simulacion o si permite envios fisicos por tener configuracion de correo completa.
+\end{resultadoesperado}
+
+\begin{operacionsensible}
+Un estado \campointerfaz{Configurado} no autoriza por si solo un envio real. Antes de enviar, valide plantilla, destinatarios, tipo de comunicacion, modo y registro de autorizacion.
+\end{operacionsensible}
+
+\section{Modos de envio}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.4cm}X}
+\toprule
+Modo & Uso correcto\\
+\midrule
+Simulacion segura & Modo predeterminado. No envia correos. Valida datos, procesa el lote y registra logs como simulacion.\\
+Prueba controlada & Envia fisicamente, pero todos los mensajes se redirigen al \campointerfaz{Correo receptor de prueba controlada}. Se usa para revisar contenido final sin contactar destinatarios originales.\\
+Envio real & Envia al correo de cada destinatario o responsable. Requiere configuracion de correo y confirmacion explicita. Debe usarse solo con lista y plantilla aprobadas.\\
+\bottomrule
+\end{tabularx}
+
+\section{Gestionar plantillas}
+
+\figuraManual{capturas/finales/MU-033-lista-plantillas.png}{Lista de plantillas de comunicacion con tipo, marcadores, estado y accion de previsualizacion.}{fig:bloque4-mu-033}
+
+\begin{procedimiento}{Consultar plantillas disponibles}{Operador de comunicaciones}
+Use esta pantalla para revisar que existe una plantilla activa del tipo que se va a procesar.
+\end{procedimiento}
+
+\paso{1}{Abra \botoninterfaz{Plantillas}.}
+\paso{2}{Revise las columnas \campointerfaz{Nombre}, \campointerfaz{Tipo}, \campointerfaz{Marcadores}, \campointerfaz{Estado} y \campointerfaz{Archivo}.}
+\paso{3}{Confirme que la plantilla requerida aparece como \campointerfaz{Activa}.}
+\paso{4}{Use \botoninterfaz{Previsualizar} para revisar marcadores detectados.}
+\paso{5}{Use \botoninterfaz{Nueva plantilla} solo si se debe cargar un DOCX nuevo.}
+
+\figuraManual{capturas/finales/MU-034-nueva-plantilla.png}{Formulario para cargar una nueva plantilla DOCX y declarar marcadores requeridos.}{fig:bloque4-mu-034}
+
+\begin{procedimiento}{Crear una plantilla}{Operador de comunicaciones}
+Use este procedimiento cuando la organizacion entrega una plantilla DOCX aprobada.
+\end{procedimiento}
+
+\paso{1}{Presione \botoninterfaz{Nueva plantilla}.}
+\paso{2}{Complete \campointerfaz{Nombre}.}
+\paso{3}{Seleccione \campointerfaz{Tipo}. Los tipos operativos son colegio, universidad y patrocinador; asistencia se gestiona por el flujo de confirmaciones.}
+\paso{4}{Adjunte un \campointerfaz{Archivo .docx}. La interfaz solo permite plantillas DOCX y rechaza archivos de otro tipo.}
+\paso{5}{Declare \campointerfaz{Marcadores requeridos}, uno por linea o separados por coma.}
+\paso{6}{Agregue \campointerfaz{Descripcion} si ayuda a reconocer la version.}
+\paso{7}{Active \campointerfaz{Activar para este tipo} solo cuando esa plantilla debe quedar como vigente.}
+\paso{8}{Presione \botoninterfaz{Guardar plantilla}.}
+
+\begin{fallas}
+Si falta un marcador declarado, la plantilla no queda validada y la interfaz muestra \campointerfaz{Faltan marcadores en la plantilla}. Corrija el DOCX o la lista de marcadores antes de volver a guardar.
+\end{fallas}
+
+\figuraManual{capturas/finales/MU-035-preview-plantilla.png}{Previsualizacion tecnica de una plantilla con marcadores detectados y requeridos.}{fig:bloque4-mu-035}
+
+\begin{procedimiento}{Previsualizar marcadores}{Operador de comunicaciones}
+Use esta revision antes de procesar un lote.
+\end{procedimiento}
+
+\paso{1}{Desde \botoninterfaz{Plantillas}, presione \botoninterfaz{Previsualizar}.}
+\paso{2}{Revise el tipo de plantilla y el archivo asociado.}
+\paso{3}{Compare \campointerfaz{Detectados} con \campointerfaz{Requeridos}.}
+\paso{4}{Si los marcadores no coinciden, no procese lotes con esa plantilla.}
+
+\section{Destinatarios e invitaciones}
+
+\figuraManual{capturas/finales/MU-036-invitaciones-lote.png}{Pantalla de invitaciones con configuracion de envio, formulario de lote y destinatarios registrados.}{fig:bloque4-mu-036}
+
+\begin{procedimiento}{Procesar un lote de invitaciones}{Operador de comunicaciones}
+Use este procedimiento para invitaciones de colegios, universidades o patrocinadores.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item Existe una plantilla activa para el tipo de invitacion.
+    \item La lista de destinatarios fue revisada y contiene correos correctos.
+    \item La primera ejecucion del lote se hara como \campointerfaz{Simulacion segura}.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra \botoninterfaz{Invitaciones}.}
+\paso{2}{Revise el bloque \campointerfaz{Configuracion de envio}.}
+\paso{3}{Seleccione \campointerfaz{Tipo de invitacion}: \campointerfaz{Colegio}, \campointerfaz{Universidad} o \campointerfaz{Patrocinador}.}
+\paso{4}{Seleccione \campointerfaz{Plantilla}. Si no aparece ninguna, cree o active una plantilla antes de continuar.}
+\paso{5}{Adjunte \campointerfaz{Excel de destinatarios} si se usara archivo. El archivo debe ser .xlsx y contener columnas \campointerfaz{NOMBRE}, \campointerfaz{CORREO}, \campointerfaz{TIPO} e \campointerfaz{INSTITUCION} opcional.}
+\paso{6}{Si no adjunta Excel, la plataforma usa los destinatarios registrados del tipo seleccionado.}
+\paso{7}{Mantenga \campointerfaz{Modo de envio} en \campointerfaz{Simulacion segura} para la primera corrida.}
+\paso{8}{Presione \botoninterfaz{Procesar lote}.}
+\paso{9}{Revise el mensaje final y luego consulte \botoninterfaz{Historial}.}
+
+\begin{resultadoesperado}
+Para simulacion, la plataforma muestra \campointerfaz{Lote procesado en simulacion segura.} y registra el lote sin enviar correos fisicos.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si no hay plantilla activa, aparece \campointerfaz{No hay plantillas activas para este tipo de invitacion. Crea o activa una plantilla primero.}. Si el archivo no es valido, corrija formato, columnas o tamano antes de procesar.
+\end{fallas}
+
+\figuraManual{capturas/finales/MU-037-destinatario-manual.png}{Formulario de registro manual de destinatarios para invitaciones.}{fig:bloque4-mu-037}
+
+\begin{procedimiento}{Registrar un destinatario manual}{Operador de comunicaciones}
+Use este recorrido cuando el destinatario se gestionara desde la base local y no desde Excel.
+\end{procedimiento}
+
+\paso{1}{En \botoninterfaz{Invitaciones}, ubique \campointerfaz{Registro manual}.}
+\paso{2}{Complete \campointerfaz{Nombre} y \campointerfaz{Correo}.}
+\paso{3}{Seleccione \campointerfaz{Tipo}.}
+\paso{4}{Complete \campointerfaz{Institucion} si aplica.}
+\paso{5}{Use \campointerfaz{Datos extra para marcadores} solo con informacion revisada y en formato valido.}
+\paso{6}{Presione \botoninterfaz{Guardar destinatario}.}
+
+\begin{resultadoesperado}
+La plataforma muestra \campointerfaz{Destinatario registrado.} y el destinatario aparece en la tabla local.
+\end{resultadoesperado}
+
+\section{Prueba controlada y envio real}
+
+\begin{procedimiento}{Ejecutar una prueba controlada}{Operador de comunicaciones}
+Use esta accion despues de una simulacion exitosa y antes de cualquier envio real.
+\end{procedimiento}
+
+\paso{1}{Seleccione el mismo tipo y la misma plantilla revisada.}
+\paso{2}{Cambie \campointerfaz{Modo de envio} a \campointerfaz{Prueba controlada}.}
+\paso{3}{Complete \campointerfaz{Correo receptor de prueba controlada}.}
+\paso{4}{Active \campointerfaz{Confirmo que quiero enviar correos reales}.}
+\paso{5}{Presione \botoninterfaz{Procesar lote}.}
+\paso{6}{Revise en el correo receptor de prueba que asunto, adjunto, marcadores y datos sean correctos.}
+\paso{7}{Consulte el historial para verificar que el modo quedo como \campointerfaz{Prueba controlada}.}
+
+\begin{resultadoesperado}
+La plataforma muestra \campointerfaz{Lote procesado como prueba real controlada.}
+\end{resultadoesperado}
+
+\begin{procedimiento}{Ejecutar un envio real}{Operador de comunicaciones}
+Use este procedimiento solo con autorizacion expresa de la organizacion.
+\end{procedimiento}
+
+\paso{1}{Revise plantilla, destinatarios, tipo de invitacion y resultados de la prueba controlada.}
+\paso{2}{Cambie \campointerfaz{Modo de envio} a \campointerfaz{Envio real}.}
+\paso{3}{Active \campointerfaz{Confirmo que quiero enviar correos reales}.}
+\paso{4}{Presione \botoninterfaz{Procesar lote}.}
+\paso{5}{Revise \botoninterfaz{Historial} inmediatamente despues.}
+
+\begin{operacionsensible}
+El envio real contacta destinatarios. No lo use con datos de prueba, listas incompletas, plantillas sin previsualizar o remitente desconocido.
+\end{operacionsensible}
+
+\section{Confirmaciones de asistencia}
+
+\figuraManual{capturas/finales/MU-038-confirmaciones-asistencia.png}{Pantalla de solicitudes de asistencia con acciones de simular, enviar prueba, enviar o reenviar.}{fig:bloque4-mu-038}
+
+\begin{procedimiento}{Solicitar confirmacion de asistencia}{Operador de comunicaciones}
+Use esta pantalla para registros enviados que aun requieren confirmar asistencia.
+\end{procedimiento}
+
+\paso{1}{Abra \botoninterfaz{Confirmaciones}.}
+\paso{2}{Revise el bloque \campointerfaz{Estado SMTP}.}
+\paso{3}{Identifique el registro por \campointerfaz{Equipo}, \campointerfaz{Responsable}, \campointerfaz{Correo}, \campointerfaz{Categoria} y \campointerfaz{Estado}.}
+\paso{4}{Presione \botoninterfaz{Simular} para validar la solicitud sin enviar correo.}
+\paso{5}{Para prueba controlada, complete \campointerfaz{Correo receptor de prueba controlada}, active \campointerfaz{Confirmo prueba} y presione \botoninterfaz{Enviar prueba}.}
+\paso{6}{Para envio real, active \campointerfaz{Confirmo envio real a responsable} y presione \botoninterfaz{Enviar}.}
+\paso{7}{Si la solicitud ya habia sido enviada, la accion real aparece como \botoninterfaz{Reenviar} y requiere \campointerfaz{Confirmo reenvio real a responsable}.}
+
+\begin{resultadoesperado}
+Segun el modo elegido, la plataforma muestra \campointerfaz{Solicitud simulada.}, \campointerfaz{Solicitud enviada como prueba controlada.} o \campointerfaz{Solicitud enviada como envio real.}
+\end{resultadoesperado}
+
+\begin{fallas}
+Si no se indica el correo de prueba, aparece \campointerfaz{Debes indicar el correo receptor de prueba controlada.}. Si no se marca la confirmacion requerida, aparece \campointerfaz{Debes confirmar explicitamente el envio real.}. Si SMTP esta bloqueado, el mensaje de estado impide el envio fisico.
+\end{fallas}
+
+\section{Historial y auditoria}
+
+\figuraManual{capturas/finales/MU-039-historial-comunicaciones.png}{Historial de comunicaciones con lotes recientes y detalle de intentos por destinatario.}{fig:bloque4-mu-039}
+
+\begin{procedimiento}{Consultar historial}{Operador de comunicaciones}
+Use esta pantalla para confirmar que una simulacion, prueba o envio quedo registrado.
+\end{procedimiento}
+
+\paso{1}{Abra \botoninterfaz{Historial}.}
+\paso{2}{Revise la tabla \campointerfaz{Procesamientos recientes}: nombre, tipo, estado, modo, correo receptor de prueba, logs y fecha.}
+\paso{3}{Revise \campointerfaz{Ultimos intentos}: destinatario, correo original, correo fisico, tipo, estado, error y fecha.}
+\paso{4}{Busque estados \campointerfaz{Simulado}, \campointerfaz{Prueba enviada}, \campointerfaz{Enviado}, \campointerfaz{Omitido} o \campointerfaz{Fallido}.}
+\paso{5}{Si hay fallos, corrija plantilla, destinatarios o configuracion antes de repetir.}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Plantilla DOCX validada y previsualizada.
+    \item Marcadores requeridos coinciden con los detectados.
+    \item Destinatarios revisados y sin datos personales innecesarios.
+    \item Primera ejecucion realizada como \campointerfaz{Simulacion segura}.
+    \item Prueba controlada revisada antes de envio real.
+    \item Confirmacion explicita marcada solo cuando corresponde.
+    \item Historial consultado despues de cada lote o solicitud.
+    \item Correos reales protegidos en capturas, informes y demostraciones.
+\end{itemize}

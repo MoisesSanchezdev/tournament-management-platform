@@ -1,0 +1,152 @@
+\chapter{Fase de grupos}
+\label{cap:fase-grupos}
+
+\begin{procedimiento}{Objetivo del capitulo}{Operador del torneo}
+Explicar como revisar los grupos, seleccionar clasificados, guardar resultados y verificar que la fase queda lista para avanzar.
+\end{procedimiento}
+
+Este capitulo parte de una division ya preparada segun \cref{cap:preparacion-competencia}. No repite la configuracion inicial ni la reorganizacion de grupos, salvo como advertencia cuando un cambio pueda afectar resultados ya registrados.
+
+\section{Entrar a la fase de grupos}
+
+\figuraManual{capturas/finales/MU-018-clasificados-grupo.png}{Vista de la fase de grupos con navegacion por fase y panel de recomendacion.}{fig:bloque3-mu-018}
+
+\begin{procedimiento}{Identificar la fase de grupos}{Operador del torneo}
+Use este recorrido cuando la categoria ya muestra la pestana \botoninterfaz{Grupos}.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La categoria ya fue generada.
+    \item Los equipos fueron revisados antes de iniciar resultados.
+    \item El operador esta autenticado en el panel interno.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la categoria desde el panel de organizacion.}
+\paso{2}{Seleccione la pestana \botoninterfaz{Grupos}.}
+\paso{3}{Confirme que el encabezado indique la categoria y la fase, por ejemplo \campointerfaz{Colegios - Grupos}.}
+\paso{4}{Revise la navegacion de fases. La pestana activa aparece resaltada.}
+\paso{5}{Verifique si el panel de recomendacion muestra \campointerfaz{Avance pendiente} o una recomendacion lista para avanzar.}
+
+\begin{resultadoesperado}
+El operador queda ubicado en la fase correcta y puede distinguir si aun debe guardar resultados o si la siguiente fase ya puede prepararse.
+\end{resultadoesperado}
+
+\section{Seleccionar clasificados}
+
+\figuraManual{capturas/finales/MU-019-guardar-grupo.png}{Grupos con clasificados seleccionados, contador por grupo y boton de guardado operativo.}{fig:bloque3-mu-019}
+
+\begin{procedimiento}{Guardar clasificados de un grupo}{Operador del torneo}
+Use este procedimiento por cada grupo de la fase.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item El grupo tiene participantes visibles.
+    \item La interfaz indica cuantos equipos clasifican en ese grupo.
+    \item El operador conoce el resultado oficial del grupo.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Ubique la tarjeta del grupo.}
+\paso{2}{Revise el contador \campointerfaz{Seleccionados: 0 / n} o el valor que muestre la interfaz.}
+\paso{3}{Seleccione cada equipo clasificado con el boton \botoninterfaz{Marcar ganador}.}
+\paso{4}{Si se equivoca antes de guardar, vuelva a presionar el control del equipo o seleccione otro equipo segun corresponda.}
+\paso{5}{Compruebe que el contador coincida con la cantidad requerida por la interfaz.}
+\paso{6}{Presione \botoninterfaz{Guardar este grupo}.}
+\paso{7}{Confirme el dialogo del navegador si aparece.}
+\paso{8}{Espere el mensaje de confirmacion y revise que los equipos seleccionados sigan resaltados como clasificados.}
+
+En \cref{fig:bloque3-mu-019}, cada grupo muestra cuantos carros contiene, cuantos clasifican y cuales equipos ya estan seleccionados. Las tarjetas verdes representan seleccion guardada o seleccion visible; las tarjetas no seleccionadas se muestran como pendientes o perdedoras segun el estado de la forma.
+
+\begin{resultadoesperado}
+La plataforma muestra un mensaje como \campointerfaz{Se guardaron los clasificados del Grupo A.} con la letra del grupo correspondiente.
+\end{resultadoesperado}
+
+\begin{fallas}
+Si intenta guardar con selecciones incompletas, el navegador puede mostrar un mensaje como \campointerfaz{Grupo A: selecciona 2 clasificado(s); ahora hay 1.}. Ajuste la seleccion hasta que el contador coincida. Si aparece un error del servidor, no avance de fase; revise el grupo y repita el guardado solo despues de corregir la causa.
+\end{fallas}
+
+\section{Guardado general de grupos}
+
+La barra \campointerfaz{Guardado operativo} permite guardar cambios visibles de la fase sin entrar grupo por grupo. La accion incluye formularios modificados y excluye formularios sin cambios nuevos.
+
+\begin{procedimiento}{Guardar todos los resultados visibles}{Operador del torneo}
+Use esta accion cuando haya revisado varios grupos y quiera guardar las selecciones pendientes en una sola operacion.
+\end{procedimiento}
+
+\paso{1}{Revise todos los grupos visibles en la pantalla.}
+\paso{2}{Confirme que cada contador muestre la cantidad requerida de clasificados.}
+\paso{3}{Presione \botoninterfaz{Guardar todos los resultados}.}
+\paso{4}{Si no hay cambios nuevos, la interfaz informa \campointerfaz{No hay cambios nuevos para guardar.}.}
+\paso{5}{Si hay cambios, confirme el dialogo \campointerfaz{Seguro que deseas guardar estas selecciones? Podras editarlas despues, pero verifica bien antes de continuar.}}
+\paso{6}{Espere el mensaje \campointerfaz{Selecciones guardadas} con la lista de grupos procesados.}
+\paso{7}{Recargue o vuelva a la fase y verifique que las selecciones permanecen.}
+
+\begin{advertencia}
+El guardado general procesa todos los formularios modificados visibles. Antes de confirmar, revise que no haya selecciones temporales o pruebas pendientes en la pantalla.
+\end{advertencia}
+
+\section{Avance despues de grupos}
+
+\figuraManual{capturas/finales/MU-020-guardar-todos.png}{Recomendacion disponible y boton para pasar a la siguiente fase despues de completar resultados.}{fig:bloque3-mu-020}
+
+Cuando todos los grupos tienen los clasificados requeridos, el panel de recomendacion puede habilitar \botoninterfaz{Pasar a la siguiente fase}. En \cref{fig:bloque3-mu-020}, el marcador 1 senala el boton de avance y el marcador 2 encierra la recomendacion que debe revisarse antes de abrir el modal.
+
+\begin{procedimiento}{Verificar que grupos estan listos para avanzar}{Operador del torneo}
+Use este procedimiento antes de crear cualquier fase posterior.
+\end{procedimiento}
+
+\paso{1}{Revise que cada grupo tenga el numero de clasificados indicado por la interfaz.}
+\paso{2}{Use \botoninterfaz{Guardar todos los resultados} si existen cambios pendientes.}
+\paso{3}{Recargue la pagina o vuelva a entrar en \botoninterfaz{Grupos}.}
+\paso{4}{Verifique que los clasificados siguen resaltados.}
+\paso{5}{Revise el panel de recomendacion: participantes vivos, formato sugerido, repechables y eliminados recientes.}
+\paso{6}{No presione \botoninterfaz{Pasar a la siguiente fase} si algun grupo sigue incompleto.}
+
+\begin{resultadoesperado}
+El panel deja de mostrar avance pendiente y presenta una recomendacion de siguiente fase o una alternativa manual segun la cantidad de participantes vivos.
+\end{resultadoesperado}
+
+\section{Estados visibles en grupos}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.8cm}X}
+\toprule
+Estado visual & Interpretacion operativa\\
+\midrule
+Pendiente & El equipo aun no ha sido marcado como clasificado en ese grupo.\\
+Seleccionado o ganador & El equipo fue marcado como clasificado en la pantalla actual.\\
+Perdedor o no seleccionado & Existe una seleccion en el grupo y ese equipo no forma parte de los clasificados.\\
+Guardado & Al recargar la pagina, la seleccion sigue visible y el contador coincide con la configuracion.\\
+Avance pendiente & Falta completar o guardar algun resultado antes de abrir la siguiente fase.\\
+\bottomrule
+\end{tabularx}
+
+\section{Errores frecuentes}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.3cm}X}
+\toprule
+Situacion & Accion recomendada\\
+\midrule
+Cantidad insuficiente & Complete la seleccion hasta alcanzar el contador requerido.\\
+Cantidad distinta a la requerida & Quite o agregue clasificados hasta coincidir con la interfaz.\\
+Seleccion visual no guardada & Use \botoninterfaz{Guardar este grupo} o \botoninterfaz{Guardar todos los resultados} y verifique tras recargar.\\
+Grupo incompleto & No avance de fase; revise equipos, asistencia o distribucion antes de continuar.\\
+Confirmacion de correccion & Consulte el procedimiento de correccion de resultados del capitulo correspondiente.\\
+\bottomrule
+\end{tabularx}
+
+\begin{operacionsensible}
+Reorganizar o volver a mezclar grupos despues de comenzar el registro de resultados puede cambiar la base de la competencia. Si ya existen clasificados guardados, no use la distribucion manual ni la mezcla de grupos sin autorizacion expresa y revision de consecuencias.
+\end{operacionsensible}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Grupos completos y visibles.
+    \item Cantidad de clasificados coincidente con la interfaz.
+    \item Cambios guardados por grupo o mediante guardado general.
+    \item Resultados verificados despues de recargar.
+    \item Boton de avance revisado solo cuando la fase esta completa.
+\end{itemize}

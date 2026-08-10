@@ -1,0 +1,53 @@
+\chapter{Acceso y navegación}
+\label{cap:acceso-navegacion}
+
+\begin{procedimiento}{Objetivo del capítulo}{Visitante, participante y organizador}
+Explicar cómo reconocer las superficies públicas e internas de la plataforma y cómo desplazarse entre sus secciones principales.
+\end{procedimiento}
+
+\section{Acceso al sitio público}
+
+El sitio público no requiere iniciar sesión. Desde allí se accede a la información general, reglas, patrocinadores y registro. La dirección definitiva de producción queda como \textbf{PENDIENTE DE DEFINICIÓN PARA PRODUCCIÓN}.
+
+En el encabezado público aparecen los enlaces \botoninterfaz{Reglas}, \botoninterfaz{Patrocinadores}, \botoninterfaz{Registro} y el botón de cambio de tema, visible como \botoninterfaz{Modo claro} o su equivalente según el tema activo.
+
+\section{Diferencias visuales entre áreas}
+
+\begin{itemize}
+    \item El sitio público muestra la marca del torneo y enlaces de consulta para cualquier persona.
+    \item El panel interno muestra el encabezado \campointerfaz{Panel de organización} y opciones como \botoninterfaz{Resumen}, \botoninterfaz{Comunicaciones}, \botoninterfaz{Vista pública} y \botoninterfaz{Cerrar sesión}.
+    \item Las páginas de administración avanzada pertenecen a usuarios con permisos superiores y se tratan más adelante.
+\end{itemize}
+
+\section{Ingreso al panel interno}
+
+\begin{procedimiento}{Iniciar sesión en el panel interno}{Organizador autorizado}
+Permite entrar al área privada donde se organizan fases, cruces, resultados y comunicaciones.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item La persona cuenta con un usuario autorizado por la organización.
+    \item La plataforma está disponible.
+    \item Las credenciales se ingresan únicamente en la pantalla oficial de acceso.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la pantalla de acceso interno desde la ruta definida por la organización. En ambiente local, el acceso de prueba corresponde a \ruta{/torneo/control/login/}.}
+\paso{2}{Escriba el usuario y la contraseña entregados por la organización.}
+\paso{3}{Presione \botoninterfaz{Ingresar al panel}.}
+\paso{4}{Al terminar el trabajo interno, use \botoninterfaz{Cerrar sesión} desde el encabezado del panel.}
+
+\figuraManual{capturas/finales/MU-012-login-panel.png}{Pantalla de acceso interno donde un usuario autorizado ingresa al panel de organización sin exponer credenciales en la captura.}{fig:bloque1-mu-012}
+
+\begin{advertencia}
+No comparta credenciales ni deje una sesión abierta en equipos compartidos. Si el acceso falla, no publique capturas con usuarios o contraseñas visibles; solicite revisión a la organización.
+\end{advertencia}
+
+\begin{fallas}
+Si el sitio público carga pero el panel interno no permite entrar, confirme que la cuenta esté activa y que pertenezca a un usuario autorizado. Si el problema persiste, remita el caso al soporte responsable; no intente modificar datos desde otras rutas.
+\end{fallas}
+
+\begin{resultadoesperado}
+El visitante debe poder navegar por las secciones públicas y el organizador autorizado debe reconocer la pantalla de acceso, entrar al panel y cerrar sesión al finalizar.
+\end{resultadoesperado}

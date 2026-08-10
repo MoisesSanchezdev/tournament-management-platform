@@ -1,0 +1,14 @@
+build/
+capturas/base/
+capturas/descartadas/
+capturas/prueba/
+capturas/revision/
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.synctex.gz

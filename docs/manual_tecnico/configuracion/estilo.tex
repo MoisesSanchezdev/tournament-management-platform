@@ -1,0 +1,41 @@
+\geometry{inner=3cm,outer=2.5cm,top=2.8cm,bottom=2.8cm}
+\onehalfspacing
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\setlength{\headheight}{15.3pt}
+\emergencystretch=3em
+
+\AtBeginEnvironment{longtable}{%
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}%
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\footnotesize\nouppercase{\leftmark}}
+\cfoot{\thepage}
+
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{3.2em}}
+\makeatother
+
+\titleformat{\chapter}
+  {\normalfont\huge\bfseries\color{utpRed}}
+  {\thechapter.}
+  {0.75em}
+  {}
+
+\lstdefinestyle{manualcode}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{softGray},
+  frame=single,
+  rulecolor=\color{lineGray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  numbers=left,
+  numberstyle=\tiny\color{inkBlack}
+}
+\lstset{style=manualcode}
+
+\captionsetup{labelfont=bf,font=small}

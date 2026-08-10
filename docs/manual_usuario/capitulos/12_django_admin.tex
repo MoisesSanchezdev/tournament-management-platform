@@ -1,0 +1,183 @@
+\chapter{Django Admin}
+\label{cap:django-admin}
+
+\begin{procedimiento}{Objetivo del capitulo}{Superusuario Django Admin}
+Explicar como usar Django Admin para revision y soporte, diferenciandolo del panel operativo del torneo y evitando cambios directos innecesarios.
+\end{procedimiento}
+
+Django Admin es una superficie administrativa avanzada. Permite ver y editar modelos registrados de participantes, torneo y comunicaciones. Debe usarse para mantenimiento, revision y contingencias, no como reemplazo del panel de organizacion.
+
+\section{Panel operativo frente a Django Admin}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3.8cm}X}
+\toprule
+Superficie & Uso recomendado\\
+\midrule
+Panel de organizacion & Operar el torneo: crear tablero, revisar divisiones, guardar resultados, avanzar fases, gestionar comunicaciones y consultar historial con controles preparados para el evento.\\
+Django Admin & Revisar registros, buscar datos, corregir informacion puntual, ejecutar acciones administrativas y auditar modelos cuando el panel operativo no basta.\\
+\bottomrule
+\end{tabularx}
+
+\begin{operacionsensible}
+Django Admin permite cambios directos que pueden saltarse validaciones de la interfaz operativa. Use una cuenta autorizada, trabaje con datos demo cuando este documentando y no modifique registros reales sin respaldo y autorizacion.
+\end{operacionsensible}
+
+\section{Acceso e indice de modelos}
+
+\figuraManual{capturas/finales/MU-040-admin-modelos.png}{Indice de Django Admin con aplicaciones y modelos disponibles para administracion.}{fig:bloque4-mu-040}
+
+\begin{procedimiento}{Entrar a Django Admin}{Superusuario Django Admin}
+Use este procedimiento solo con una cuenta autorizada para administracion.
+\end{procedimiento}
+
+\begin{precondiciones}
+\begin{itemize}
+    \item El usuario tiene permisos de staff o superusuario segun la politica del proyecto.
+    \item La sesion corresponde al entorno correcto.
+    \item No se capturan ni comparten credenciales.
+\end{itemize}
+\end{precondiciones}
+
+\paso{1}{Abra la ruta \ruta{/admin/}.}
+\paso{2}{Inicie sesion si Django solicita autenticacion.}
+\paso{3}{Revise el indice por aplicaciones.}
+\paso{4}{Identifique el modelo antes de abrirlo. No use busquedas al azar sobre datos sensibles.}
+\paso{5}{Abra solo el modelo que necesita revisar o corregir.}
+
+\begin{resultadoesperado}
+El superusuario ve el indice de modelos registrados y puede entrar a la lista correspondiente sin alterar datos.
+\end{resultadoesperado}
+
+\section{Modelos principales}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm}X}
+\toprule
+Area & Modelos y uso habitual\\
+\midrule
+Participantes & Instituciones, registros escolares, registros universitarios, equipos e integrantes. Se usan para revisar datos de inscripcion, asistencia y sincronizacion al cuadro oficial.\\
+Torneo & Ediciones, reglas, fases, competencias por division, grupos, entradas de grupo, batallas, entradas de batalla, estados de equipo e historial. Se usan para soporte y auditoria del cuadro.\\
+Comunicaciones & Plantillas, destinatarios, lotes y logs. Se usan para auditar plantillas, destinatarios y resultados de simulaciones, pruebas o envios.\\
+\bottomrule
+\end{tabularx}
+
+\section{Registros de participantes}
+
+\figuraManual{capturas/finales/MU-041-admin-registros.png}{Lista administrativa de registros con filtros, busqueda y acciones de asistencia.}{fig:bloque4-mu-041}
+
+\begin{procedimiento}{Revisar registros de participantes}{Superusuario Django Admin}
+Use este procedimiento para ubicar registros escolares o universitarios y verificar su estado.
+\end{procedimiento}
+
+\paso{1}{En el indice, abra \campointerfaz{School registrations} o \campointerfaz{University registrations}, segun la categoria.}
+\paso{2}{Use filtros por \campointerfaz{status} y \campointerfaz{edition}.}
+\paso{3}{Use busqueda por institucion, robot, responsable o correo cuando necesite ubicar un registro puntual.}
+\paso{4}{Revise columnas como institucion, robot, responsable, edicion, estado, solicitud de asistencia enviada y asistencia confirmada.}
+\paso{5}{Abra el registro solo si necesita revisar detalle o participantes relacionados.}
+\paso{6}{Si debe modificar un dato, cambie solo el campo autorizado y guarde una nota externa de la razon operativa.}
+
+\begin{resultadoesperado}
+El superusuario ubica el registro correcto y comprende si esta enviado, confirmado o pendiente, sin alterar otros registros.
+\end{resultadoesperado}
+
+\section{Acciones administrativas de asistencia}
+
+Los registros escolares y universitarios incluyen acciones masivas observadas en la interfaz administrativa.
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.6cm}X}
+\toprule
+Accion & Uso y resultado esperado\\
+\midrule
+\campointerfaz{Enviar correo de confirmacion de asistencia} & Envia solicitudes a registros seleccionados que no han confirmado asistencia. El mensaje administrativo reporta \campointerfaz{Correos de confirmacion enviados: n. Registros omitidos o con error: m.}\\
+\campointerfaz{Sincronizar confirmados al cuadro oficial} & Crea o actualiza equipos a partir de registros con asistencia confirmada. El mensaje administrativo reporta \campointerfaz{Registros sincronizados a equipos: n. Registros omitidos: m.}\\
+\bottomrule
+\end{tabularx}
+
+\begin{procedimiento}{Usar una accion masiva de registros}{Superusuario Django Admin}
+Use una accion masiva solo cuando la lista filtrada contiene exactamente los registros que quiere procesar.
+\end{procedimiento}
+
+\paso{1}{Filtre por edicion y estado antes de seleccionar registros.}
+\paso{2}{Seleccione manualmente los registros que corresponden.}
+\paso{3}{Elija la accion en el selector superior.}
+\paso{4}{Revise de nuevo la cantidad seleccionada antes de ejecutar.}
+\paso{5}{Ejecute la accion.}
+\paso{6}{Lea el mensaje administrativo con procesados y omitidos.}
+\paso{7}{Verifique una muestra de registros o equipos resultantes.}
+
+\begin{advertencia}
+Las acciones masivas pueden enviar correos o crear equipos desde varios registros. No use \campointerfaz{Seleccionar todos} sin filtrar por edicion y sin validar que no haya registros de prueba mezclados con registros reales.
+\end{advertencia}
+
+\section{Administracion del torneo}
+
+\figuraManual{capturas/finales/MU-042-admin-torneo.png}{Lista administrativa de competencias de torneo con filtros por division, estado y edicion.}{fig:bloque4-mu-042}
+
+\begin{procedimiento}{Revisar datos de torneo desde Admin}{Superusuario Django Admin}
+Use esta revision cuando necesite comprobar estructura interna del cuadro o buscar una inconsistencia.
+\end{procedimiento}
+
+\paso{1}{Abra el modelo de torneo relacionado con la duda: edicion, competencia por division, grupo, batalla, estado de equipo o historial.}
+\paso{2}{Use filtros por edicion, division, fase o estado.}
+\paso{3}{Use busqueda por nombre de fase, nombre de batalla o robot si el modelo lo permite.}
+\paso{4}{Revise relaciones antes de editar: una batalla pertenece a una competencia, una entrada pertenece a una batalla o grupo, y un estado de equipo resume la ubicacion actual.}
+\paso{5}{Prefiera corregir resultados desde el panel operativo cuando exista el control correspondiente.}
+\paso{6}{Si edita en Admin, revise luego el panel de organizacion para confirmar que la interfaz interpreta correctamente el cambio.}
+
+\begin{fallas}
+Si un registro no aparece en la lista esperada, revise primero filtros activos, edicion y division. No cree duplicados para resolver una busqueda fallida.
+\end{fallas}
+
+\section{Administracion de comunicaciones}
+
+\begin{procedimiento}{Auditar comunicaciones desde Admin}{Superusuario Django Admin}
+Use Django Admin para revisar plantillas, destinatarios, lotes y logs cuando el historial operativo no sea suficiente.
+\end{procedimiento}
+
+\paso{1}{Abra \campointerfaz{Communication templates} para revisar tipo, estado activo y errores de validacion.}
+\paso{2}{Abra \campointerfaz{Communication recipients} para buscar destinatarios por nombre, correo o institucion.}
+\paso{3}{Abra \campointerfaz{Communication batches} para revisar tipo, estado, modo, correo de prueba, creador y fechas.}
+\paso{4}{Abra \campointerfaz{Communication logs} para revisar destinatario, correo original, correo fisico, tipo, estado, error y fecha.}
+\paso{5}{No modifique logs para ocultar errores. Los logs son trazabilidad operativa.}
+
+\begin{resultadoesperado}
+El superusuario puede reconstruir que plantilla, destinatarios y modo se usaron en una comunicacion sin ejecutar nuevos envios.
+\end{resultadoesperado}
+
+\section{Operaciones que requieren autorizacion}
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.1cm}X}
+\toprule
+Operacion & Riesgo\\
+\midrule
+Editar registros de participantes & Puede cambiar datos de contacto, categoria, asistencia o integrantes sin pasar por formularios publicos.\\
+Ejecutar acciones masivas & Puede enviar solicitudes o sincronizar equipos de muchos registros a la vez.\\
+Editar equipos o miembros & Puede alterar el cuadro oficial si la competencia ya fue generada.\\
+Editar grupos, batallas o estados & Puede romper la coherencia entre resultados, participantes vivos e historial.\\
+Editar plantillas o destinatarios & Puede afectar comunicaciones futuras o exponer datos personales.\\
+Eliminar registros & Puede perder trazabilidad y relaciones. Evitelo salvo procedimiento tecnico autorizado.\\
+\bottomrule
+\end{tabularx}
+
+\section{Buenas practicas}
+
+\begin{itemize}
+    \item Use el panel operativo para operar el torneo y Admin para soporte.
+    \item Filtre antes de seleccionar registros.
+    \item Lea mensajes administrativos despues de cada accion.
+    \item No capture pantallas con correos, documentos o tokens reales.
+    \item No cree duplicados para resolver errores de busqueda.
+    \item Revise el panel operativo despues de cualquier correccion directa.
+    \item Mantenga una bitacora externa de cambios administrativos sensibles.
+\end{itemize}
+
+\section{Checklist del capitulo}
+
+\begin{itemize}
+    \item Entorno correcto verificado antes de entrar.
+    \item Modelo identificado antes de abrir o editar.
+    \item Filtros aplicados antes de acciones masivas.
+    \item Mensajes de accion leidos y registrados.
+    \item Cambios directos evitados cuando existe flujo operativo.
+    \item Comunicaciones auditadas sin modificar logs.
+    \item Panel de organizacion revisado despues de correcciones administrativas.
+\end{itemize}

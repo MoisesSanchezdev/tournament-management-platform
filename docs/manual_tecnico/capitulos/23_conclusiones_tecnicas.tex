@@ -1,0 +1,93 @@
+\chapter{Conclusiones tecnicas}
+\label{chap:conclusiones-tecnicas}
+
+\section{Estado tecnico del proyecto}
+\label{sec:conclusiones-estado}
+
+La plataforma Robot Explota Globos cuenta con una arquitectura Django funcional para gestionar informacion publica del torneo, registro de participantes, confirmacion de asistencia, sincronizacion a equipos, control operativo por division, fases de competencia, resultados, correcciones manuales, historial y comunicaciones.
+
+El proyecto no es solo una coleccion de vistas. El dominio central esta modelado alrededor de ediciones, registros, equipos, competencias por division, grupos, batallas, estados e historial. Esa estructura permite comprender que el sistema resuelve un problema operativo especifico: mantener trazabilidad y control de una competencia que puede cambiar durante el evento sin perder consistencia de datos.
+
+\section{Arquitectura alcanzada}
+\label{sec:conclusiones-arquitectura}
+
+La arquitectura alcanzada separa responsabilidades de forma razonable:
+
+\begin{itemize}
+  \item \archivo{apps/core} concentra paginas publicas;
+  \item \archivo{apps/participants} administra registros, asistencia y sincronizacion a equipos;
+  \item \archivo{apps/tournament} concentra modelo competitivo, servicios, panel y reglas de avance;
+  \item \archivo{apps/invitations} gestiona comunicaciones, plantillas, destinatarios, lotes y logs;
+  \item \archivo{config} centraliza configuracion por entorno;
+  \item templates y JavaScript actuan como capa de operacion, no como autoridad del dominio.
+\end{itemize}
+
+La separacion entre vistas y servicios es especialmente relevante. Las vistas reciben solicitudes y preparan respuestas; los servicios contienen reglas de torneo, persistencia de estados, correcciones e historial. Esto mejora la mantenibilidad porque permite razonar sobre el flujo competitivo sin perseguir toda la logica dentro de templates o JavaScript.
+
+\section{Mantenibilidad}
+\label{sec:conclusiones-mantenibilidad}
+
+El sistema es mantenible si se respetan sus fronteras:
+
+\begin{itemize}
+  \item cambios en reglas de torneo deben revisarse en servicios y pruebas;
+  \item cambios en templates internos deben revisarse junto con \archivo{control.js};
+  \item cambios de configuracion deben validar seguridad y entorno;
+  \item cambios de comunicaciones deben probar dry-run, test y envio oficial;
+  \item cambios de modelos deben acompanar migraciones, respaldo y validacion de datos.
+\end{itemize}
+
+La principal deuda tecnica es la concentracion de logica en \archivo{apps/tournament/services.py}. No impide operar el sistema, pero aumenta costo de modificacion. La segunda deuda es la cobertura de pruebas: el manual documenta controles y flujos, pero la evolucion futura exige ampliar pruebas automaticas.
+
+\section{Capacidad de evolucion}
+\label{sec:conclusiones-evolucion}
+
+La plataforma puede evolucionar hacia nuevas divisiones, formatos, vistas publicas de resultados, exportaciones e integraciones. Esa capacidad se fundamenta en modelos persistentes, competencia por division, historial, configuracion flexible y servicios de materializacion de fases.
+
+La evolucion debe ser incremental. Agregar formatos sin dividir servicios ni aumentar pruebas puede degradar la estabilidad. Publicar resultados en tiempo real sin resolver despliegue, seguridad y monitoreo puede exponer informacion o estados parciales. Operar comunicaciones reales sin politica de datos y backups aumenta riesgo institucional.
+
+\section{Condiciones para operacion real}
+\label{sec:conclusiones-operacion}
+
+Antes de operar con datos reales y participantes reales, deben cerrarse estas condiciones:
+
+\begin{itemize}
+  \item definir infraestructura de produccion;
+  \item configurar dominio, HTTPS, hosts y CSRF;
+  \item usar PostgreSQL con backups;
+  \item probar SMTP y LibreOffice;
+  \item ejecutar simulacion completa del torneo;
+  \item definir responsables y permisos operativos;
+  \item formalizar tratamiento de datos personales;
+  \item ampliar pruebas para flujos criticos.
+\end{itemize}
+
+Estas condiciones no son decorativas. Cada una protege una parte concreta del sistema: configuracion, datos, comunicaciones, competencia, seguridad y recuperacion.
+
+\section{Beneficios del diseno}
+\label{sec:conclusiones-beneficios}
+
+El diseno aporta beneficios concretos:
+
+\begin{itemize}
+  \item reduce duplicacion al centralizar reglas en servicios;
+  \item conserva historial de movimientos y resultados;
+  \item permite correcciones manuales controladas;
+  \item separa informacion publica de operacion interna;
+  \item admite simulacion y prueba controlada de comunicaciones;
+  \item diferencia desarrollo local de produccion mediante variables;
+  \item mantiene una base documental suficiente para transferencia tecnica.
+\end{itemize}
+
+El resultado es una plataforma con base tecnica solida para el contexto del torneo, siempre que las observaciones de pruebas, despliegue, backups y privacidad se atiendan antes de produccion.
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:conclusiones-recomendaciones}
+
+\begin{itemize}
+  \item Priorizar pruebas integrales del flujo de competencia y permisos internos.
+  \item Dividir servicios de torneo por responsabilidad antes de ampliar formatos.
+  \item Cerrar guia de despliegue real cuando se confirme infraestructura.
+  \item Formalizar backups, privacidad, responsables y calendario operativo.
+  \item Mantener el manual como documento vivo: cada cambio en modelo, servicio, template o contrato AJAX debe reflejarse en la documentacion.
+\end{itemize}

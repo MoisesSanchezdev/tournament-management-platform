@@ -1,0 +1,124 @@
+\chapter{Mantenimiento}
+\label{chap:mantenimiento}
+
+\section{Objetivo del mantenimiento}
+\label{sec:mantenimiento-objetivo}
+
+El mantenimiento de la plataforma debe proteger la consistencia del torneo. La prioridad no es cambiar pantallas rapidamente, sino conservar la relacion entre registros, equipos, grupos, batallas, estados, historial, comunicaciones y panel interno. Los modulos con mayor impacto estan descritos en \cref{chap:aplicaciones-django}, \cref{chap:servicios-logica-negocio}, \cref{chap:frontend-templates} y \cref{chap:javascript-ajax}.
+
+Este capitulo sirve como guia para futuros desarrolladores que deban corregir errores, agregar formatos, ajustar comunicaciones o preparar una version para evento.
+
+\section{Modulos sensibles}
+\label{sec:mantenimiento-modulos}
+
+\begin{longtable}{p{3.6cm}p{4.8cm}p{4.4cm}}
+\caption{Modulos sensibles de mantenimiento.}
+\label{tab:mantenimiento-modulos}\\
+\toprule
+Modulo & Archivos principales & Riesgo de cambio \\
+\midrule
+Configuracion & \archivo{config/settings.py}, \archivo{.env.example}. & Romper arranque por entorno, seguridad o conexion a base de datos. \\
+Registro & \archivo{apps/participants/models.py}, \archivo{forms.py}, \archivo{services.py}, \archivo{views.py}. & Permitir duplicados o no sincronizar equipos confirmados. \\
+Torneo & \archivo{apps/tournament/services.py}, \archivo{formats.py}, \archivo{recommendations.py}, \archivo{models.py}. & Inconsistencia en fases, grupos, batallas, estados o historial. \\
+Panel interno & \archivo{control_stage.html}, \archivo{control_division.html}, \archivo{static/js/control.js}. & Romper AJAX, modales o captura de resultados. \\
+Comunicaciones & \archivo{apps/invitations/services.py}, \archivo{forms.py}, \archivo{views.py}, comandos. & Enviar correos incorrectos o perder trazabilidad. \\
+Django Admin & \archivo{apps/participants/admin.py}, \archivo{apps/tournament/admin.py}, \archivo{apps/invitations/admin.py}. & Ejecutar acciones operativas sin procedimiento. \\
+\bottomrule
+\end{longtable}
+
+\section{Flujo recomendado para cambios}
+\label{sec:mantenimiento-flujo-cambios}
+
+Todo cambio debe seguir este flujo minimo:
+
+\begin{enumerate}
+  \item identificar modulo, flujo afectado y datos persistidos relacionados;
+  \item revisar capitulos y anexos vinculados del manual;
+  \item crear o actualizar pruebas si el cambio toca reglas de negocio;
+  \item aplicar el cambio en una rama de trabajo;
+  \item ejecutar \comando{manage.py check};
+  \item ejecutar pruebas automaticas relacionadas en entorno no productivo;
+  \item probar manualmente el flujo afectado;
+  \item revisar que no se agreguen secretos, datos reales ni archivos generados;
+  \item documentar la decision tecnica si cambia una regla del torneo.
+\end{enumerate}
+
+No se debe cambiar la estructura de modelos sin revisar migraciones y respaldos. No se debe cambiar \archivo{control.js} sin probar \variable{data-result-form}, modales, guardado masivo y refresco parcial.
+
+\section{Uso de Git}
+\label{sec:mantenimiento-git}
+
+La auditoria no confirma una politica formal de versionado. Como practica minima, los cambios deben agruparse por proposito y evitar mezclar refactors con correcciones operativas. Antes de entregar una version se recomienda revisar:
+
+\begin{itemize}
+  \item \comando{git status};
+  \item \comando{git diff --name-only};
+  \item archivos generados o locales que no deben versionarse;
+  \item migraciones nuevas cuando cambien modelos;
+  \item documentacion asociada al cambio.
+\end{itemize}
+
+\section{Comandos y acciones operativas}
+\label{sec:mantenimiento-comandos}
+
+\begin{longtable}{p{3.8cm}p{4.8cm}p{4.2cm}}
+\caption{Comandos y acciones con impacto operativo.}
+\label{tab:mantenimiento-comandos}\\
+\toprule
+Accion & Uso & Precaucion \\
+\midrule
+\comando{bootstrap_tournament} & Crea edicion inicial y reglas base. & Ejecutar solo cuando se necesite inicializacion controlada. \\
+\comando{reset_tournament_demo} & Limpia datos operativos y crea simulacion. & Destructivo; no usar en produccion. \\
+\comando{send_invitations} & Procesa invitaciones desde XLSX. & Dry-run por defecto; envio real con \comando{--yes}. \\
+\comando{send_attendance_requests} & Envia o simula solicitudes de asistencia. & Validar \variable{base-url}, SMTP y modo de envio. \\
+Admin: \funcion{send_attendance_requests} & Accion sobre registros seleccionados. & Puede enviar correos; revisar seleccion y configuracion. \\
+Admin: \funcion{sync_confirmed_to_teams} & Sincroniza registros confirmados a equipos. & Verificar confirmaciones antes de ejecutar. \\
+\bottomrule
+\end{longtable}
+
+\section{Errores frecuentes}
+\label{sec:mantenimiento-errores}
+
+\begin{longtable}{p{4.2cm}p{4.5cm}p{4cm}}
+\caption{Problemas frecuentes y respuesta recomendada.}
+\label{tab:mantenimiento-errores}\\
+\toprule
+Problema & Causa probable & Respuesta \\
+\midrule
+Django no inicia en produccion & Falta \variable{DJANGO_SECRET_KEY}, \variable{DJANGO_ALLOWED_HOSTS} o variables PostgreSQL. & Revisar \archivo{.env} real y ejecutar \comando{manage.py check}. \\
+Panel sin estilos o JS & Static files no recolectados o no servidos. & Ejecutar \comando{collectstatic} en entorno correcto y revisar servidor de estaticos. \\
+No se guardan resultados AJAX & Token CSRF, atributos \variable{data-*} o respuesta JSON alterados. & Revisar \cref{chap:javascript-ajax} y probar formulario individual. \\
+No se puede avanzar de fase & La fase no esta cerrada o faltan resultados. & Revisar \funcion{stage_is_closed} y resultados pendientes. \\
+Correo real bloqueado & SMTP incompleto, placeholders o falta de confirmacion. & Validar estado de correo y usar prueba controlada. \\
+PDF de invitacion falla & LibreOffice no disponible o timeout. & Configurar \variable{LIBREOFFICE_BINARY} y probar conversion. \\
+\bottomrule
+\end{longtable}
+
+\section{Checklist antes de evento}
+\label{sec:mantenimiento-checklist-evento}
+
+Antes de operar el sistema en un evento real se recomienda:
+
+\begin{itemize}
+  \item validar \archivo{.env} sin placeholders;
+  \item ejecutar \comando{manage.py check --deploy};
+  \item confirmar base PostgreSQL y respaldo;
+  \item probar SMTP en modo test;
+  \item probar LibreOffice con una plantilla DOCX;
+  \item crear edicion activa real;
+  \item validar formularios de registro;
+  \item confirmar usuarios staff autorizados;
+  \item ejecutar simulacion completa de grupos, eliminatorias, repechaje, correccion manual y podio.
+\end{itemize}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:mantenimiento-recomendaciones}
+
+\begin{itemize}
+  \item Separar \archivo{apps/tournament/services.py} por subdominios: inicializacion, resultados, fases manuales, recomendaciones, historial y sincronizacion.
+  \item Documentar formalmente el schema de \variable{DivisionCompetition.configuration}.
+  \item Crear runbooks para acciones de Admin y comandos de comunicaciones.
+  \item Definir responsable de mantenimiento, politica de versionado y calendario de pruebas antes de evento.
+  \item Agregar monitoreo de errores cuando exista entorno de produccion.
+  \item Mantener el manual actualizado cuando cambien modelos, servicios o contratos AJAX.
+\end{itemize}

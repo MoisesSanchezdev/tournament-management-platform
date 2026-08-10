@@ -1,0 +1,94 @@
+\chapter{Escalabilidad}
+\label{chap:escalabilidad}
+
+\section{Enfoque de escalabilidad}
+\label{sec:escalabilidad-enfoque}
+
+La escalabilidad de esta plataforma debe entenderse en dos niveles: evolucion funcional del dominio y crecimiento tecnico de infraestructura. El codigo actual ya separa aplicaciones Django por dominio, usa servicios para reglas del torneo y permite configuracion por division. Esa base facilita agregar escenarios nuevos. Sin embargo, el despliegue productivo, monitoreo, volumen real de datos y estrategia de infraestructura aun no estan confirmados.
+
+Por tanto, este capitulo describe capacidades sustentadas por la arquitectura existente y limites que deben resolverse antes de prometer crecimiento productivo.
+
+\section{Nuevas divisiones}
+\label{sec:escalabilidad-divisiones}
+
+El dominio opera con \clase{DivisionCompetition} asociada a edicion y division. Actualmente el sistema trabaja con categorias de colegios y universidades, derivadas del registro y de \clase{DivisionType}. Agregar una nueva division requeriria revisar:
+
+\begin{itemize}
+  \item enums o constantes de division;
+  \item formularios de registro si la division tiene datos distintos;
+  \item sincronizacion hacia \clase{Team};
+  \item vistas y filtros del panel;
+  \item reglas de inicializacion en servicios de torneo;
+  \item comunicaciones e invitaciones por tipo de participante.
+\end{itemize}
+
+La arquitectura por competencia por division favorece esta extension, porque evita mezclar todos los participantes en un unico cuadro. El riesgo esta en asumir que una nueva division comparte exactamente las mismas reglas y campos que las actuales.
+
+\section{Nuevos formatos de torneo}
+\label{sec:escalabilidad-formatos}
+
+El sistema ya soporta perfiles por cantidad de equipos, grupos, clasificadores, eliminatorias, repechajes, fases manuales y podio. Esa flexibilidad se concentra en \archivo{apps/tournament/formats.py}, \archivo{recommendations.py} y \archivo{services.py}.
+
+\begin{longtable}{p{3.6cm}p{4.7cm}p{4.3cm}}
+\caption{Extension de formatos de competencia.}
+\label{tab:escalabilidad-formatos}\\
+\toprule
+Extension & Base existente & Riesgo \\
+\midrule
+Mas tamanos de torneo & \funcion{competition_profile} y recomendaciones. & Reglas dispersas si no se separa el servicio. \\
+Nuevos repechajes & Servicios de materializacion y participantes eliminados recientes. & Reintegrar equipos sin coherencia de historial. \\
+Mas tipos de batalla & \clase{CompetitionBattle} y entradas por batalla. & Cambiar validaciones de ganador y clasificados. \\
+Nuevas fases manuales & Propuestas, firmas y confirmacion manual. & Schema JSON no documentado por completo. \\
+Reglas de clasificacion diferentes & \funcion{set_group_qualifiers} y \funcion{set_battle_qualifiers}. & Afectar propagacion de estados posteriores. \\
+\bottomrule
+\end{longtable}
+
+Antes de agregar formatos, deben ampliarse pruebas de \cref{chap:pruebas-calidad}. El crecimiento funcional sin pruebas aumentaria el riesgo R-01 y R-02 de \cref{chap:riesgos-limitaciones}.
+
+\section{Nuevas interfaces}
+\label{sec:escalabilidad-interfaces}
+
+La interfaz actual es server-side con JavaScript progresivo. Esta estructura permite agregar nuevas paginas Django sin introducir un frontend independiente. Para interfaces internas nuevas se debe reutilizar \archivo{tournament/control_base.html}; para paginas publicas, \archivo{core/base.html}.
+
+Una interfaz publica de resultados, por ejemplo, deberia leer estados ya persistidos en \clase{TeamCompetitionState}, \clase{CompetitionBattle} y \clase{CompetitionHistoryEntry}, no recalcular el torneo en el navegador. Si se decide construir una API o pantalla en tiempo real, debe conservarse la autoridad del backend descrita en \cref{chap:arquitectura}.
+
+\section{Nuevas integraciones}
+\label{sec:escalabilidad-integraciones}
+
+Las integraciones mas naturales son:
+
+\begin{itemize}
+  \item correo institucional, ya contemplado por SMTP;
+  \item conversion de documentos, ya soportada por LibreOffice;
+  \item exportacion de resultados, pendiente de implementacion;
+  \item visualizacion publica de llaves y estados, pendiente de implementacion;
+  \item monitoreo y logging externo, pendiente de definicion productiva.
+\end{itemize}
+
+Cada integracion debe respetar los controles de seguridad del \cref{chap:seguridad}: no exponer secretos, no enviar datos reales sin confirmacion y no introducir dependencias externas sin prueba operativa.
+
+\section{Escalabilidad tecnica}
+\label{sec:escalabilidad-tecnica}
+
+El uso de PostgreSQL fuera de desarrollo permite crecer mas que SQLite local. Aun asi, el proyecto no documenta volumen esperado, pruebas de carga ni infraestructura horizontal. Los cuellos de botella tecnicos mas relevantes son:
+
+\begin{itemize}
+  \item logica extensa y centralizada en \archivo{apps/tournament/services.py};
+  \item operaciones del panel que dependen de HTML renderizado y refresco parcial;
+  \item conversion PDF con proceso externo;
+  \item envio de correos por SMTP;
+  \item falta de monitoreo confirmado;
+  \item ausencia de estrategia productiva para media y backups.
+\end{itemize}
+
+\section{Recomendaciones para futuras versiones}
+\label{sec:escalabilidad-recomendaciones}
+
+\begin{itemize}
+  \item Separar servicios de torneo antes de ampliar significativamente formatos o divisiones.
+  \item Definir schema versionado de \variable{DivisionCompetition.configuration}.
+  \item Agregar pruebas de carga funcional para registro, panel interno y comunicaciones cuando exista volumen esperado.
+  \item Crear API o vistas publicas de resultados solo despues de estabilizar estados e historial.
+  \item Evaluar tareas asincronas para correo y conversion PDF si el volumen de invitaciones crece.
+  \item Definir infraestructura productiva, monitoreo y backups antes de prometer escalamiento operativo.
+\end{itemize}

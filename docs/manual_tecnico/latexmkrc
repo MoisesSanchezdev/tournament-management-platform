@@ -1,0 +1,7 @@
+$pdf_mode = 4;
+$pdflatex = 'lualatex -interaction=nonstopmode -file-line-error -synctex=1 %O %S';
+$biber = 'biber %O %B';
+$out_dir = 'build';
+$aux_dir = 'build';
+$bibtex_use = 2;
+$clean_ext = 'acn acr alg aux bbl bcf blg glg glo gls glsdefs ist lof log lot lol out run.xml synctex.gz toc xdy';

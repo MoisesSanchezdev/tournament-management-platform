@@ -1,0 +1,228 @@
+\chapter{Servicios y logica de negocio}
+\label{chap:servicios-logica-negocio}
+
+\section{Papel de los servicios en la arquitectura}
+\label{sec:servicios-papel}
+
+La plataforma separa las vistas HTTP de la regla de negocio mediante servicios. Esta decision es visible principalmente en \archivo{apps/tournament/services.py}: las vistas del panel reciben acciones, validan permisos y parametros, pero delegan las operaciones que modifican grupos, batallas, estados, historial y podio. El resultado es que la logica critica del torneo no queda duplicada entre endpoints.
+
+La separacion tiene un objetivo practico. Un resultado puede llegar desde una vista HTML tradicional o desde una peticion AJAX de \archivo{static/js/control.js}; en ambos casos debe aplicarse la misma regla de clasificacion, bloqueo de correcciones, escritura de historial y sincronizacion de estados. Centralizar esa regla en servicios reduce divergencias entre respuestas HTML y JSON.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: flujo AJAX de actualizacion de resultados hacia servicios de torneo. Fuente prevista: DIA-13 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo AJAX de actualizacion de resultados.}
+  \label{fig:servicios-ajax-resultados}
+\end{figure}
+
+\section{Organizacion funcional de servicios}
+\label{sec:servicios-organizacion}
+
+Los servicios del torneo se agrupan por responsabilidad funcional. Esta agrupacion es mas util que una lista de funciones porque explica que parte del estado protege cada bloque.
+
+\begin{longtable}{p{3.8cm}p{4.4cm}p{4.8cm}}
+\toprule
+Grupo funcional & Entradas principales & Efectos principales \\
+\midrule
+Inicializacion & Edicion, division, equipos confirmados, perfil automatico o overrides & Crea o actualiza \clase{DivisionCompetition}, grupos, batallas y estados. \\
+Planificacion de perfil & Cantidad de equipos, configuracion manual, rango de competencia & Define grupos, clasificados, stages, repechajes y final. \\
+Grupos & Grupo, entries seleccionados, layout enviado por panel & Marca clasificados, registra historial y sincroniza estados. \\
+Batallas & Batalla, ganador o clasificados, override manual & Guarda resultados, clasificados multiples, historial y estados posteriores. \\
+Repechaje & Estados eliminados, repechables y etapa abierta & Crea batallas de repechaje o reutiliza una fase abierta segura. \\
+Fases progresivas & Estados activos y recomendacion de siguiente fase & Materializa duelos, rondas grupales, semifinales, tercer lugar y final. \\
+Fases manuales & Etapa origen, participantes elegibles, distribucion enviada & Genera propuesta, valida firma, crea batalla(s) y elimina propuesta pendiente. \\
+Estado e historial & Competencia, equipo, stage, status y metadata & Mantiene \clase{TeamCompetitionState} y \clase{CompetitionHistoryEntry}. \\
+Presentacion & Competencia y stage actual & Construye contexto para panel, navegacion, resumen y modales. \\
+Podio & Competencia final y equipos seleccionados & Valida final, guarda podio y marca competencia completada. \\
+\bottomrule
+\end{longtable}
+
+\section{Inicializacion de competencia}
+\label{sec:servicios-inicializacion}
+
+La inicializacion empieza en \funcion{initialize_competition}. Puede ser invocada desde el panel interno o desde la confirmacion de asistencia, cuando un registro confirmado se sincroniza a equipo. Sus entradas principales son edicion, division y, opcionalmente, overrides de configuracion manual.
+
+El servicio obtiene equipos confirmados de la division, calcula un perfil con \funcion{competition_profile}, valida si la competencia existente puede reconstruirse y luego crea el andamiaje operativo: \clase{DivisionCompetition}, \clase{DivisionGroup}, \clase{DivisionGroupEntry}, \clase{CompetitionBattle} y \clase{TeamCompetitionState}. La reconstruccion se controla con verificaciones como \funcion{competition_has_rebuild_blockers}, \funcion{competition_has_started_flow} y \funcion{validate_profile_change}.
+
+La decision de proteger cambios posteriores responde a un problema concreto: si se cambia cantidad de grupos o clasificados despues de registrar resultados, los estados e historial existentes pueden dejar de coincidir con la estructura. El servicio evita esos cambios salvo condiciones seguras. La ventaja es que el panel puede permitir configuracion sin comprometer resultados ya guardados. El impacto de mantenimiento es claro: cualquier nueva configuracion debe definir si puede aplicarse con progreso existente o si debe bloquearse.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: inicializacion y reconstruccion de competencia. Fuente prevista: DIA-08 y flujo de inicializacion de auditoria.}}
+  \caption{Marcador para inicializacion de competencia.}
+  \label{fig:servicios-inicializacion}
+\end{figure}
+
+\section{Planificacion de perfiles y fases}
+\label{sec:servicios-planificacion}
+
+\archivo{apps/tournament/formats.py} define perfiles automaticos por cantidad de equipos. El objetivo es evitar que la estructura del torneo dependa de configuracion manual para cada evento. Los perfiles confirmados son:
+
+\begin{longtable}{p{3.4cm}p{4.2cm}p{5.2cm}}
+\toprule
+Rango de equipos & Perfil & Estructura principal \\
+\midrule
+Menos de 4 & \variable{minimum_pending} & Competencia en espera, sin torneo automatico. \\
+4 a 15 & \variable{sprint_final4} & 2 grupos, 2 clasificados por grupo, semifinal y final. \\
+16 a 31 & \variable{classic_final8} & 4 grupos, 2 clasificados, cuartos, semifinal y final. \\
+32 a 63 & \variable{explosion_standard} & 8 grupos, 2 clasificados y repechaje 1. \\
+64 o mas & \variable{explosion_extended} & 16 grupos, ronda de 32 y repechaje 1. \\
+\bottomrule
+\end{longtable}
+
+\funcion{build_profile} valida que la cantidad de grupos y clasificados tenga sentido. \funcion{auto_profile} selecciona el perfil por cantidad de equipos. \funcion{competition_profile} combina el perfil automatico con overrides manuales cuando existen. Esta separacion permite que el sistema proponga una estructura razonable y que el operador ajuste configuraciones permitidas desde el panel.
+
+\archivo{apps/tournament/recommendations.py} complementa esta capa despues de que la competencia ya tiene progreso. Sus funciones construyen snapshots de participantes, cuentan estados, recomiendan siguiente fase, calculan repechaje opcional y preparan preview de tercer lugar. Esto evita que la vista tenga que deducir por si sola que fase conviene crear.
+
+\section{Generacion y mantenimiento de grupos}
+\label{sec:servicios-grupos}
+
+La fase de grupos se construye con asignaciones balanceadas. \funcion{balanced_group_assignments} distribuye equipos procurando separar instituciones. \funcion{update_group_layout} permite reorganizar grupos antes de que existan clasificados, batallas o resultados guardados. Esa restriccion evita mover participantes cuando ya existe progreso competitivo.
+
+La clasificacion desde grupos se registra con \funcion{set_group_qualifiers}. Sus entradas son el grupo, los IDs de entries seleccionados y el indicador \variable{manual_override}. El servicio valida que:
+
+\begin{itemize}
+  \item el grupo tenga suficientes carros para la cantidad de clasificados definida;
+  \item los entries seleccionados pertenezcan al grupo;
+  \item la cantidad seleccionada coincida con \variable{qualifiers_per_group};
+  \item no se sobrescriba progreso posterior sin confirmacion.
+\end{itemize}
+
+El efecto de una clasificacion no se limita al grupo. El servicio actualiza marcas de clasificacion, registra \clase{CompetitionHistoryEntry}, sincroniza estados y puede abrir el camino para fases posteriores. Por eso el historial se conserva como parte de la regla de negocio, no como log accesorio.
+
+\section{Eliminatorias y resultados de batallas}
+\label{sec:servicios-eliminatorias}
+
+Las batallas representan duelos, triangulares, campales o grupos segun \clase{BattleFormat}. El servicio \funcion{set_battle_winner} aplica cuando la batalla requiere ganador unico. \funcion{set_battle_qualifiers} aplica cuando se permiten multiples clasificados. Ambos validan que los equipos enviados pertenezcan a la batalla y que la cantidad coincida con el formato.
+
+Las funciones de siembra, como \funcion{seed_duel_stage}, \funcion{seed_next_duel_stage} y \funcion{wire_final_stages}, conectan fases a partir de ganadores o clasificados previos. Esto permite que el resultado de una etapa alimente la siguiente sin reconstruir manualmente cada cruce.
+
+El riesgo principal aparece cuando se corrige un resultado despues de que fases posteriores ya empezaron. Para ese caso se usa \clase{ManualCorrectionRequired}. El servicio no aplica silenciosamente la correccion; solicita confirmacion mediante la vista. Si el operador confirma, el request vuelve con \variable{manual_override}. Esta decision protege consistencia entre fases y deja explicito que el cambio puede afectar resultados posteriores.
+
+\section{Repechajes y fases progresivas}
+\label{sec:servicios-repechajes}
+
+El repechaje se materializa con \funcion{materialize_repechage_stage}. Antes de crear batallas, el servicio sincroniza estados, calcula candidatos, define un formato seguro y revisa si ya existe una etapa abierta. Los candidatos salen de estados eliminados o repechables, segun el flujo calculado por servicios y recomendaciones.
+
+La regla de formato evita estructuras imposibles:
+
+\begin{longtable}{p{3.2cm}p{9.5cm}}
+\toprule
+Candidatos & Tratamiento documentado \\
+\midrule
+2 & Un duelo. \\
+3 & Una triangular. \\
+4 & Dos duelos. \\
+6 & Dos triangulares. \\
+4 o mas en otros casos & Campales balanceadas, hasta cuatro participantes por unidad segun plan seguro. \\
+\bottomrule
+\end{longtable}
+
+Las fases progresivas usan \funcion{materialize_recommended_duel_stage}, \funcion{_materialize_balanced_group_round} y funciones de final para abrir la siguiente etapa cuando la recomendacion lo permite. El servicio tambien evita duplicar fases abiertas o modificar una fase con progreso. Esta proteccion es necesaria porque una competencia puede tener escenarios no lineales: repechaje abierto, ronda grupal adicional, semifinal, tercer lugar o final.
+
+\section{Fases manuales}
+\label{sec:servicios-fases-manuales}
+
+Las fases manuales resuelven escenarios que no encajan directamente en la recomendacion automatica. El flujo empieza con \funcion{manual_phase_context}, que informa opciones disponibles y propuesta vigente. \funcion{generate_manual_phase_proposal} recibe etapa origen y datos POST, valida participantes elegibles, calcula distribucion y guarda una propuesta en \variable{competition.configuration["manual_phase_proposal"]}.
+
+La propuesta no se materializa inmediatamente. Primero queda disponible para revision. Al confirmar, \funcion{confirm_manual_phase_proposal} valida:
+
+\begin{itemize}
+  \item que exista propuesta vigente;
+  \item que la firma de propuesta coincida;
+  \item que la propuesta corresponda a la etapa origen;
+  \item que los participantes elegibles no hayan cambiado;
+  \item que no exista otra fase abierta incompatible;
+  \item que no haya participantes duplicados, faltantes o grupos vacios;
+  \item que no clasifiquen todos los participantes de un grupo.
+\end{itemize}
+
+La firma de propuesta y la firma de participantes protegen contra cambios entre generacion y confirmacion. Esta decision resuelve un problema real del panel: el usuario puede revisar y reasignar grupos, pero el estado competitivo puede cambiar antes de confirmar. La validacion impide materializar una propuesta obsoleta.
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: generacion, revision, confirmacion y cancelacion de fase manual. Fuente prevista: DIA-12 en \archivo{planificacion/06_inventario_diagramas.md}.}}
+  \caption{Marcador para flujo de correccion y fase manual.}
+  \label{fig:servicios-fase-manual}
+\end{figure}
+
+\section{Persistencia de estado e historial}
+\label{sec:servicios-historial}
+
+El estado operativo se mantiene en \clase{TeamCompetitionState}. El historial se registra en \clase{CompetitionHistoryEntry}. Esta separacion resuelve dos necesidades distintas: consultar rapido donde esta cada equipo y conservar eventos que explican como llego a ese estado.
+
+\funcion{record_history} crea entradas de historial con competencia, equipo, tipo de accion, stage, status, titulo, descripcion, estados previos y nuevos, grupo previo/nuevo, batalla y metadata. Servicios como \funcion{set_group_qualifiers}, \funcion{set_battle_winner}, \funcion{set_battle_qualifiers}, \funcion{update_group_layout}, \funcion{update_participant_state} y \funcion{save_final_podium} lo usan para preservar trazabilidad.
+
+La conservacion del historial tiene ventajas concretas:
+
+\begin{itemize}
+  \item permite revisar movimientos y resultados de un equipo;
+  \item reduce ambiguedad en correcciones manuales;
+  \item ayuda a detectar si ya existe progreso antes de reconstruir competencia;
+  \item alimenta modales de participante en el panel interno.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \fbox{\parbox{0.88\textwidth}{\centering Marcador de diagrama: persistencia de historial y propagacion de estados.}}
+  \caption{Marcador para persistencia de historial y estados.}
+  \label{fig:servicios-historial}
+\end{figure}
+
+\section{Consistencia, transacciones y excepciones}
+\label{sec:servicios-consistencia}
+
+Las operaciones que modifican competencia usan \funcion{transaction.atomic} en puntos criticos: inicializacion, reset, clasificacion de grupos, reorganizacion, resultados de batalla, propuestas manuales, repechajes, fases recomendadas, podio y actualizacion manual de participante. Esto evita guardar cambios parciales cuando una validacion falla a mitad del proceso.
+
+Las excepciones controladas cumplen dos funciones. \clase{ValueError} comunica errores de validacion que pueden mostrarse al operador. \clase{ManualCorrectionRequired} indica que la accion puede afectar progreso posterior y necesita confirmacion explicita. La vista convierte esa excepcion en JSON con \variable{requires_confirmation} cuando la solicitud es AJAX.
+
+El indicador \variable{manual_override} no es una forma de saltar reglas basicas. Solo se usa para confirmar que el operador entiende que esta corrigiendo una fase ya iniciada o con consecuencias posteriores. Las validaciones de pertenencia, duplicados, cantidad de clasificados y grupos validos siguen aplicando.
+
+\section{Operaciones AJAX relacionadas}
+\label{sec:servicios-ajax}
+
+\archivo{static/js/control.js} envia acciones con \variable{X-Requested-With=XMLHttpRequest} y CSRF. Las vistas de torneo responden JSON en guardados AJAX de grupos, ganadores y multiples clasificados. Si el servicio devuelve exito, el cliente refresca contenido. Si el servicio exige confirmacion, el cliente muestra \funcion{window.confirm} y reintenta con \variable{manual_override}.
+
+Este contrato tiene tres piezas:
+
+\begin{itemize}
+  \item JavaScript valida seleccion y envia POST.
+  \item Vista traduce POST a llamada de servicio.
+  \item Servicio protege regla de negocio y retorna mensaje o excepcion controlada.
+\end{itemize}
+
+El mantenimiento debe considerar las tres. Cambiar nombres de acciones, campos POST o estructura JSON rompe el flujo aunque los modelos sigan intactos.
+
+\section{Impacto de modificacion}
+\label{sec:servicios-impacto-modificacion}
+
+\begin{longtable}{p{3.7cm}p{4.2cm}p{2.6cm}p{3.4cm}}
+\toprule
+Componente & Componentes relacionados & Riesgo & Accion recomendada \\
+\midrule
+\funcion{initialize_competition} & Modelos de torneo, equipos, vistas de panel, perfiles & Alto & Probar generacion por division, con y sin competencia existente. \\
+\funcion{set_group_qualifiers} & Grupos, estados, historial, AJAX & Alto & Probar clasificacion normal y correccion con \variable{manual_override}. \\
+\funcion{set_battle_winner} & Batallas, estados, historial, podio & Alto & Probar ganador valido, ganador invalido y fase posterior iniciada. \\
+\funcion{set_battle_qualifiers} & Batallas campales/grupales, configuration, estados & Alto & Validar duplicados, cantidad exacta y participantes permitidos. \\
+\funcion{materialize_repechage_stage} & Estados eliminados, batallas, recomendaciones & Medio & Probar cantidades 2, 3, 4, 6 y escenarios sin plan seguro. \\
+\funcion{generate_manual_phase_proposal} & Configuration, participantes elegibles, vistas & Alto & Probar firma, elegibles cambiantes y distribuciones invalidas. \\
+\funcion{confirm_manual_phase_proposal} & Batallas, estados, historial, configuration & Alto & Probar propuesta vigente, obsoleta, duplicada y grupos vacios. \\
+\funcion{record_history} & Historial, modales, bloqueos de reconstruccion & Medio & Verificar metadata y entradas por accion critica. \\
+\archivo{static/js/control.js} & Vistas AJAX, templates, servicios & Medio & Probar guardado individual, guardado multiple y confirmacion manual. \\
+\bottomrule
+\end{longtable}
+
+\section{Consideraciones de mantenimiento}
+\label{sec:servicios-mantenimiento}
+
+\begin{longtable}{p{4cm}p{9cm}}
+\toprule
+Aspecto & Consideracion \\
+\midrule
+Archivos relacionados & \archivo{apps/tournament/services.py}, \archivo{formats.py}, \archivo{recommendations.py}, \archivo{views.py}, \archivo{models.py}, \archivo{static/js/control.js} y templates de torneo. \\
+Pruebas recomendadas & Inicializacion, perfiles por rango, grupos, ganadores, clasificados multiples, repechaje, fase manual, podio, AJAX y correcciones con \variable{manual_override}. \\
+Riesgos & Concentracion de logica en \archivo{services.py}, claves JSON no tipadas, correcciones sobre progreso existente y acoplamiento con JavaScript. \\
+Dependencias & \clase{Team}, \clase{DivisionCompetition}, \clase{TeamCompetitionState}, \clase{CompetitionHistoryEntry}, vistas de panel y \archivo{control.js}. \\
+Buenas practicas & Mantener validaciones en servicios, no duplicar reglas en vistas, registrar historial en cambios de estado, documentar nuevas claves de \variable{configuration} y ampliar pruebas antes de modificar fases. \\
+\bottomrule
+\end{longtable}
