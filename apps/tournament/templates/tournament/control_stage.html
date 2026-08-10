@@ -26,7 +26,10 @@
     <div class="recommendation-main">
         <div>
             <p class="eyebrow">Recomendacion del sistema</p>
-            {% if recommendation_ready %}
+            {% if competition_completed %}
+                <h2>Torneo completado</h2>
+                <p>El podio final esta registrado. Puedes consultar los resultados o corregirlos si fuera necesario.</p>
+            {% elif recommendation_ready %}
                 <h2>{{ system_recommendation.title }}</h2>
                 <p>{{ system_recommendation.explanation }}</p>
             {% else %}
@@ -35,10 +38,14 @@
             {% endif %}
         </div>
         <div class="recommendation-status">
-            <span>Vista previa</span>
-            {% if recommendation_ready %}
+            {% if competition_completed %}
+                <span>Cierre confirmado</span>
+                <button class="button secondary" type="button" disabled>Torneo finalizado</button>
+            {% elif recommendation_ready %}
+                <span>Vista previa</span>
                 <button class="button secondary" type="button" data-phase-decision-open>Pasar a la siguiente fase</button>
             {% else %}
+                <span>Vista previa</span>
                 <button class="button secondary" type="button" disabled>Completa y guarda todos los resultados para pasar a la siguiente fase.</button>
             {% endif %}
         </div>

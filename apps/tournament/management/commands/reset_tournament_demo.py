@@ -1,7 +1,10 @@
+import tempfile
 from itertools import product
+from pathlib import Path
 
-from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection, transaction
 
 from apps.participants.forms import normalize_robot_name
 from apps.participants.models import (
@@ -257,8 +260,41 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--school-count", type=int, default=50, help="Cantidad de registros de colegios.")
         parser.add_argument("--university-count", type=int, default=50, help="Cantidad de registros de universidades.")
+        parser.add_argument(
+            "--confirm-demo-reset",
+            action="store_true",
+            help="Confirma que se borrara unicamente una base temporal de demostracion.",
+        )
 
     def handle(self, *args, **options):
+        if not getattr(settings, "ALLOW_DESTRUCTIVE_DEMO_RESET", False):
+            raise CommandError(
+                "reset_tournament_demo esta deshabilitado en este entorno. "
+                "Usa una configuracion temporal con ALLOW_DESTRUCTIVE_DEMO_RESET=True."
+            )
+        if not options["confirm_demo_reset"]:
+            raise CommandError(
+                "Debes agregar --confirm-demo-reset para confirmar el borrado de la base demo aislada."
+            )
+
+        database_name = str(connection.settings_dict.get("NAME") or "")
+        is_memory_database = database_name == ":memory:" or database_name.startswith("file:memorydb_")
+        if connection.vendor != "sqlite":
+            raise CommandError("reset_tournament_demo solo puede ejecutarse sobre una base SQLite aislada.")
+        if not is_memory_database:
+            database_path = Path(database_name).resolve()
+            allowed_roots = [Path(tempfile.gettempdir()).resolve()]
+            demo_root = getattr(settings, "DEMO_ROOT", None)
+            if demo_root:
+                allowed_roots.append(Path(demo_root).resolve())
+            if not any(
+                root == database_path or root in database_path.parents
+                for root in allowed_roots
+            ):
+                raise CommandError(
+                    "La base demo debe estar en el directorio temporal del sistema o dentro de "
+                    "DEMO_ROOT; no se elimino ningun dato."
+                )
         school_count = options["school_count"]
         university_count = options["university_count"]
         if school_count < 0 or university_count < 0:

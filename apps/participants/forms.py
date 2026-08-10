@@ -2,6 +2,7 @@ import re
 import unicodedata
 
 from django import forms
+from django.db import transaction
 
 from apps.tournament.models import TournamentEdition
 from .models import (
@@ -155,6 +156,7 @@ class BaseRegistrationForm(forms.ModelForm):
                     )
         return cleaned_data
 
+    @transaction.atomic
     def save(self, commit=True):
         registration = super().save(commit=False)
         registration.edition = self.active_edition

@@ -9,6 +9,7 @@ from .formats import competition_profile
 from .planner import build_division_plan
 from .recommendations import next_phase_recommendation
 from .models import (
+    CompetitionStatus,
     CompetitionStage,
     DivisionCompetition,
     DivisionType,
@@ -38,7 +39,6 @@ from .services import (
     set_group_qualifiers,
     stage_summary,
     sync_competition,
-    update_participant_state,
     update_group_layout,
 )
 
@@ -66,10 +66,6 @@ def manual_overrides_from_post(post_data):
         "allow_purgatory_two": checkbox_to_bool(post_data, "allow_purgatory_two"),
         "enable_third_place": checkbox_to_bool(post_data, "enable_third_place"),
     }
-
-
-def modal_payload_error(message, status=400):
-    return JsonResponse({"ok": False, "message": message}, status=status)
 
 
 def wants_json_response(request):
@@ -256,8 +252,12 @@ def control_division(request, competition_id):
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "save_group_qualifiers":
-            group = get_object_or_404(competition.groups.prefetch_related("entries__team"), pk=request.POST.get("group_id"))
             try:
+                group = competition.groups.prefetch_related("entries__team").filter(
+                    pk=request.POST.get("group_id")
+                ).first()
+                if group is None:
+                    raise ValueError("El grupo enviado no pertenece a esta competencia.")
                 selected_entry_ids = request.POST.getlist("qualified_entry_ids")
                 result = set_group_qualifiers(
                     group,
@@ -277,8 +277,12 @@ def control_division(request, competition_id):
             return redirect("tournament:control_division", competition_id=competition.id)
 
         if action == "save_battle_winner":
-            battle = get_object_or_404(competition.battles.prefetch_related("entries__team"), pk=request.POST.get("battle_id"))
             try:
+                battle = competition.battles.prefetch_related("entries__team").filter(
+                    pk=request.POST.get("battle_id")
+                ).first()
+                if battle is None:
+                    raise ValueError("La batalla enviada no pertenece a esta competencia.")
                 winner_team_id = int(request.POST.get("winner_team_id", "0"))
                 result = set_battle_winner(
                     battle,
@@ -375,7 +379,8 @@ def control_division(request, competition_id):
     auto_suggestion = competition_profile(profile.get("team_count", 0))
     navigation = visible_stage_navigation(competition)
     current_stage_key = navigation[-1]["key"] if navigation else CompetitionStage.GROUPS
-    recommendation_ready = stage_is_closed(competition, current_stage_key)
+    competition_completed = competition.status == CompetitionStatus.COMPLETED
+    recommendation_ready = not competition_completed and stage_is_closed(competition, current_stage_key)
     layout_entries = (
         competition.groups.all()
         .prefetch_related("entries__team__institution")
@@ -388,6 +393,7 @@ def control_division(request, competition_id):
             "competition": competition,
             "profile": profile,
             "system_recommendation": system_recommendation,
+            "competition_completed": competition_completed,
             "recommendation_ready": recommendation_ready,
             "recommendation_stage_key": current_stage_key,
             "manual_phase": manual_phase_context(competition, current_stage_key),
@@ -417,21 +423,41 @@ def control_division_stage(request, competition_id, stage_key):
     if stage_key not in valid_stages:
         return redirect("tournament:control_division", competition_id=competition.id)
     post_action = request.POST.get("action") if request.method == "POST" else ""
-    if post_action not in {
+    phase_decision_actions = {
         "create_recommended_phase",
         "create_repechage_phase",
         "create_manual_duel_phase",
         "generate_manual_phase_proposal",
         "confirm_manual_phase_proposal",
         "cancel_manual_phase_proposal",
-    }:
+    }
+    phase_advance_actions = phase_decision_actions - {"cancel_manual_phase_proposal"}
+    if (
+        request.method == "POST"
+        and competition.status == CompetitionStatus.COMPLETED
+        and post_action in phase_advance_actions
+    ):
+        message = "El torneo ya esta completado; no se pueden crear ni confirmar fases nuevas."
+        if wants_json_response(request):
+            return JsonResponse({"ok": False, "message": message}, status=409)
+        messages.error(request, message)
+        return redirect(
+            "tournament:control_division_stage",
+            competition_id=competition.id,
+            stage_key=stage_key,
+        )
+    if post_action not in phase_decision_actions:
         sync_competition(competition)
 
     if request.method == "POST":
         action = post_action
         if action == "save_group_qualifiers" and stage_key == CompetitionStage.GROUPS:
-            group = get_object_or_404(competition.groups.prefetch_related("entries__team"), pk=request.POST.get("group_id"))
             try:
+                group = competition.groups.prefetch_related("entries__team").filter(
+                    pk=request.POST.get("group_id")
+                ).first()
+                if group is None:
+                    raise ValueError("El grupo enviado no pertenece a esta competencia.")
                 selected_entry_ids = request.POST.getlist("qualified_entry_ids")
                 result = set_group_qualifiers(
                     group,
@@ -454,8 +480,13 @@ def control_division_stage(request, competition_id, stage_key):
             return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
 
         if action == "save_battle_winner" and stage_key != CompetitionStage.GROUPS:
-            battle = get_object_or_404(competition.battles.prefetch_related("entries__team"), pk=request.POST.get("battle_id"))
             try:
+                battle = competition.battles.prefetch_related("entries__team").filter(
+                    pk=request.POST.get("battle_id"),
+                    stage=stage_key,
+                ).first()
+                if battle is None:
+                    raise ValueError("La batalla enviada no pertenece a esta competencia.")
                 winner_team_id = int(request.POST.get("winner_team_id", "0"))
                 result = set_battle_winner(
                     battle,
@@ -478,8 +509,13 @@ def control_division_stage(request, competition_id, stage_key):
             return redirect("tournament:control_division_stage", competition_id=competition.id, stage_key=stage_key)
 
         if action == "save_battle_qualifiers" and stage_key != CompetitionStage.GROUPS:
-            battle = get_object_or_404(competition.battles.prefetch_related("entries__team"), pk=request.POST.get("battle_id"))
             try:
+                battle = competition.battles.prefetch_related("entries__team").filter(
+                    pk=request.POST.get("battle_id"),
+                    stage=stage_key,
+                ).first()
+                if battle is None:
+                    raise ValueError("La batalla enviada no pertenece a esta competencia.")
                 selected_team_ids = request.POST.getlist("qualified_team_ids")
                 result = set_battle_qualifiers(
                     battle,
@@ -618,7 +654,10 @@ def control_division_stage(request, competition_id, stage_key):
     context["edition"] = competition.edition
     context["navigation"] = visible_stage_navigation(competition, current_stage=stage_key)
     context["system_recommendation"] = next_phase_recommendation(competition)
-    context["recommendation_ready"] = stage_is_closed(competition, stage_key)
+    context["competition_completed"] = competition.status == CompetitionStatus.COMPLETED
+    context["recommendation_ready"] = (
+        not context["competition_completed"] and stage_is_closed(competition, stage_key)
+    )
     context["recommendation_wait_message"] = "Finaliza esta fase para calcular la recomendacion de avance."
     context["recommendation_stage_key"] = stage_key
     context["manual_phase"] = manual_phase_context(competition, stage_key)
@@ -640,51 +679,6 @@ def participant_modal_detail(request, competition_id, state_id):
         competition=competition,
     )
     return JsonResponse({"ok": True, "participant": participant_modal_payload(state)})
-
-
-@login_required
-@user_passes_test(is_organizer)
-def participant_modal_update(request, competition_id, state_id):
-    if request.method != "POST":
-        return modal_payload_error("Metodo no permitido.", status=405)
-
-    competition = get_object_or_404(DivisionCompetition, pk=competition_id)
-    state = get_object_or_404(
-        TeamCompetitionState.objects.select_related(
-            "competition",
-            "team__institution",
-            "current_group",
-            "current_battle",
-        ),
-        pk=state_id,
-        competition=competition,
-    )
-
-    target_stage = request.POST.get("target_stage") or state.current_stage
-    target_status_override = request.POST.get("target_status_override", "")
-    target_group_id = request.POST.get("target_group_id") or None
-    target_battle_id = request.POST.get("target_battle_id") or None
-    note = request.POST.get("note", "").strip()
-
-    try:
-        updated_state = update_participant_state(
-            state,
-            target_stage=target_stage,
-            target_status_override=target_status_override,
-            target_group_id=target_group_id,
-            target_battle_id=target_battle_id,
-            note=note,
-        )
-    except ValueError as error:
-        return modal_payload_error(str(error))
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": f"Se actualizo {updated_state.team.robot_name}.",
-            "participant": participant_modal_payload(updated_state),
-        }
-    )
 
 
 @login_required

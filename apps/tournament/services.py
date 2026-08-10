@@ -118,6 +118,11 @@ def division_category_label(division: str) -> str:
 
 
 def stage_sequence(profile: dict):
+    if profile.get("progressive_flow"):
+        return [
+            CompetitionStage.GROUPS,
+            *profile.get("progressive_created_stages", []),
+        ]
     return [CompetitionStage.GROUPS, *[stage["stage"] for stage in profile.get("stages", [])]]
 
 
@@ -532,11 +537,29 @@ def initialize_competition(
             "status": CompetitionStatus.DRAFT,
         },
     )
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
+    teams = randomized_teams(edition, division)
+    requested_profile = competition_profile(len(teams), overrides)
     if preserve_existing_profile and not created and overrides is None:
         requested_profile = competition_profile_from_instance(competition)
 
     if created or not competition_has_rebuild_blockers(competition):
         return rebuild_competition_scaffold(competition, teams, requested_profile)
+
+    approved_team_ids = {team.id for team in teams}
+    assigned_team_ids = set(
+        DivisionGroupEntry.objects.filter(group__competition=competition).values_list("team_id", flat=True)
+    )
+    if approved_team_ids != assigned_team_ids:
+        added_count = len(approved_team_ids - assigned_team_ids)
+        removed_count = len(assigned_team_ids - approved_team_ids)
+        raise ValueError(
+            "Los equipos aprobados ya no coinciden con el cuadro que tiene progreso "
+            f"({added_count} nuevo(s), {removed_count} retirado(s)). "
+            "No se modifico la competencia; revisa estas inscripciones manualmente."
+        )
 
     current_profile = competition_profile_from_instance(competition)
     validate_profile_change(competition, current_profile, requested_profile)
@@ -554,6 +577,9 @@ def initialize_competition(
 
 @transaction.atomic
 def reset_competition_state(competition):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     profile = competition_profile_from_instance(competition)
     teams = randomized_teams(competition.edition, competition.division)
     return rebuild_competition_scaffold(competition, teams, profile, reset_progressive_state=True)
@@ -582,7 +608,15 @@ def attach_group_payload(competition):
 
 @transaction.atomic
 def set_group_qualifiers(group, selected_entry_ids: list[int], manual_override: bool = False):
-    competition = group.competition
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=group.competition_id
+    )
+    group = (
+        DivisionGroup.objects.select_for_update()
+        .select_related("competition")
+        .get(pk=group.pk, competition=competition)
+    )
+    group.competition = competition
     profile = competition_profile_from_instance(competition)
     qualifiers_per_group = profile["qualifiers_per_group"]
     entries = list(group.entries.select_related("team").order_by("slot_order"))
@@ -596,8 +630,16 @@ def set_group_qualifiers(group, selected_entry_ids: list[int], manual_override: 
     if len(submitted_ids) != qualifiers_per_group:
         raise ValueError(f"Debes seleccionar exactamente {qualifiers_per_group} clasificado(s) en este grupo.")
     current_qualified_ids = {entry.id for entry in entries if entry.qualified_from_group}
+    if submitted_ids == current_qualified_ids:
+        return {"manual_correction_applied": False, "unchanged": True}
+    previous_team_ids = [
+        entry.team_id for entry in entries if entry.qualified_from_group
+    ]
+    submitted_team_ids = [
+        entry.team_id for entry in entries if entry.id in submitted_ids
+    ]
     manual_correction_applied = False
-    if submitted_ids != current_qualified_ids and later_stages_have_started(competition, CompetitionStage.GROUPS):
+    if current_qualified_ids:
         if not manual_override:
             raise ManualCorrectionRequired()
         manual_correction_applied = True
@@ -630,6 +672,13 @@ def set_group_qualifiers(group, selected_entry_ids: list[int], manual_override: 
                 metadata={"qualified": entry.qualified_from_group, "rank": entry.final_rank},
             )
     DivisionGroupEntry.objects.bulk_update(entries, ["qualified_from_group", "final_rank"])
+    if manual_correction_applied:
+        _replace_corrected_participant_destinations(
+            competition,
+            CompetitionStage.GROUPS,
+            previous_team_ids,
+            submitted_team_ids,
+        )
     sync_competition(competition)
     return {"manual_correction_applied": manual_correction_applied}
 
@@ -682,6 +731,9 @@ def _pick_battle_for_stage(competition, stage, battle_id=None):
 
 @transaction.atomic
 def update_group_layout(competition, assignments_by_entry_id: dict[int, int]):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     if competition_has_started_flow(competition):
         raise ValueError("No puedes reorganizar grupos cuando ya hay clasificados, batallas o resultados guardados.")
     profile = competition_profile_from_instance(competition)
@@ -752,15 +804,25 @@ def update_group_layout(competition, assignments_by_entry_id: dict[int, int]):
 
 @transaction.atomic
 def set_battle_winner(battle, winner_team_id: int, manual_override: bool = False):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=battle.competition_id
+    )
+    battle = (
+        CompetitionBattle.objects.select_for_update()
+        .select_related("competition")
+        .prefetch_related("entries__team")
+        .get(pk=battle.pk, competition=competition)
+    )
+    battle.competition = competition
     if _battle_qualifier_target(battle) > 1:
         raise ValueError("Esta fase permite multiples clasificados. Usa el guardado de clasificados del grupo.")
     team_ids = list(battle.entries.values_list("team_id", flat=True))
     if winner_team_id not in team_ids:
         raise ValueError("El ganador debe pertenecer a la batalla.")
-    if battle.winner_id and battle.winner_id != winner_team_id and later_stages_have_started(
-        battle.competition,
-        battle.stage,
-    ):
+    if battle.winner_id == winner_team_id and battle.status == MatchStatus.FINISHED:
+        return {"manual_correction_applied": False, "unchanged": True}
+    previous_winner_id = battle.winner_id
+    if battle.winner_id and battle.winner_id != winner_team_id:
         if not manual_override:
             raise ManualCorrectionRequired()
         manual_correction_applied = True
@@ -769,6 +831,14 @@ def set_battle_winner(battle, winner_team_id: int, manual_override: bool = False
     battle.winner_id = winner_team_id
     battle.status = MatchStatus.FINISHED
     battle.save(update_fields=["winner", "status", "updated_at"])
+
+    if manual_correction_applied:
+        _replace_corrected_participant_destinations(
+            battle.competition,
+            battle.stage,
+            [previous_winner_id],
+            [winner_team_id],
+        )
 
     for entry in battle.entries.select_related("team"):
         won = entry.team_id == winner_team_id
@@ -789,6 +859,16 @@ def set_battle_winner(battle, winner_team_id: int, manual_override: bool = False
 
 @transaction.atomic
 def set_battle_qualifiers(battle, qualified_team_ids: list[int], manual_override: bool = False):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=battle.competition_id
+    )
+    battle = (
+        CompetitionBattle.objects.select_for_update()
+        .select_related("competition")
+        .prefetch_related("entries__team")
+        .get(pk=battle.pk, competition=competition)
+    )
+    battle.competition = competition
     target = _battle_qualifier_target(battle)
     if target < 1:
         raise ValueError("Esta batalla no esta configurada para multiples clasificados.")
@@ -803,8 +883,11 @@ def set_battle_qualifiers(battle, qualified_team_ids: list[int], manual_override
         raise ValueError(f"Debes seleccionar exactamente {target} clasificado(s).")
 
     current_ids = set(_battle_qualified_team_ids(battle.competition, battle))
+    if current_ids == set(submitted_ids) and battle.status == MatchStatus.FINISHED:
+        return {"manual_correction_applied": False, "unchanged": True}
+    previous_ids = _battle_qualified_team_ids(battle.competition, battle)
     manual_correction_applied = False
-    if current_ids and current_ids != set(submitted_ids) and later_stages_have_started(battle.competition, battle.stage):
+    if current_ids and current_ids != set(submitted_ids):
         if not manual_override:
             raise ManualCorrectionRequired()
         manual_correction_applied = True
@@ -813,6 +896,14 @@ def set_battle_qualifiers(battle, qualified_team_ids: list[int], manual_override
     battle.winner_id = submitted_ids[0]
     battle.status = MatchStatus.FINISHED
     battle.save(update_fields=["winner", "status", "updated_at"])
+
+    if manual_correction_applied:
+        _replace_corrected_participant_destinations(
+            battle.competition,
+            battle.stage,
+            previous_ids,
+            submitted_ids,
+        )
 
     selected = set(submitted_ids)
     for entry in battle.entries.select_related("team"):
@@ -830,6 +921,131 @@ def set_battle_qualifiers(battle, qualified_team_ids: list[int], manual_override
         )
     sync_competition(battle.competition)
     return {"manual_correction_applied": manual_correction_applied}
+
+
+def _replace_corrected_participant_destinations(
+    competition,
+    source_stage,
+    previous_team_ids,
+    new_team_ids,
+):
+    previous_team_ids = [int(team_id) for team_id in previous_team_ids if team_id]
+    new_team_ids = [int(team_id) for team_id in new_team_ids if team_id]
+    removed_ids = [
+        team_id for team_id in previous_team_ids if team_id not in new_team_ids
+    ]
+    added_ids = [
+        team_id for team_id in new_team_ids if team_id not in previous_team_ids
+    ]
+    if len(removed_ids) != len(added_ids):
+        raise ValueError(
+            "La correccion no conserva la cantidad de clasificados; no se modificaron fases posteriores."
+        )
+
+    profile = competition_profile_from_instance(competition)
+    stages = stage_sequence(profile)
+    configuration = {**(competition.configuration or {})}
+    configuration.pop("final_podium", None)
+    configuration.pop("pending_integration_plan", None)
+    if source_stage not in stages:
+        competition.configuration = configuration
+        competition.save(update_fields=["configuration", "updated_at"])
+        return
+
+    later_stages = stages[stages.index(source_stage) + 1 :]
+    if not later_stages:
+        competition.configuration = configuration
+        competition.save(update_fields=["configuration", "updated_at"])
+        return
+
+    corrected_ids = set(removed_ids) | set(added_ids)
+    entries = list(
+        CompetitionBattleEntry.objects.filter(
+            battle__competition=competition,
+            battle__stage__in=later_stages,
+            team_id__in=corrected_ids,
+        )
+        .select_related("battle")
+        .order_by("battle__order", "slot_order")
+    )
+
+    stage_index = {stage: index for index, stage in enumerate(later_stages)}
+    direct_stage = (
+        min(
+            (entry.battle.stage for entry in entries),
+            key=lambda stage: stage_index.get(stage, len(later_stages)),
+        )
+        if entries
+        else later_stages[0]
+    )
+    direct_entries = [entry for entry in entries if entry.battle.stage == direct_stage]
+    direct_entries_by_battle = defaultdict(list)
+    for entry in direct_entries:
+        direct_entries_by_battle[entry.battle_id].append(entry)
+
+    changed_entries = []
+    affected_battle_ids = set()
+    replacements = dict(zip(removed_ids, added_ids))
+    replacements.update(dict(zip(added_ids, removed_ids)))
+    for battle_entries in direct_entries_by_battle.values():
+        present_ids = {entry.team_id for entry in battle_entries}
+        affected_battle_ids.add(battle_entries[0].battle_id)
+        for entry in battle_entries:
+            replacement_id = replacements.get(entry.team_id)
+            if replacement_id and replacement_id not in present_ids:
+                entry.team_id = replacement_id
+                changed_entries.append(entry)
+
+    if changed_entries:
+        CompetitionBattleEntry.objects.bulk_update(changed_entries, ["team"])
+
+    qualifiers = {**configuration.get("battle_qualifiers", {})}
+    direct_battles = list(
+        CompetitionBattle.objects.filter(
+            competition=competition,
+            pk__in=affected_battle_ids,
+        )
+    )
+    for battle in direct_battles:
+        battle.winner = None
+        battle.status = MatchStatus.PENDING
+        battle.save(update_fields=["winner", "status", "updated_at"])
+        qualifiers.pop(str(battle.id), None)
+
+    downstream_stages = later_stages[
+        stage_index.get(direct_stage, 0) + 1 :
+    ]
+    downstream_battles = list(
+        CompetitionBattle.objects.filter(
+            competition=competition,
+            stage__in=downstream_stages,
+        )
+    )
+    if downstream_battles:
+        CompetitionBattleEntry.objects.filter(
+            battle__in=downstream_battles
+        ).delete()
+        for battle in downstream_battles:
+            qualifiers.pop(str(battle.id), None)
+        CompetitionBattle.objects.filter(
+            pk__in=[battle.id for battle in downstream_battles]
+        ).update(winner=None, status=MatchStatus.PENDING)
+
+    configuration["battle_qualifiers"] = qualifiers
+    if progressive_flow_enabled(competition) and downstream_stages:
+        downstream_stage_set = set(downstream_stages)
+        configuration["progressive_created_stages"] = [
+            stage
+            for stage in configuration.get("progressive_created_stages", [])
+            if stage not in downstream_stage_set
+        ]
+        configuration["stages"] = [
+            stage_config
+            for stage_config in configuration.get("stages", [])
+            if stage_config.get("stage") not in downstream_stage_set
+        ]
+    competition.configuration = configuration
+    competition.save(update_fields=["configuration", "updated_at"])
 
 
 def clear_battles(battles):
@@ -935,7 +1151,11 @@ def _recent_eliminated_states(competition):
     if not team_ids:
         return []
     return list(
-        TeamCompetitionState.objects.filter(competition=competition, team_id__in=team_ids)
+        TeamCompetitionState.objects.filter(
+            competition=competition,
+            team_id__in=team_ids,
+            current_status=ParticipantStatus.ELIMINATED,
+        )
         .select_related("team__institution", "current_group", "current_battle")
         .order_by("team__robot_name", "team_id")
     )
@@ -954,10 +1174,16 @@ def _repechage_candidate_states(competition):
         .order_by("team__robot_name", "team_id")
     )
     source = recent or repechable or eliminated
+    previous_repechage_team_ids = set(
+        CompetitionBattleEntry.objects.filter(
+            battle__competition=competition,
+            battle__stage__in=REPECHAGE_STAGES,
+        ).values_list("team_id", flat=True)
+    )
     candidates = []
     seen = set()
     for state in source:
-        if state.team_id in seen:
+        if state.team_id in seen or state.team_id in previous_repechage_team_ids:
             continue
         seen.add(state.team_id)
         candidates.append(state)
@@ -1194,6 +1420,9 @@ def _parse_manual_phase_request(post_data, eligible_count):
 
 @transaction.atomic
 def generate_manual_phase_proposal(competition, source_stage, post_data):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     operation = (post_data.get("manual_operation") or "normal").strip()
     eligible_states = _manual_phase_eligible_states(competition, operation)
     eligible_count = len(eligible_states)
@@ -1332,6 +1561,9 @@ def manual_phase_proposal_payload(competition, proposal):
 
 @transaction.atomic
 def confirm_manual_phase_proposal(competition, source_stage, post_data):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     sync_team_states(competition)
     proposal = (competition.configuration or {}).get("manual_phase_proposal") or {}
     if not proposal:
@@ -1424,6 +1656,9 @@ def confirm_manual_phase_proposal(competition, source_stage, post_data):
 
 @transaction.atomic
 def cancel_manual_phase_proposal(competition):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     configuration = {**(competition.configuration or {})}
     if "manual_phase_proposal" not in configuration:
         return {"message": "No habia propuesta manual pendiente."}
@@ -1580,12 +1815,10 @@ def _record_phase_assignment(competition, state, stage, status, battle, title, m
 
 @transaction.atomic
 def materialize_repechage_stage(competition):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     sync_team_states(competition)
-    candidates = _repechage_candidate_states(competition)
-    format_type, battle_count, sizes = _safe_repechage_plan(len(candidates))
-    if not battle_count:
-        raise ValueError("Requiere configuracion manual para crear repechaje.")
-
     open_stage = _existing_open_repechage_stage(competition)
     if open_stage:
         existing_count = competition.battles.filter(stage=open_stage).count()
@@ -1596,6 +1829,15 @@ def materialize_repechage_stage(competition):
             "stage": open_stage,
             "message": f"{STAGE_TITLES[open_stage]} ya existe. Se abrio la fase existente.",
         }
+
+    candidates = _repechage_candidate_states(competition)
+    if not candidates:
+        raise ValueError(
+            "No hay participantes elegibles para otro repechaje sin reutilizar competidores."
+        )
+    format_type, battle_count, sizes = _safe_repechage_plan(len(candidates))
+    if not battle_count:
+        raise ValueError("Requiere configuracion manual para crear repechaje.")
 
     stage = _next_available_stage(competition, REPECHAGE_STAGES)
     if stage is None:
@@ -1796,6 +2038,9 @@ def _materialize_final_and_optional_third_place(competition, active_states):
 
 @transaction.atomic
 def save_final_podium(competition, *, champion_team_id, second_team_id, third_team_id=None):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     final_battle = (
         competition.battles.filter(stage=CompetitionStage.FINAL)
         .prefetch_related("entries__team")
@@ -1807,13 +2052,30 @@ def save_final_podium(competition, *, champion_team_id, second_team_id, third_te
 
     team_ids = list(final_battle.entries.values_list("team_id", flat=True))
     finalist_count = len(team_ids)
+    if champion_team_id not in team_ids or second_team_id not in team_ids:
+        raise ValueError("Campeon y segundo lugar deben pertenecer a la final.")
+
+    third_place_battle = (
+        competition.battles.filter(stage=CompetitionStage.THIRD_PLACE)
+        .prefetch_related("entries__team")
+        .order_by("order")
+        .first()
+    )
+    if finalist_count == 2 and third_team_id is None and third_place_battle and third_place_battle.entries.exists():
+        if third_place_battle.status != MatchStatus.FINISHED or not third_place_battle.winner_id:
+            raise ValueError("Debes completar el duelo por tercer lugar antes de guardar el podio.")
+        third_team_id = third_place_battle.winner_id
+
     podium_ids = [champion_team_id, second_team_id]
     if finalist_count >= 3:
         podium_ids.append(third_team_id)
     elif third_team_id:
         podium_ids.append(third_team_id)
-    if any(team_id not in team_ids for team_id in podium_ids):
-        raise ValueError("El podio solo puede incluir participantes de la final.")
+    allowed_third_ids = set()
+    if third_place_battle and third_place_battle.winner_id:
+        allowed_third_ids.add(third_place_battle.winner_id)
+    if third_team_id and third_team_id not in team_ids and third_team_id not in allowed_third_ids:
+        raise ValueError("El tercer lugar debe pertenecer a la final o haber ganado su duelo.")
     if finalist_count >= 3 and not third_team_id:
         raise ValueError("Debes seleccionar tercer lugar para una final de 3 o mas participantes.")
     if len(set(podium_ids)) != len(podium_ids):
@@ -1821,6 +2083,10 @@ def save_final_podium(competition, *, champion_team_id, second_team_id, third_te
 
     set_battle_winner(final_battle, champion_team_id, manual_override=True)
     teams_by_id = {entry.team_id: entry.team for entry in final_battle.entries.all()}
+    if third_place_battle:
+        teams_by_id.update(
+            {entry.team_id: entry.team for entry in third_place_battle.entries.all()}
+        )
     configuration = {**(competition.configuration or {})}
     configuration["final_podium"] = {
         "stage": CompetitionStage.FINAL,
@@ -1971,6 +2237,9 @@ def _materialize_balanced_group_round(competition, active_states):
 
 @transaction.atomic
 def materialize_recommended_duel_stage(competition):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     sync_team_states(competition)
     active_states = _progressive_active_states(competition)
     active_count = len(active_states)
@@ -2050,6 +2319,9 @@ def materialize_recommended_duel_stage(competition):
 
 @transaction.atomic
 def materialize_manual_duel_stage(competition, *, name, participant_count):
+    competition = DivisionCompetition.objects.select_for_update().get(
+        pk=competition.pk
+    )
     sync_team_states(competition)
     name = (name or "Fase manual").strip()[:80]
     if participant_count < 2 or participant_count % 2 != 0:
@@ -2320,6 +2592,7 @@ def setup_revival_profile(competition, profile, qualifier_lookup, elimination_po
 
 
 def sync_team_states(competition):
+    competition.refresh_from_db(fields=["configuration"])
     ensure_team_states(competition)
     profile = competition_profile_from_instance(competition)
     order_map = stage_order_map(profile)
@@ -2407,7 +2680,46 @@ def sync_team_states(competition):
         )
 
 
+def competition_has_complete_podium(competition):
+    final_battle = (
+        competition.battles.filter(stage=CompetitionStage.FINAL)
+        .prefetch_related("entries")
+        .order_by("order")
+        .first()
+    )
+    if (
+        final_battle is None
+        or final_battle.status != MatchStatus.FINISHED
+        or final_battle.winner_id is None
+    ):
+        return False
+
+    final_entry_count = final_battle.entries.count()
+    if final_entry_count >= 3:
+        podium = (competition.configuration or {}).get("final_podium") or {}
+        podium_ids = [
+            podium.get("champion_team_id"),
+            podium.get("second_team_id"),
+            podium.get("third_team_id"),
+        ]
+        return all(podium_ids) and len(set(podium_ids)) == 3
+
+    third_place_battle = (
+        competition.battles.filter(stage=CompetitionStage.THIRD_PLACE)
+        .prefetch_related("entries")
+        .order_by("order")
+        .first()
+    )
+    if third_place_battle and third_place_battle.entries.exists():
+        return (
+            third_place_battle.status == MatchStatus.FINISHED
+            and third_place_battle.winner_id is not None
+        )
+    return True
+
+
 def sync_competition(competition):
+    competition.refresh_from_db(fields=["configuration", "status"])
     profile = competition_profile_from_instance(competition)
     grouped_battles = battle_map(competition)
     progressive_flow = progressive_flow_enabled(competition)
@@ -2428,12 +2740,7 @@ def sync_competition(competition):
         return
 
     if progressive_flow:
-        final_battles = stage_battles(competition, CompetitionStage.FINAL)
-        completed = (
-            final_battles
-            and final_battles[0].status == MatchStatus.FINISHED
-            and final_battles[0].winner_id is not None
-        )
+        completed = competition_has_complete_podium(competition)
         any_finished_battles = competition.battles.filter(status=MatchStatus.FINISHED).exists()
         competition.status = (
             CompetitionStatus.COMPLETED
@@ -2460,12 +2767,7 @@ def sync_competition(competition):
     else:
         setup_basic_profile(competition, profile, qualifier_lookup)
 
-    final_battles = stage_battles(competition, CompetitionStage.FINAL)
-    completed = (
-        final_battles
-        and final_battles[0].status == MatchStatus.FINISHED
-        and final_battles[0].winner_id is not None
-    )
+    completed = competition_has_complete_podium(competition)
     any_finished_battles = competition.battles.filter(status=MatchStatus.FINISHED).exists()
     competition.status = (
         CompetitionStatus.COMPLETED
@@ -2564,12 +2866,33 @@ def final_podium_payload(competition):
         if state:
             participants.append(participant_row_payload(state))
     podium = (competition.configuration or {}).get("final_podium") or {}
+    champion_team_id = podium.get("champion_team_id") or final_battle.winner_id
+    second_team_id = podium.get("second_team_id")
+    third_team_id = podium.get("third_team_id")
+    final_team_ids = [entry.team_id for entry in final_battle.entries.order_by("slot_order")]
+    if champion_team_id and second_team_id is None and len(final_team_ids) == 2:
+        second_team_id = next(
+            (team_id for team_id in final_team_ids if team_id != champion_team_id),
+            None,
+        )
+    if third_team_id is None:
+        third_place_battle = (
+            competition.battles.filter(
+                stage=CompetitionStage.THIRD_PLACE,
+                status=MatchStatus.FINISHED,
+                winner__isnull=False,
+            )
+            .order_by("order")
+            .first()
+        )
+        if third_place_battle:
+            third_team_id = third_place_battle.winner_id
     return {
         "battle": final_battle,
         "participants": participants,
-        "champion_team_id": podium.get("champion_team_id") or final_battle.winner_id,
-        "second_team_id": podium.get("second_team_id"),
-        "third_team_id": podium.get("third_team_id"),
+        "champion_team_id": champion_team_id,
+        "second_team_id": second_team_id,
+        "third_team_id": third_team_id,
         "is_saved": bool(podium),
     }
 

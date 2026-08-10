@@ -1,6 +1,7 @@
 from collections import Counter
 
 from .models import (
+    CompetitionBattleEntry,
     CompetitionStage,
     MatchStatus,
     ParticipantStatus,
@@ -71,7 +72,11 @@ def recent_eliminated_states(competition):
     if not recent_team_ids:
         return []
     return list(
-        TeamCompetitionState.objects.filter(competition=competition, team_id__in=recent_team_ids)
+        TeamCompetitionState.objects.filter(
+            competition=competition,
+            team_id__in=recent_team_ids,
+            current_status=ParticipantStatus.ELIMINATED,
+        )
         .select_related("team__institution", "current_group", "current_battle")
         .order_by("team__robot_name")
     )
@@ -421,6 +426,24 @@ def next_phase_recommendation(competition):
     eliminated = snapshot["eliminated"]
     repechable = snapshot["repechable"]
     recent_eliminated = recent_eliminated_states(competition)
+    previous_repechage_team_ids = set(
+        CompetitionBattleEntry.objects.filter(
+            battle__competition=competition,
+            battle__stage__in=REPECHAGE_STAGES,
+        ).values_list("team_id", flat=True)
+    )
+    repechable = [
+        state for state in repechable
+        if state.team_id not in previous_repechage_team_ids
+    ]
+    eliminated = [
+        state for state in eliminated
+        if state.team_id not in previous_repechage_team_ids
+    ]
+    recent_eliminated = [
+        state for state in recent_eliminated
+        if state.team_id not in previous_repechage_team_ids
+    ]
 
     active_count = len(active)
     recommendation = base_recommendation(active_count)

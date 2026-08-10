@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.utils import timezone
 
 from .models import Institution, InstitutionType, RegistrationStatus, Team, TeamMember
@@ -86,17 +87,49 @@ def send_attendance_confirmed_email(registration, registration_type: str) -> Non
     )
 
 
+@transaction.atomic
 def sync_registration_to_team(registration, institution_type: str):
     _category_label, team_category = registration_type_labels(
         "colegio" if institution_type == InstitutionType.SCHOOL else "universidad"
     )
-    institution, _created = Institution.objects.get_or_create(
-        name=registration.institution_name,
-        defaults={"institution_type": institution_type},
+    from apps.tournament.models import DivisionCompetition, DivisionType
+    from apps.tournament.services import competition_has_started_flow
+
+    division = DivisionType.SCHOOL if institution_type == InstitutionType.SCHOOL else DivisionType.UNIVERSITY
+    competition = DivisionCompetition.objects.select_for_update().filter(
+        edition=registration.edition,
+        division=division,
+    ).first()
+    institution = Institution.objects.filter(name=registration.institution_name).first()
+    if institution is not None and institution.institution_type != institution_type:
+        raise ValueError(
+            "La institucion ya existe con una categoria diferente. "
+            "Revisa el registro antes de sincronizarlo al cuadro oficial."
+        )
+    existing_team = (
+        Team.objects.filter(
+            edition=registration.edition,
+            institution=institution,
+            name=registration.robot_name,
+        ).first()
+        if institution is not None
+        else None
     )
-    if institution.institution_type != institution_type:
-        institution.institution_type = institution_type
-        institution.save(update_fields=["institution_type", "updated_at"])
+    if competition and competition_has_started_flow(competition):
+        team_is_in_bracket = (
+            existing_team is not None
+            and competition.groups.filter(entries__team=existing_team).exists()
+        )
+        if not team_is_in_bracket:
+            raise ValueError(
+                "La competencia ya tiene progreso. Este equipo no puede agregarse al cuadro "
+                "sin una decision operativa explicita."
+            )
+    if institution is None:
+        institution = Institution.objects.create(
+            name=registration.institution_name,
+            institution_type=institution_type,
+        )
 
     team, _created = Team.objects.update_or_create(
         edition=registration.edition,
@@ -132,7 +165,11 @@ def sync_registration_to_team(registration, institution_type: str):
     return team
 
 
+@transaction.atomic
 def confirm_attendance(registration, registration_type: str, institution_type: str):
+    registration = (
+        type(registration).objects.select_for_update().get(pk=registration.pk)
+    )
     if registration.attendance_confirmed_at:
         return sync_registration_to_team(registration, institution_type)
 

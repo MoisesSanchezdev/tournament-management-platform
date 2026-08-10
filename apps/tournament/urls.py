@@ -8,7 +8,6 @@ from .views import (
     control_phase_detail,
     overview,
     participant_modal_detail,
-    participant_modal_update,
 )
 
 
@@ -33,11 +32,6 @@ urlpatterns = [
         "control/divisiones/<int:competition_id>/participantes/<int:state_id>/",
         participant_modal_detail,
         name="participant_modal_detail",
-    ),
-    path(
-        "control/divisiones/<int:competition_id>/participantes/<int:state_id>/actualizar/",
-        participant_modal_update,
-        name="participant_modal_update",
     ),
     path("control/fases/<int:phase_id>/", control_phase_detail, name="control_phase_detail"),
 ]

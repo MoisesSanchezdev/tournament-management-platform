@@ -165,18 +165,6 @@
         }
     };
 
-    const buildOptions = (items, selectedValue, placeholder) => {
-        const options = [`<option value="">${placeholder}</option>`];
-        items.forEach((item) => {
-            const selected = String(selectedValue || "") === String(item.value) ? "selected" : "";
-            options.push(`<option value="${item.value}" ${selected}>${item.label}</option>`);
-        });
-        return options.join("");
-    };
-
-    const battleOptionsByStage = (battles, stageValue) =>
-        battles.filter((battle) => battle.stage === stageValue);
-
     const setResultCardState = (card, state) => {
         if (!card) {
             return;
@@ -352,7 +340,6 @@
 
     const renderParticipantModal = (payload) => {
         const participant = payload.participant;
-        const battleOptions = battleOptionsByStage(participant.battles, participant.current_stage);
 
         modalContent.innerHTML = `
             <header class="participant-modal-header">
@@ -376,50 +363,7 @@
                 </article>
             </section>
 
-            <section class="grid two participant-modal-grid">
-                <article class="card">
-                    <p class="eyebrow">Edicion rapida</p>
-                    <h3>Control manual</h3>
-                    <form class="participant-modal-form" data-state-id="${participant.state_id}">
-                        <div class="field">
-                            <label for="modal_target_stage">Mover a fase</label>
-                            <select id="modal_target_stage" name="target_stage">
-                                ${buildOptions(participant.stages, participant.current_stage, "Selecciona fase")}
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label for="modal_target_group">Mover a grupo</label>
-                            <select id="modal_target_group" name="target_group_id">
-                                ${buildOptions(participant.groups, participant.current_group_id, "Sin cambio")}
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label for="modal_target_battle">Mover a batalla</label>
-                            <select id="modal_target_battle" name="target_battle_id">
-                                ${buildOptions(battleOptions, participant.current_battle_id, "Asignacion automatica")}
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label for="modal_target_status">Estado manual</label>
-                            <select id="modal_target_status" name="target_status_override">
-                                ${buildOptions(participant.statuses, participant.current_status, "Automatico del sistema")}
-                            </select>
-                        </div>
-
-                        <div class="field">
-                            <label for="modal_note">Nota</label>
-                            <textarea id="modal_note" name="note" rows="3" placeholder="Ej. reintegrado por decision de jueces">${participant.notes || ""}</textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button class="button primary" type="submit">Guardar cambios</button>
-                        </div>
-                    </form>
-                </article>
-
+            <section class="participant-modal-grid">
                 <article class="card">
                     <p class="eyebrow">Historial</p>
                     <h3>Resultados y movimientos</h3>
@@ -444,44 +388,6 @@
                 </article>
             </section>
         `;
-
-        const stageSelect = modalContent.querySelector("#modal_target_stage");
-        const battleSelect = modalContent.querySelector("#modal_target_battle");
-        if (stageSelect && battleSelect) {
-            stageSelect.addEventListener("change", () => {
-                const filteredBattles = battleOptionsByStage(participant.battles, stageSelect.value);
-                battleSelect.innerHTML = buildOptions(filteredBattles, "", "Asignacion automatica");
-            });
-        }
-
-        const form = modalContent.querySelector(".participant-modal-form");
-        if (form) {
-            form.addEventListener("submit", async (event) => {
-                event.preventDefault();
-                const stateId = form.dataset.stateId;
-                const competitionId = getCompetitionId();
-                const csrfToken = getCsrfToken();
-                const formData = new FormData(form);
-                const response = await fetch(
-                    `/torneo/control/divisiones/${competitionId}/participantes/${stateId}/actualizar/`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "X-CSRFToken": csrfToken,
-                            "X-Requested-With": "XMLHttpRequest",
-                        },
-                        body: formData,
-                    }
-                );
-                const result = await response.json();
-                if (!result.ok) {
-                    alert(result.message || "No fue posible actualizar el participante.");
-                    return;
-                }
-                await refreshControlContent();
-                closeModal();
-            });
-        }
     };
 
     const refreshControlContent = async () => {
