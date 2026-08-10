@@ -4,49 +4,88 @@
 {% block title %}Patrocinadores | Torneo Robot Explota Globos{% endblock %}
 
 {% block content %}
-<section class="page-header sponsor-page-header">
-    <p class="eyebrow">Patrocinadores</p>
-    <h1>Aliados del torneo</h1>
-    <p class="lead">
-        Una galería limpia para reconocer a quienes hacen posible esta experiencia desde la academia,
-        la industria y el ecosistema regional.
-    </p>
-</section>
+<section class="sponsors-stage" aria-labelledby="sponsors-title">
+    <div class="sponsors-stage__arena" aria-hidden="true">
+        <img
+            class="sponsors-stage__image sponsors-stage__image--dark"
+            src="{% static 'img/home/hero-arena-dark.png' %}"
+            alt=""
+            width="1680"
+            height="945"
+            loading="eager"
+            decoding="async">
+        <img
+            class="sponsors-stage__image sponsors-stage__image--light"
+            src="{% static 'img/home/hero-arena-light.png' %}"
+            alt=""
+            width="1680"
+            height="945"
+            loading="eager"
+            decoding="async">
+    </div>
 
-<section class="sponsor-grid sponsor-grid-full">
-    {% for sponsor in sponsors %}
-        {% if sponsor.link_ready %}
-            <a
-                class="sponsor-card sponsor-card-large"
-                href="{{ sponsor.url }}"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};"
-            >
-                <div class="sponsor-logo-frame sponsor-logo-frame-large">
-                    <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="{{ sponsor.name }}">
-                </div>
-                <div class="sponsor-details sponsor-details-large">
-                    <strong>{{ sponsor.name }}</strong>
-                    <span>{{ sponsor.tagline }}</span>
-                    <small>Visitar patrocinador</small>
-                </div>
-            </a>
-        {% else %}
-            <article
-                class="sponsor-card sponsor-card-large sponsor-card-disabled"
-                style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};"
-            >
-                <div class="sponsor-logo-frame sponsor-logo-frame-large">
-                    <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="{{ sponsor.name }}">
-                </div>
-                <div class="sponsor-details sponsor-details-large">
-                    <strong>{{ sponsor.name }}</strong>
-                    <span>{{ sponsor.tagline }}</span>
-                    <small>Enlace oficial en confirmación</small>
-                </div>
-            </article>
-        {% endif %}
-    {% endfor %}
+    <div class="sponsors-stage__content">
+        <header class="sponsors-stage__header">
+            <h1 id="sponsors-title">Patrocinadores</h1>
+        </header>
+
+        <div class="sponsor-grid sponsor-grid--primary" aria-label="Patrocinadores principales">
+            {% for sponsor in sponsors|slice:":2" %}
+                {% if sponsor.link_ready %}
+                    <a
+                        class="sponsor-card sponsor-card--primary"
+                        href="{{ sponsor.url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Visitar sitio oficial de {{ sponsor.name }}; abre en una pestaña nueva"
+                        style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};">
+                        <span class="sponsor-logo-frame">
+                            <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="Logo de {{ sponsor.name }}">
+                        </span>
+                        <span class="sponsor-card__label">{{ sponsor.name }}</span>
+                    </a>
+                {% else %}
+                    <article
+                        class="sponsor-card sponsor-card--primary sponsor-card-disabled"
+                        aria-label="{{ sponsor.name }}; enlace oficial en confirmación"
+                        style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};">
+                        <span class="sponsor-logo-frame">
+                            <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="Logo de {{ sponsor.name }}">
+                        </span>
+                        <span class="sponsor-card__label">{{ sponsor.name }}</span>
+                    </article>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="sponsor-grid sponsor-grid--secondary" aria-label="Patrocinadores aliados">
+            {% for sponsor in sponsors|slice:"2:" %}
+                {% if sponsor.link_ready %}
+                    <a
+                        class="sponsor-card sponsor-card--secondary"
+                        href="{{ sponsor.url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Visitar sitio oficial de {{ sponsor.name }}; abre en una pestaña nueva"
+                        style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};">
+                        <span class="sponsor-logo-frame">
+                            <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="Logo de {{ sponsor.name }}">
+                        </span>
+                        <span class="sponsor-card__label">{{ sponsor.name }}</span>
+                    </a>
+                {% else %}
+                    <article
+                        class="sponsor-card sponsor-card--secondary sponsor-card-disabled"
+                        aria-label="{{ sponsor.name }}; enlace oficial en confirmación"
+                        style="--sponsor-accent: {{ sponsor.accent }}; --sponsor-accent-soft: {{ sponsor.accent_soft }};">
+                        <span class="sponsor-logo-frame">
+                            <img class="sponsor-logo" src="{% static sponsor.logo_path %}" alt="Logo de {{ sponsor.name }}">
+                        </span>
+                        <span class="sponsor-card__label">{{ sponsor.name }}</span>
+                    </article>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
 </section>
 {% endblock %}

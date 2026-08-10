@@ -1,85 +1,218 @@
 {% extends "core/base.html" %}
 {% load static %}
 
-{% block title %}Reglas | Torneo Robot Explota Globos{% endblock %}
+{% block title %}Reglas de competencia | Robot Explota Globos{% endblock %}
+{% block body_class %}public-body rules-page{% endblock %}
 
 {% block content %}
-<section class="page-header">
-    <p class="eyebrow">Reglamento oficial</p>
-    <h1>Reglas del torneo</h1>
-    <p class="lead">
-        Consulta aquí el reglamento oficial del evento.
-    </p>
-</section>
-
-<section class="rule-banner">
-    <div class="rule-banner-copy">
-        <p class="eyebrow">Ingeniería Electrónica UTP</p>
-        <h2>La competencia se vive dentro y fuera del aula</h2>
-        <p>
-            El reglamento es la base para que cada robot llegue preparado a una experiencia competitiva organizada.
-        </p>
+<section class="rules-dashboard" aria-labelledby="rules-dashboard-title">
+    <div class="rules-dashboard__scene" aria-hidden="true">
+        <img class="rules-dashboard__image rules-dashboard__image--dark" src="{% static 'img/home/hero-arena-dark.png' %}" alt="">
+        <img class="rules-dashboard__image rules-dashboard__image--light" src="{% static 'img/home/hero-arena-light.png' %}" alt="">
     </div>
-    <img
-        src="https://comunicaciones.utp.edu.co/wp-content/uploads/sites/2/IMG_2598-1024x788.jpg"
-        alt="Actividad del programa de Ingeniería Electrónica UTP">
-</section>
+    <div class="rules-dashboard__overlay" aria-hidden="true"></div>
 
-<section class="grid two">
-    <article class="card">
-        <p class="eyebrow">Consulta rápida</p>
-        <h2>Antes de registrarte</h2>
-        <ul class="clean-list">
-            <li>Revisa el PDF oficial.</li>
-            <li>Verifica que el robot cumpla las condiciones.</li>
-            <li>Ten listos los datos del responsable y del equipo.</li>
-        </ul>
-    </article>
-    {% if edition %}
-        <article class="card accent-card">
-            <p class="eyebrow">Edición activa</p>
-            <h2>{{ edition.name }}</h2>
-            <p>{{ edition.description|default:"Reglamento e inscripciones disponibles para participantes." }}</p>
+    <div class="rules-dashboard__grid">
+        <article class="rules-dashboard__panel rules-overview" aria-labelledby="rules-overview-title">
+            <p class="rules-dashboard__kicker">Resumen del reglamento</p>
+            <h2 id="rules-overview-title" class="sr-only">Datos del documento oficial</h2>
+            <dl class="rules-overview__metrics">
+                <div><dt>Secciones</dt><dd>08</dd></div>
+                <div><dt>Documento</dt><dd>04 <span>páginas</span></dd></div>
+            </dl>
+            <div class="rules-overview__bar" aria-hidden="true"><span></span></div>
         </article>
-    {% endif %}
-</section>
 
-<section class="card">
-    <div class="pdf-header">
-        <div>
-            <h2>Reglamento oficial en PDF</h2>
-            <p>
-                El documento completo está disponible dentro de esta misma página.
-            </p>
+        <div class="rules-dashboard__hero">
+            <header class="rules-dashboard__masthead">
+                <p>Panel técnico oficial</p>
+                <h1 id="rules-dashboard-title"><span>Reglas de</span><span>competencia</span></h1>
+            </header>
+
+            <a class="rules-dashboard__pdf" href="{% static 'docs/ExplotaGlobos.pdf' %}" target="_blank" rel="noopener" aria-label="Abrir el reglamento oficial en PDF en una nueva pestaña">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h4"/></svg>
+                Abrir PDF oficial <span aria-hidden="true">↗</span>
+            </a>
         </div>
-        <a class="button secondary" href="{% static 'docs/ExplotaGlobos.pdf' %}" target="_blank" rel="noopener">
-            Abrir PDF completo
-        </a>
-    </div>
-    <div class="pdf-frame">
-        <iframe
-            src="{% static 'docs/ExplotaGlobos.pdf' %}"
-            title="Reglamento del torneo"
-            loading="lazy">
-        </iframe>
-    </div>
-</section>
 
-<section class="grid">
-    {% for rule in rules %}
-        <article class="card rule-detail-card">
-            <h2>{{ rule.title }}</h2>
-            <p>{{ rule.summary }}</p>
-            <div class="rich-text">{{ rule.body|linebreaks }}</div>
+        <article class="rules-dashboard__panel rules-key" aria-labelledby="rules-key-title">
+            <p class="rules-dashboard__kicker">Normas clave</p>
+            <h2 id="rules-key-title">Antes de competir</h2>
+            <ul class="rules-key__list">
+                <li>
+                    <span class="rules-key__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.8 8.1-7 10-4.2-1.9-7-5.6-7-10V6z"/><path d="M9 12l2 2 4-5"/></svg>
+                    </span>
+                    <span><strong>Inspección obligatoria</strong><small>El robot debe aprobar las normas antes del combate.</small></span>
+                </li>
+                <li>
+                    <span class="rules-key__icon rules-key__icon--magenta" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M12 3c4 0 7 3.5 7 7.5 0 4.8-3 7.5-7 10.5-4-3-7-5.7-7-10.5C5 6.5 8 3 12 3z"/><path d="M12 21v-3"/></svg>
+                    </span>
+                    <span><strong>Globo expuesto</strong><small>Sin protección y sujeto al anclaje trasero.</small></span>
+                </li>
+                <li>
+                    <span class="rules-key__icon rules-key__icon--alert" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M12 3L3 20h18z"/><path d="M12 9v5M12 17h.01"/></svg>
+                    </span>
+                    <span><strong>Seguridad primero</strong><small>Los obstáculos móviles se inspeccionan antes de cada combate.</small></span>
+                </li>
+            </ul>
         </article>
-    {% empty %}
-        <article class="card">
-            <h2>Reglamento pendiente</h2>
-            <p>
-                Aún no se han cargado reglas. Desde el admin podremos publicar secciones oficiales
-                sin tocar el código.
-            </p>
+
+        <article class="rules-dashboard__panel rules-blueprint" aria-labelledby="rules-blueprint-title">
+            <div class="rules-dashboard__panel-heading">
+                <p class="rules-dashboard__kicker">Mapa técnico</p>
+                <h2 id="rules-blueprint-title">Área de competencia</h2>
+            </div>
+            <svg class="rules-blueprint__svg" viewBox="0 0 330 330" role="img" aria-labelledby="arena-map-title arena-map-desc">
+                <title id="arena-map-title">Diagrama conceptual del área de competencia</title>
+                <desc id="arena-map-desc">Cuadrilátero delimitado con dos posiciones iniciales predeterminadas y varios objetos punzantes móviles.</desc>
+                <defs>
+                    <radialGradient id="arenaRadarGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0" stop-color="#65edff" stop-opacity=".2"/>
+                        <stop offset="1" stop-color="#65edff" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <g class="rules-blueprint__grid" aria-hidden="true">
+                    <path d="M30 55H300M30 110H300M30 165H300M30 220H300M30 275H300"/>
+                    <path d="M55 30V300M110 30V300M165 30V300M220 30V300M275 30V300"/>
+                </g>
+                <circle class="rules-blueprint__radar-glow" cx="165" cy="165" r="132"/>
+                <g class="rules-blueprint__rings">
+                    <circle cx="165" cy="165" r="118"/>
+                    <circle cx="165" cy="165" r="82"/>
+                    <circle cx="165" cy="165" r="42"/>
+                    <path d="M47 165h236M165 47v236"/>
+                    <path d="M81 81l168 168M249 81L81 249" class="rules-blueprint__dash"/>
+                </g>
+                <g class="rules-blueprint__start">
+                    <path d="M73 144h36v42H73z"/><path d="M221 144h36v42h-36z"/>
+                    <text x="91" y="202" text-anchor="middle">INICIO A</text>
+                    <text x="239" y="202" text-anchor="middle">INICIO B</text>
+                </g>
+                <g class="rules-blueprint__nodes" aria-hidden="true">
+                    <circle cx="119" cy="104" r="7"/><circle cx="210" cy="95" r="7"/>
+                    <circle cx="228" cy="223" r="7"/><circle cx="111" cy="232" r="7"/>
+                    <circle cx="165" cy="128" r="5"/><circle cx="165" cy="226" r="5"/>
+                </g>
+                <g class="rules-blueprint__spikes" aria-hidden="true">
+                    <path d="M109 104l10-14 10 14M200 95l10-14 10 14M218 223l10-14 10 14M101 232l10-14 10 14"/>
+                </g>
+                <g class="rules-blueprint__ticks" aria-hidden="true">
+                    <path d="M25 45h24M25 45v24M305 45h-24M305 45v24M25 285h24M25 285v-24M305 285h-24M305 285v-24"/>
+                </g>
+                <text class="rules-blueprint__label" x="165" y="318" text-anchor="middle">CUADRILÁTERO · OBJETOS MÓVILES</text>
+            </svg>
+            <ul class="rules-blueprint__legend" aria-label="Leyenda del diagrama">
+                <li><span class="rules-dot rules-dot--cyan"></span> Posiciones iniciales</li>
+                <li><span class="rules-dot rules-dot--magenta"></span> Objetos punzantes móviles</li>
+            </ul>
         </article>
-    {% endfor %}
+
+        <article class="rules-dashboard__panel rules-main-panel" aria-labelledby="rules-main-title">
+            <h2 id="rules-main-title" class="sr-only">Reglas generales, requisitos y desarrollo</h2>
+            <section class="rules-main-panel__group" aria-labelledby="general-rules-title">
+                <div class="rules-main-panel__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+                </div>
+                <div><p class="rules-dashboard__kicker">Reglas generales</p><h3 id="general-rules-title">Control y objetivo</h3></div>
+                <ul><li>Control remoto mediante el sistema que el equipo elija.</li><li>El ganador conserva su globo intacto.</li></ul>
+            </section>
+            <section class="rules-main-panel__group" aria-labelledby="robot-rules-title">
+                <div class="rules-main-panel__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M2 10h3M19 10h3M2 14h3M19 14h3"/></svg>
+                </div>
+                <div><p class="rules-dashboard__kicker">Requisitos del robot</p><h3 id="robot-rules-title">Construcción aprobada</h3></div>
+                <ul><li>Chasis máximo de 25 × 20 × 20 cm.</li><li>Mínimo 2 llantas y elemento punzante no cortopunzante.</li></ul>
+            </section>
+            <section class="rules-main-panel__group" aria-labelledby="combat-rules-title">
+                <div class="rules-main-panel__icon rules-main-panel__icon--magenta" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 7h11M12 4l3 3-3 3M20 17H9M12 14l-3 3 3 3"/><circle cx="4" cy="17" r="2"/><circle cx="20" cy="7" r="2"/></svg>
+                </div>
+                <div><p class="rules-dashboard__kicker">Desarrollo del combate</p><h3 id="combat-rules-title">Precisión y estrategia</h3></div>
+                <ul><li>Inicio desde posiciones predeterminadas.</li><li>Modo individual con rondas eliminatorias.</li></ul>
+            </section>
+            <dl class="rules-main-panel__facts" aria-label="Participación y equipos">
+                <div><dt>Equipo</dt><dd>Máx. 3</dd></div>
+                <div><dt>Operador</dt><dd>Capitán</dd></div>
+                <div><dt>Universidad</dt><dd>Hasta 4.º semestre</dd></div>
+            </dl>
+        </article>
+
+        <article class="rules-dashboard__panel rules-arena-panel" aria-labelledby="rules-arena-title">
+            <p class="rules-dashboard__kicker">Especificaciones de arena</p>
+            <h2 id="rules-arena-title">Cuadrilátero delimitado</h2>
+            <svg class="rules-arena-panel__svg" viewBox="0 0 360 190" role="img" aria-labelledby="arena-spec-title arena-spec-desc">
+                <title id="arena-spec-title">Plano del cuadrilátero</title>
+                <desc id="arena-spec-desc">Plano sin escala que muestra posiciones iniciales y obstáculos punzantes móviles. El reglamento no informa dimensiones del área.</desc>
+                <g class="rules-arena-panel__frame">
+                    <rect x="35" y="22" width="290" height="138" rx="4"/>
+                    <path d="M180 22v138M35 91h290" class="rules-arena-panel__axis"/>
+                    <circle cx="180" cy="91" r="30"/>
+                    <path d="M65 69h48v44H65zM247 69h48v44h-48z"/>
+                </g>
+                <g class="rules-arena-panel__positions">
+                    <circle cx="89" cy="91" r="7"/><circle cx="271" cy="91" r="7"/>
+                </g>
+                <g class="rules-arena-panel__hazards" aria-hidden="true">
+                    <path d="M132 47l8 13 8-13 8 13 8-13"/><path d="M196 135l8 13 8-13 8 13 8-13"/>
+                </g>
+                <text x="180" y="181" text-anchor="middle">PLANO SIN ESCALA</text>
+            </svg>
+            <ul class="rules-arena-panel__list">
+                <li>Objetos punzantes móviles</li>
+                <li>Inspección antes de cada combate</li>
+                <li>Retiro de elementos defectuosos</li>
+            </ul>
+        </article>
+
+        <article class="rules-dashboard__panel rules-disqualification" aria-labelledby="rules-disqualification-title">
+            <div class="rules-disqualification__heading">
+                <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3L3 20h18z"/><path d="M12 9v5M12 17h.01"/></svg></span>
+                <div><p class="rules-dashboard__kicker">Causales</p><h2 id="rules-disqualification-title">Descalificación</h2></div>
+            </div>
+            <ul>
+                <li>Elementos cortopunzantes</li>
+                <li>Arrojar elementos</li>
+                <li>Dispositivos lanzallamas</li>
+            </ul>
+            <p>Cambios significativos tras la inspección no serán aceptados.</p>
+        </article>
+
+        <article class="rules-dashboard__panel rules-robot-blueprint" aria-labelledby="rules-robot-title">
+            <div class="rules-dashboard__panel-heading">
+                <p class="rules-dashboard__kicker">Plano técnico</p>
+                <h2 id="rules-robot-title">Robot y globo</h2>
+            </div>
+            <svg class="rules-robot-blueprint__svg" viewBox="0 0 360 285" role="img" aria-labelledby="robot-plan-title robot-plan-desc">
+                <title id="robot-plan-title">Plano lateral del robot</title>
+                <desc id="robot-plan-desc">Robot de control remoto con chasis máximo de 25 centímetros de largo, 20 de ancho, 20 de alto y globo sujeto atrás a máximo 5 centímetros del piso.</desc>
+                <g class="rules-robot-blueprint__grid" aria-hidden="true"><path d="M20 45H340M20 90H340M20 135H340M20 180H340M20 225H340M60 20V260M120 20V260M180 20V260M240 20V260M300 20V260"/></g>
+                <g class="rules-robot-blueprint__object">
+                    <path d="M95 134h166l30 38v49H70v-49z"/>
+                    <path d="M132 134v-36h82v36M148 98V78h50v20"/>
+                    <path d="M87 172h190M112 172v-24h124v24"/>
+                    <circle cx="116" cy="221" r="27"/><circle cx="246" cy="221" r="27"/>
+                    <circle cx="116" cy="221" r="10"/><circle cx="246" cy="221" r="10"/>
+                    <path d="M70 236H291M70 229v15M291 229v15"/>
+                    <path d="M308 134v87M301 134h15M301 221h15"/>
+                    <circle class="rules-robot-blueprint__balloon" cx="62" cy="75" r="35"/>
+                    <path class="rules-robot-blueprint__tether" d="M62 110v19l-8 12h16l-8-12M68 141h32"/>
+                    <path class="rules-robot-blueprint__anchor" d="M70 205H44M44 194v22"/>
+                </g>
+                <g class="rules-robot-blueprint__callouts">
+                    <text x="180" y="258" text-anchor="middle">LARGO MÁX. 25 CM</text>
+                    <text x="323" y="178" text-anchor="middle" transform="rotate(90 323 178)">ALTO MÁX. 20 CM</text>
+                    <text x="20" y="231">ANCLAJE MÁX. 5 CM</text>
+                    <text x="180" y="278" text-anchor="middle">ANCHO MÁX. 20 CM · MÍN. 2 LLANTAS</text>
+                </g>
+            </svg>
+            <div class="rules-robot-blueprint__legend">
+                <span><i aria-hidden="true"></i> Globo sin protección</span>
+                <span><i aria-hidden="true"></i> Soporte trasero</span>
+            </div>
+        </article>
+    </div>
 </section>
 {% endblock %}

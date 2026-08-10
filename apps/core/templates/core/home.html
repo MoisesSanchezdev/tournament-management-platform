@@ -1,80 +1,130 @@
-{% extends "core/base.html" %}
+﻿{% extends "core/base.html" %}
 {% load static %}
 
 {% block title %}Inicio | Torneo Robot Explota Globos{% endblock %}
 
 {% block content %}
-<section class="hero-shell">
-    <div class="hero-copy">
-        <p class="eyebrow">Universidad Tecnológica de Pereira</p>
-        <h1>Torneo Robot Explota Globos</h1>
-        <p class="lead">
-            Consulta el reglamento oficial y registra tu robot para participar.
-        </p>
-        <p class="hero-support">
-            Una iniciativa impulsada desde el programa de Ingeniería Electrónica para reunir creatividad,
-            diseño y competencia alrededor de la robótica.
-        </p>
-        <div class="actions">
+<section class="hero-shell event-hero home-hero-stage" aria-labelledby="home-hero-title">
+    <div class="hero-arena" aria-hidden="true">
+        <img
+            class="hero-arena-image hero-arena-image-dark"
+            src="{% static 'img/home/hero-arena-dark.png' %}"
+            alt=""
+            width="1680"
+            height="945"
+            loading="eager"
+            decoding="async">
+        <img
+            class="hero-arena-image hero-arena-image-light"
+            src="{% static 'img/home/hero-arena-light.png' %}"
+            alt=""
+            width="1680"
+            height="945"
+            loading="eager"
+            decoding="async">
+    </div>
+
+    <div class="hero-layout">
+        <aside class="hero-panel hero-panel-left" aria-label="Resumen del evento">
+            <div class="hero-panel-head">
+                <p class="eyebrow">Estado del evento</p>
+                <span class="hero-status-chip">{% if edition %}Inscripciones{% else %}Configuración{% endif %}</span>
+            </div>
+            <dl class="hero-score-list">
+                <div>
+                    <dt>Colegios</dt>
+                    <dd data-count="{{ school_total }}">{{ school_total }}</dd>
+                </div>
+                <div>
+                    <dt>Universidades</dt>
+                    <dd data-count="{{ university_total }}">{{ university_total }}</dd>
+                </div>
+            </dl>
+            <div class="hero-progress" aria-hidden="true">
+                <span></span>
+            </div>
+            <div class="hero-panel-icons" aria-hidden="true">
+                <span>●</span>
+                <span>◌</span>
+                <span>◎</span>
+            </div>
+        </aside>
+
+        <div class="hero-center">
+            <div class="hero-copy">
+                <p class="eyebrow">Universidad Tecnológica de Pereira</p>
+                <h1 id="home-hero-title"><span>Torneo Robot</span><span>Explota Globos</span></h1>
+                <p class="hero-support">Divisiones: colegio y universidad</p>
+            </div>
+        </div>
+
+        <aside class="hero-panel hero-panel-right" aria-label="Estado actual del torneo">
+            <div class="hero-panel-head">
+                <p class="eyebrow">Fase actual</p>
+                <span class="hero-status-chip hero-status-chip-soft">{% if edition %}Activo{% else %}Pendiente{% endif %}</span>
+            </div>
+            <h2>{% if edition %}{{ edition.name }}{% else %}Torneo en preparación{% endif %}</h2>
+            <div class="hero-bracket" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <p>
+                {% if edition %}
+                    {{ edition.description|default:"Edición activa lista para recibir y organizar las inscripciones." }}
+                {% else %}
+                    La edición activa aún no ha sido publicada.
+                {% endif %}
+            </p>
+        </aside>
+
+        <div class="hero-actions actions">
             <a class="button primary" href="{% url 'participants:team_register' %}">Registrar un robot</a>
             <a class="button secondary" href="{% url 'core:rules' %}">Consultar reglamento</a>
         </div>
     </div>
-    <aside class="hero-rail">
-        <div class="hero-orbit"></div>
-        <div class="visual-stack">
-            <div class="card highlight-card">
-                <p class="eyebrow">Estado del evento</p>
-                {% if edition %}
-                    <h2>{{ edition.name }}</h2>
-                    <p>{{ edition.description|default:"Edición activa lista para recibir y organizar las inscripciones." }}</p>
-                    <div class="mini-stats">
-                        <div>
-                            <strong>{{ school_total }}</strong>
-                            <span>Colegios</span>
-                        </div>
-                        <div>
-                            <strong>{{ university_total }}</strong>
-                            <span>Universidades</span>
-                        </div>
-                    </div>
-                {% else %}
-                    <h2>Configuración en curso</h2>
-                    <p>La edición activa aún no ha sido publicada, pero la plataforma ya está lista para estructurarla.</p>
-                {% endif %}
-            </div>
-            <div class="card support-card">
-                <p class="eyebrow">Ingeniería Electrónica UTP</p>
-                <h2>Diseño y desarrollo del proyecto</h2>
-                <p>
-                    Este espacio muestra el trabajo del programa y abre una vitrina inicial para el torneo y su comunidad.
-                </p>
-            </div>
-        </div>
-    </aside>
 </section>
-
-<section class="card">
-    <div class="section-head">
+<section class="home-rules-preview" aria-labelledby="home-rules-title">
+    <div class="home-rules-preview__head">
         <div>
-            <p class="eyebrow">Reglamento</p>
-            <h2>Reglas destacadas</h2>
+            <p class="eyebrow">Protocolo de competencia</p>
+            <h2 id="home-rules-title">Reglas destacadas</h2>
+            <p>Una lectura rápida de los puntos esenciales. El reglamento completo está organizado como un panel técnico.</p>
         </div>
-        <a class="button secondary" href="{% url 'core:rules' %}">Abrir página de reglas</a>
+        <a class="button secondary" href="{% url 'core:rules' %}">Ver todas las reglas <span aria-hidden="true">→</span></a>
     </div>
-    {% if rules %}
-        <div class="rule-grid">
-            {% for rule in rules %}
-                <article class="rule-card">
-                    <p class="eyebrow">Regla {{ forloop.counter }}</p>
-                    <h3>{{ rule.title }}</h3>
-                    <p>{{ rule.summary }}</p>
-                </article>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p>Aún no se han cargado reglas en la base de datos.</p>
-    {% endif %}
+    <div class="home-rules-grid">
+        <article class="home-rule-card home-rule-card--robot">
+            <div class="home-rule-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64"><path d="M12 31h40l6 9v10H6V40zM21 31v-9h22v9M27 22v-6h10v6"/><circle cx="18" cy="50" r="6"/><circle cx="46" cy="50" r="6"/><path d="M17 40h30" class="home-rule-card__dash"/></svg>
+            </div>
+            <p class="rules-kicker">Construcción</p>
+            <h3>Chasis verificado</h3>
+            <p>Máximo 25 cm de largo, 20 cm de ancho y 20 cm de alto.</p>
+            <span class="home-rule-card__index" aria-hidden="true">01</span>
+        </article>
+        <article class="home-rule-card home-rule-card--balloon">
+            <div class="home-rule-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64"><path d="M32 7c9 0 16 7 16 16 0 10-7 16-16 22-9-6-16-12-16-22 0-9 7-16 16-16z"/><path d="M32 45v5l-4 5h8l-4-5M36 55h13v-9M49 46h8"/></svg>
+            </div>
+            <p class="rules-kicker">Sistema de globo</p>
+            <h3>Expuesto y atrás</h3>
+            <p>Sin protección, sujeto al anclaje trasero a máximo 5 cm del piso.</p>
+            <span class="home-rule-card__index" aria-hidden="true">02</span>
+        </article>
+        <article class="home-rule-card home-rule-card--safety">
+            <div class="home-rule-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64"><path d="M32 6l21 8v16c0 13-8 22-21 28C19 52 11 43 11 30V14z"/><path d="M21 32l8 8 15-17"/></svg>
+            </div>
+            <p class="rules-kicker">Seguridad</p>
+            <h3>Inspección previa</h3>
+            <p>La aprobación inicial comprueba el cumplimiento antes de competir.</p>
+            <span class="home-rule-card__index" aria-hidden="true">03</span>
+        </article>
+    </div>
+    <a class="home-rules-preview__mobile-cta button secondary" href="{% url 'core:rules' %}">Ver todas las reglas <span aria-hidden="true">→</span></a>
 </section>
 
 <section class="card">

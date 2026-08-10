@@ -5,6 +5,12 @@
     const themeLabels = document.querySelectorAll("[data-theme-label]");
     const themeStorageKey = "preExplotaGlobosTheme";
 
+    const syncViewportWidth = () => {
+        document.documentElement.style.setProperty("--app-client-width", `${document.documentElement.clientWidth}px`);
+    };
+
+    syncViewportWidth();
+    window.addEventListener("resize", syncViewportWidth, { passive: true });
     const setTheme = (theme) => {
         const normalizedTheme = theme === "light" ? "light" : "dark";
         document.documentElement.dataset.theme = normalizedTheme;
@@ -59,7 +65,7 @@
     window.addEventListener("scroll", syncHeaderState, { passive: true });
 
     const revealTargets = document.querySelectorAll(
-        ".hero-shell, .page-header, .card, .showcase-card, .rule-card, .sponsor-card, .choice-card, .pdf-frame, .visual-spotlight, .rule-banner"
+        ".hero-shell, .hero-panel, .page-header, .card, .showcase-card, .rule-card, .sponsor-card, .choice-card, .visual-spotlight, .rules-dashboard__masthead, .rules-dashboard__panel, .home-rules-preview"
     );
 
     revealTargets.forEach((element, index) => {
@@ -88,29 +94,59 @@
         revealTargets.forEach((element) => element.classList.add("is-visible"));
     }
 
-    if (hero && window.matchMedia("(pointer: fine)").matches) {
-        const heroLayers = hero.querySelectorAll(".hero-copy, .hero-rail, .hero-orbit");
+    const countTargets = document.querySelectorAll("[data-count]");
+    const animateCount = (element) => {
+        const target = Number(element.dataset.count || "0");
+        if (!Number.isFinite(target) || target <= 0 || element.dataset.countAnimated === "true") {
+            return;
+        }
 
+        element.dataset.countAnimated = "true";
+        const duration = 900;
+        const startTime = performance.now();
+
+        const tick = (now) => {
+            const progress = Math.min((now - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            element.textContent = Math.round(target * eased).toString();
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+            }
+        };
+
+        requestAnimationFrame(tick);
+    };
+
+    if ("IntersectionObserver" in window) {
+        const countObserver = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        animateCount(entry.target);
+                        countObserver.unobserve(entry.target);
+                    }
+                });
+            },
+            { threshold: 0.5 }
+        );
+        countTargets.forEach((element) => countObserver.observe(element));
+    } else {
+        countTargets.forEach(animateCount);
+    }
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (hero && window.matchMedia("(pointer: fine)").matches && !prefersReducedMotion.matches) {
         const handleHeroMove = (event) => {
             const rect = hero.getBoundingClientRect();
             const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
             const offsetY = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
 
-            hero.style.setProperty("--hero-tilt-x", `${offsetX * 5}deg`);
-            hero.style.setProperty("--hero-tilt-y", `${offsetY * -5}deg`);
-
-            heroLayers.forEach((layer, index) => {
-                const depth = (index + 1) * 7;
-                layer.style.transform = `translate3d(${offsetX * depth}px, ${offsetY * depth}px, 0)`;
-            });
+            hero.style.setProperty("--hero-pointer-x", offsetX.toFixed(3));
+            hero.style.setProperty("--hero-pointer-y", offsetY.toFixed(3));
         };
 
         const resetHeroMove = () => {
-            hero.style.setProperty("--hero-tilt-x", "0deg");
-            hero.style.setProperty("--hero-tilt-y", "0deg");
-            heroLayers.forEach((layer) => {
-                layer.style.transform = "";
-            });
+            hero.style.setProperty("--hero-pointer-x", "0");
+            hero.style.setProperty("--hero-pointer-y", "0");
         };
 
         hero.addEventListener("mousemove", handleHeroMove);
