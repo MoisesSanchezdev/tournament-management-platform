@@ -49,10 +49,11 @@ class PDFConversionTests(SimpleTestCase):
     def test_libreoffice_absent_raises_clear_error(self):
         with override_settings(LIBREOFFICE_BINARY=""):
             with patch("apps.invitations.services.shutil.which", return_value=None):
-                with self.assertRaisesRegex(PDFConversionError, "No fue posible generar el PDF"):
-                    from .services import resolve_libreoffice_binary
+                with patch("apps.invitations.services.Path.exists", return_value=False):
+                    with self.assertRaisesRegex(PDFConversionError, "No fue posible generar el PDF"):
+                        from .services import resolve_libreoffice_binary
 
-                    resolve_libreoffice_binary()
+                        resolve_libreoffice_binary()
 
     def test_conversion_timeout_raises_controlled_error(self):
         with tempfile.TemporaryDirectory() as tmpdir:
